@@ -25,42 +25,39 @@
 
 //------------------------------------------------------------------------|
 
-typedef struct __link {
-  struct __link *next;				// address of next node
-  struct __link *prev;				// address of previous node
-  void *data;					// pointer to node's contents
-  size_t size;					// node data size
-  long type;					// data type (IMPLEMENTATION-SPECIFIC)
-  _vpfunc1 vnclose;				// node data destructor
-  //pthread_t tid;
-} *_link;
+typedef struct link_t {
+  struct link_t *next;    // pointer to next node or null if end
+  struct link_t *prev;    // pointer to previous node or null if beginning
+  void *data;             // pointer to node's contents,
+                          // implemeter is responsible for size
+} link_t;
 
 typedef struct {
-  _bstr name;					// name of this list
-  _link node;					// current node
-  _link orig;					// origin node for reset
+  link_t * link;          // current link in chain
+  link_t * orig;          // origin link in chain
   unsigned long length;				// list length
-  pthread_mutex_t lock;				// pthread mutex lock
-  size_t level;					// lock depth
+  _vpfunc1 vnclose;				// node data destructor
 } _chain;
 
 //------------------------------------------------------------------------|
-int chain_lock (_chain *);			// use carefully!
-int chain_unlock (_chain *);			// use carefully!
 int chain_open (_chain *, const char *);	// initialize list instance
 int chain_close (_chain *);			// completely deallocate list
+int chain_vnclose (void *);
+
 int chain_init (_chain *);			// initilize static components
 int chain_clear (_chain *);			// revert state to after 'open'
+
 int chain_ins (_chain *, void *, size_t, _vpfunc1); // add node after current
 int chain_del (_chain *);			// delete current node
+
 int chain_move (_chain *, long);		// rewind/forward a list
 int chain_reset (_chain *);			// reset to origin node
+
 int chain_data (_chain *, void *, size_t, _vpfunc1); // add data to node
 int chain_undata (_chain *);			// clear data from current node
+
 int chain_sort (_chain *, _vpfunc2);		// sort using comparator
 int chain_part (_chain *, _chain *, long, long); // partition list into 2
-int chain_fsave (_chain *, _file *, _vpfunc2); // save to file
-int chain_fload (_chain *, _file *, _vpfunc2); // load from file
-int chain_vnclose (void *);
+
 
 #endif
