@@ -48,8 +48,6 @@ int chain_open (_chain *chain, const char *name)
   // initialize contents of origin link...
   // assign link data size...
   chain->link->data = NULL;
-  chain->link->size = (size_t) 0;
-  chain->link->type = 0x00000000L;
   chain->link->vnclose = NULL;
 
 
@@ -61,11 +59,9 @@ int chain_open (_chain *chain, const char *name)
 int chain_close (_chain *chain)
 {
   int error = 0;
-  if (error != 0) { return (error); }
 
   // close all links except origin - clear all data.
   // remove final link & close list name
-  error |= _bstr_close (&chain->name);
   error |= chain_clear (chain);
   free (chain->link);
 
@@ -73,10 +69,6 @@ int chain_close (_chain *chain)
   error |= chain_init (chain);
 
 
-  chain->level = (size_t) 0;
-#ifndef _VLIST_LOCK_DISABLE
-  error |= pthread_mutex_destroy (&chain->lock);
-#endif
   return (error);
 }
 
@@ -86,13 +78,11 @@ int chain_close (_chain *chain)
 int chain_init (_chain *chain)
 {
   int error = 0;
-  if (error != 0) { return (error); }
 
   // initialize some static components
   chain->link    = NULL;
   chain->orig    = NULL;
   chain->length  = (size_t) 0;
-
 
   return (error);
 }
@@ -103,7 +93,6 @@ int chain_init (_chain *chain)
 int chain_clear (_chain *chain)
 {
   int error = 0;
-  if (error != 0) { return (error); }
 
   // reset list to origin link
   // UPDATE: 1/1/03 move back one to last link
@@ -112,7 +101,8 @@ int chain_clear (_chain *chain)
   error |= chain_move (chain, -1);
   
   // delete links until last remaining (origin)
-  while (chain->link != chain->link->next) {
+  while (chain->link != chain->link->next)
+  {
     chain_del (chain);
   }
 
@@ -134,7 +124,6 @@ int chain_ins (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
 {
   int error = 0;
   link_t link = NULL;
-  if (error != 0) { return (error); }
 
   // only add another link if length is non-zero
   // because length can be zero while origin link exists
@@ -152,8 +141,6 @@ int chain_ins (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
     // and initialize new link's contents
     error |= chain_move (chain, (long) 1);
     chain->link->data = NULL;
-    chain->link->size = (size_t) 0;
-    chain->link->type = 0x00000000L;
     chain->link->vnclose = NULL;
   }
 
@@ -172,7 +159,6 @@ int chain_del (_chain *chain)
 {
   int error = 0;
   link_t link = NULL;
-  if (error != 0) { return (error); }
 
   // free link's data contents
   error |= chain_undata (chain);
@@ -214,7 +200,6 @@ int chain_move (_chain *chain, long index)
 {
   int error = 0;
   long count = 0;
-  if (error != 0) { return (error); }
 
   if (index > 0) {
     // move forward by 'index' links
@@ -239,7 +224,6 @@ int chain_move (_chain *chain, long index)
 int chain_reset (_chain *chain)
 {
   int error = 0;
-  if (error != 0) { return (error); }
 
   // set current link to origin link
   chain->link = chain->orig;
@@ -254,7 +238,6 @@ int chain_reset (_chain *chain)
 int chain_data (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
 {
   int error = 0;
-  if (error != 0) { return (error); }
 
   // free existing data package if assigned
   error |= chain_undata (chain);
@@ -270,8 +253,6 @@ int chain_data (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
     if (chain->link->data == NULL) { return (ERROR_ALLOC); }
   }
 
-  chain->link->size = size;
-  //chain->link->type = 0x00000000L;
   chain->link->vnclose = vnclose;
   
   // UPDATE: allow NULL data source -- zero-out link data
@@ -293,7 +274,6 @@ int chain_data (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
 int chain_undata (_chain *chain)
 {
   int error = 0;
-  if (error != 0) { return (error); }
 
   // check link data destructor and call if not null
   if ((chain->link != NULL)
@@ -322,6 +302,7 @@ int chain_sort (_chain *chain, _vpfunc2 compare)
 {
   int error = 0;
 
+  // TODO: use qsort on a dynamically allocated array of link pointers
   return (error);
 }
 
@@ -335,14 +316,6 @@ int chain_part (_chain *chain, _chain *part, long begin, long end)
 {
   int error = 0;
   link_t link = NULL;
-  if (error != 0) { return (error); }
-
-  // also lock partition list, but be careful to unlock chain if error
-  error |= chain_lock (part);
-  if (error != 0) {
-
-    return (error);
-  }
 
   // remove whatever partition list contains up till now including origin
   error |= chain_clear (part);
@@ -350,7 +323,6 @@ int chain_part (_chain *chain, _chain *part, long begin, long end)
 
   // assign some key attributes
   part->length = (unsigned long) end - begin;
-  part->level = chain->level;
   
   // move from start up to the 'begin' index
   // this becomes the origin link of the partition
@@ -372,7 +344,6 @@ int chain_part (_chain *chain, _chain *part, long begin, long end)
   chain->link->prev = link;
   chain->length -= part->length;
 
-  chain_unlock (part);
-  
+
   return (error);
 }
