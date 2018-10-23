@@ -22,11 +22,14 @@
 //------------------------------------------------------------------------|
 
 //------------------------------------------------------------------------|
+#include <string.h>
+#include <stdlib.h>
+
 #include "chain.h"
 
 //------------------------------------------------------------------------|
 // call this after declaration. NULL name should be ok
-int chain_open (_chain *chain, const char *name)
+int chain_open (chain_t * chain, const char * name)
 {
   int error = 0;
 
@@ -37,7 +40,7 @@ int chain_open (_chain *chain, const char *name)
   // allocate initial link of this list
   // and link the origin link to itself...
   // mark origin link for later reset () calls
-  chain->link = (link_t) malloc (sizeof (struct _link_t));
+  chain->link = (link_t *) malloc (sizeof (struct link_t));
   chain->link->next = chain->link;
   chain->link->prev = chain->link;
   chain->orig = chain->link;
@@ -48,7 +51,7 @@ int chain_open (_chain *chain, const char *name)
   // initialize contents of origin link...
   // assign link data size...
   chain->link->data = NULL;
-  chain->link->vnclose = NULL;
+  chain->vnclose = NULL;
 
 
   return (error);
@@ -56,7 +59,7 @@ int chain_open (_chain *chain, const char *name)
 
 //------------------------------------------------------------------------|
 // call this last to clear and completely deallocate list
-int chain_close (_chain *chain)
+int chain_close (chain_t *chain)
 {
   int error = 0;
 
@@ -75,7 +78,7 @@ int chain_close (_chain *chain)
 //------------------------------------------------------------------------|
 // NOTE: normally private/static use only.  don't use unless you really
 // know what you're doing.  this callously blasts/initializes the list!
-int chain_init (_chain *chain)
+int chain_init (chain_t *chain)
 {
   int error = 0;
 
@@ -90,7 +93,7 @@ int chain_init (_chain *chain)
 //------------------------------------------------------------------------|
 // reset an active list back to it's state as if just after open while
 // preserving the origin link
-int chain_clear (_chain *chain)
+int chain_clear (chain_t *chain)
 {
   int error = 0;
 
@@ -120,16 +123,16 @@ int chain_clear (_chain *chain)
 // insert a link after current link and advance to it, alternatively
 // adding data to it.  data closure function pointer may be specified
 // on a per-link basis or else NULL is fine for data or vnclose
-int chain_ins (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
+int chain_ins (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
 {
   int error = 0;
-  link_t link = NULL;
+  link_t * link = NULL;
 
   // only add another link if length is non-zero
   // because length can be zero while origin link exists
   if (chain->length > 0) {
     // create a new link
-    link = (link_t) malloc (sizeof (struct _link_t));
+    link = (link_t *) malloc (sizeof (struct link_t));
 
     // link new link in between current and next link
     chain->link->next->prev = link;
@@ -141,7 +144,7 @@ int chain_ins (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
     // and initialize new link's contents
     error |= chain_move (chain, (long) 1);
     chain->link->data = NULL;
-    chain->link->vnclose = NULL;
+    chain->vnclose = NULL;
   }
 
   // UPDATE: add data / alloc mem with every insert
@@ -155,10 +158,10 @@ int chain_ins (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
 
 //------------------------------------------------------------------------|
 // delete current link and revert back to the previous link as current
-int chain_del (_chain *chain)
+int chain_del (chain_t *chain)
 {
   int error = 0;
-  link_t link = NULL;
+  link_t * link = NULL;
 
   // free link's data contents
   error |= chain_undata (chain);
@@ -196,7 +199,7 @@ int chain_del (_chain *chain)
 
 //------------------------------------------------------------------------|
 // rotate list forward or backward by signed index links
-int chain_move (_chain *chain, long index)
+int chain_move (chain_t *chain, long index)
 {
   int error = 0;
   long count = 0;
@@ -221,7 +224,7 @@ int chain_move (_chain *chain, long index)
 
 //------------------------------------------------------------------------|
 // set current link to origin link
-int chain_reset (_chain *chain)
+int chain_reset (chain_t *chain)
 {
   int error = 0;
 
@@ -235,7 +238,7 @@ int chain_reset (_chain *chain)
 //------------------------------------------------------------------------|
 // add data to current link.  no deep-copy is performed.  data closure
 // function pointer may be specified for garbage collection or NULL
-int chain_data (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
+int chain_data (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
 {
   int error = 0;
 
@@ -250,10 +253,13 @@ int chain_data (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
     chain->link->data = NULL;
   } else {
     chain->link->data = (void *) malloc (size);
-    if (chain->link->data == NULL) { return (ERROR_ALLOC); }
+    if (chain->link->data == NULL)
+    {
+      return (-1);
+    }
   }
 
-  chain->link->vnclose = vnclose;
+  chain->vnclose = vnclose;
   
   // UPDATE: allow NULL data source -- zero-out link data
   // UPDATE: dest data pointer might be NULL!
@@ -271,15 +277,15 @@ int chain_data (_chain *chain, void *data, size_t size, _vpfunc1 vnclose)
 
 //------------------------------------------------------------------------|
 // erase all data from current link
-int chain_undata (_chain *chain)
+int chain_undata (chain_t *chain)
 {
   int error = 0;
 
   // check link data destructor and call if not null
   if ((chain->link != NULL)
     && (chain->link->data != NULL)
-    && (chain->link->vnclose != NULL)) {
-    error |= chain->link->vnclose ((void *) chain->link->data);
+    && (chain->vnclose != NULL)) {
+    error |= chain->vnclose ((void *) chain->link->data);
   }
 
   // check if memory has been allocated for link data.
@@ -289,7 +295,7 @@ int chain_undata (_chain *chain)
     chain->link->data = NULL;
     chain->link->size = (size_t) 0;
     //chain->link->type = 0x00000000L;
-    chain->link->vnclose = NULL;
+    chain->vnclose = NULL;
   }
 
 
@@ -298,7 +304,7 @@ int chain_undata (_chain *chain)
 
 //------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
-int chain_sort (_chain *chain, _vpfunc2 compare)
+int chain_sort (chain_t *chain, _vpfunc2 compare)
 {
   int error = 0;
 
@@ -312,10 +318,10 @@ int chain_sort (_chain *chain, _vpfunc2 compare)
 // with the links from the beginning index and up to, but not including
 // the ending index.  the chain as passed in is modified in-place and
 // contains whatever is left over.  NOTE: UNTESTED!!
-int chain_part (_chain *chain, _chain *part, long begin, long end)
+int chain_part (chain_t *chain, chain_t *part, long begin, long end)
 {
   int error = 0;
-  link_t link = NULL;
+  link_t * link = NULL;
 
   // remove whatever partition list contains up till now including origin
   error |= chain_clear (part);

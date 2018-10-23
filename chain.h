@@ -23,14 +23,19 @@
 
 #pragma once
 
+#include <stddef.h>
+
+
 //------------------------------------------------------------------------|
+typedef int (*_vpfunc1) (void *);
+typedef int (*_vpfunc2) (void *, void *);
 
 typedef struct link_t
 {
-  struct link_t *next;    // pointer to next node or null if end
-  struct link_t *prev;    // pointer to previous node or null if beginning
-  void *data;             // pointer to node's contents,
-                          // implementer is responsible for size
+  struct link_t * next;    // pointer to next node or null if end
+  struct link_t * prev;    // pointer to previous node or null if beginning
+  void * data;             // pointer to node's contents,
+                           // implementer is responsible for size
 }
 link_t;
 
@@ -64,5 +69,3 @@ int chain_undata (chain_t *);			// clear data from current node
 int chain_sort (chain_t *, _vpfunc2);		// sort using comparator
 int chain_part (chain_t *, chain_t *, long, long); // partition list into 2
 
-
-#endif
