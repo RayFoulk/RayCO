@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018 by Raymond M. Foulk IV
+// Copyright (c) 2018-2019 by Raymond M. Foulk IV
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -27,24 +27,22 @@
 
 
 //------------------------------------------------------------------------|
-typedef int (*_vpfunc1) (void *);
-typedef int (*_vpfunc2) (void *, void *);
-
 typedef struct link_t
 {
-  struct link_t * next;    // pointer to next node or null if end
-  struct link_t * prev;    // pointer to previous node or null if beginning
-  void * data;             // pointer to node's contents,
-                           // implementer is responsible for size
+    struct link_t * next;    // pointer to next node
+    struct link_t * prev;    // pointer to previous node
+    void * data;             // pointer to node's contents,
+                             // caller is responsible for data size
+
+    // consider adding data dtor fptr for heterogeneous link payloads
 }
 link_t;
 
 typedef struct
 {
-  link_t * link;          // current link in chain
-  link_t * orig;          // origin link in chain
-  unsigned long length;   // list length
-  _vpfunc1 vnclose;       // node data destructor
+    link_t * link;          // current link in chain
+    link_t * orig;          // origin link in chain
+    size_t length;          // list length
 }
 chain_t;
 
