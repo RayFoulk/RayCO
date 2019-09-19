@@ -55,8 +55,8 @@ int chain_vnclose (void *);
 int chain_init (chain_t *);			// initilize static components
 int chain_clear (chain_t *);			// revert state to after 'open'
 
-int chain_ins (chain_t *, void *, size_t, _vpfunc1); // add node after current
-int chain_del (chain_t *);			// delete current node
+int chain_insert (chain_t *, void *, size_t, _vpfunc1); // add node after current
+int chain_delete (chain_t *);			// delete current node
 
 int chain_move (chain_t *, long);		// rewind/forward a list
 int chain_reset (chain_t *);			// reset to origin node

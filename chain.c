@@ -106,7 +106,7 @@ int chain_clear (chain_t *chain)
   // delete links until last remaining (origin)
   while (chain->link != chain->link->next)
   {
-    chain_del (chain);
+    chain_delete (chain);
   }
 
   // free final link's data contents
@@ -123,7 +123,7 @@ int chain_clear (chain_t *chain)
 // insert a link after current link and advance to it, alternatively
 // adding data to it.  data closure function pointer may be specified
 // on a per-link basis or else NULL is fine for data or vnclose
-int chain_ins (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
+int chain_insert (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
 {
   int error = 0;
   link_t * link = NULL;
@@ -158,7 +158,7 @@ int chain_ins (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
 
 //------------------------------------------------------------------------|
 // delete current link and revert back to the previous link as current
-int chain_del (chain_t *chain)
+int chain_delete (chain_t *chain)
 {
   int error = 0;
   link_t * link = NULL;
