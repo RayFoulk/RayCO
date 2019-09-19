@@ -29,7 +29,7 @@
 
 //------------------------------------------------------------------------|
 // call this after declaration. NULL name should be ok
-int chain_open (chain_t * chain, const char * name)
+int chain_create (chain_t * chain, const char * name)
 {
   int error = 0;
 
@@ -59,7 +59,7 @@ int chain_open (chain_t * chain, const char * name)
 
 //------------------------------------------------------------------------|
 // call this last to clear and completely deallocate list
-int chain_close (chain_t *chain)
+int chain_destroy (chain_t *chain)
 {
   int error = 0;
 

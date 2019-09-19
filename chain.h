@@ -47,8 +47,8 @@ typedef struct
 chain_t;
 
 //------------------------------------------------------------------------|
-int chain_open (chain_t *, const char *);	// initialize list instance
-int chain_close (chain_t *);			// completely deallocate list
+int chain_create (chain_t *, const char *);	// initialize list instance
+int chain_destroy (chain_t *);			// completely deallocate list
 
 int chain_vnclose (void *);
 
