@@ -61,9 +61,6 @@ int chain_del (chain_t *);			// delete current node
 int chain_move (chain_t *, long);		// rewind/forward a list
 int chain_reset (chain_t *);			// reset to origin node
 
-int chain_data (chain_t *, void *, size_t, _vpfunc1); // add data to node
-int chain_undata (chain_t *);			// clear data from current node
-
 int chain_sort (chain_t *, _vpfunc2);		// sort using comparator
 int chain_part (chain_t *, chain_t *, long, long); // partition list into 2
 

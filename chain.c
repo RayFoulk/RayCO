@@ -149,7 +149,7 @@ int chain_ins (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
 
   // UPDATE: add data / alloc mem with every insert
   // increment length either way
-  error |= chain_data (chain, data, size, vnclose);
+  //error |= chain_data (chain, data, size, vnclose);
   chain->length ++;
 
 
@@ -230,73 +230,6 @@ int chain_reset (chain_t *chain)
 
   // set current link to origin link
   chain->link = chain->orig;
-
-
-  return (error);
-}
-
-//------------------------------------------------------------------------|
-// add data to current link.  no deep-copy is performed.  data closure
-// function pointer may be specified for garbage collection or NULL
-int chain_data (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
-{
-  int error = 0;
-
-  // free existing data package if assigned
-  error |= chain_undata (chain);
-
-  // allocate memory for current link's data contents
-  // and one-level copy caller's data to the link
-  // NOTE: this does NOT handle deep-copy of pointers
-  // assign data size and destructor
-  if (size == (size_t) 0) {
-    chain->link->data = NULL;
-  } else {
-    chain->link->data = (void *) malloc (size);
-    if (chain->link->data == NULL)
-    {
-      return (-1);
-    }
-  }
-
-  chain->vnclose = vnclose;
-  
-  // UPDATE: allow NULL data source -- zero-out link data
-  // UPDATE: dest data pointer might be NULL!
-  if (chain->link->data != NULL) {
-    if (data == NULL) {
-      memset (chain->link->data, 0, chain->link->size);
-    } else {
-      memcpy (chain->link->data, data, chain->link->size);
-    }
-  }
-
-
-  return (error);
-}
-
-//------------------------------------------------------------------------|
-// erase all data from current link
-int chain_undata (chain_t *chain)
-{
-  int error = 0;
-
-  // check link data destructor and call if not null
-  if ((chain->link != NULL)
-    && (chain->link->data != NULL)
-    && (chain->vnclose != NULL)) {
-    error |= chain->vnclose ((void *) chain->link->data);
-  }
-
-  // check if memory has been allocated for link data.
-  // if so, free memory from link's data & reset data pointer
-  if (chain->link->data != NULL) {
-    free (chain->link->data);
-    chain->link->data = NULL;
-    chain->link->size = (size_t) 0;
-    //chain->link->type = 0x00000000L;
-    chain->vnclose = NULL;
-  }
 
 
   return (error);
