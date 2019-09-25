@@ -28,80 +28,90 @@
 #include "chain.h"
 
 //------------------------------------------------------------------------|
-// call this after declaration. NULL name should be ok
-int chain_create (chain_t * chain, const char * name)
+// factory-style creation of chain-link list
+chain_t * chain_create()
 {
-  int error = 0;
+    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
+    if (!chain)
+    {
+        printf("%s: ERROR: malloc(sizeof(chain_t)) failed\n",
+                 __FUNCTION__);
+        return NULL;
+    }
 
-  // initialize components
-  error |= chain_init (chain);
-  //if (error != 0) { return (error); }
+    // initialize components
+    memset(chain, 0, sizeof(chain_t));
   
-  // allocate initial link of this list
-  // and link the origin link to itself...
-  // mark origin link for later reset () calls
-  chain->link = (link_t *) malloc (sizeof (struct link_t));
-  chain->link->next = chain->link;
-  chain->link->prev = chain->link;
-  chain->orig = chain->link;
+    // allocate initial link of this list
+    // this will be the origin link.
+    chain->link = (link_t *) malloc(sizeof(link_t));
+    if (!chain->link)
+    {
+        printf("%s: ERROR: malloc(sizeof(link_t)) failed\n",
+                 __FUNCTION__);
+        free(chain);
+        chain = NULL;
+        return NULL;
+    }
 
-  // NOTE: caller may pass a NULL function pointer if they intend to
-  // use a static data type or handle a dynamic data type externally
-  // set list link data destructor function...
-  // initialize contents of origin link...
-  // assign link data size...
-  chain->link->data = NULL;
-  chain->vnclose = NULL;
+    // mark origin link for later reset () calls
+    // and link the origin link to itself...
+    chain->link->next = chain->link;
+    chain->link->prev = chain->link;
+    chain->orig = chain->link;
+    chain->link->data = NULL;
 
-
-  return (error);
-}  
-
-//------------------------------------------------------------------------|
-// call this last to clear and completely deallocate list
-int chain_destroy (chain_t *chain)
-{
-  int error = 0;
-
-  // close all links except origin - clear all data.
-  // remove final link & close list name
-  error |= chain_clear (chain);
-  free (chain->link);
-
-  // re-initialize static components
-  error |= chain_init (chain);
-
-
-  return (error);
+    return chain;
 }
 
 //------------------------------------------------------------------------|
-// reset an active list back to it's state as if just after open while
-// preserving the origin link
-int chain_clear (chain_t *chain)
+void chain_destroy(chain_t * chain)
 {
-  int error = 0;
+    // guard against accidental double-destroy or early-destroy
+    if (!chain || !chain->orig)
+    {
+        return;
+    }
 
-  // reset list to origin link
-  // UPDATE: 1/1/03 move back one to last link
-  // this is to avoid deleting the origin link!!!
-  error |= chain_reset (chain);
-  error |= chain_move (chain, -1);
+    // remove all links - note there is no data dtor here, so the user is
+    // expected to have previously called free() on every payload.
+    chain_clear(chain);
+
+    // free the origin link, which is the only one left
+   free (chain->link);
+
+    // zero out the remaining empty chain
+    memset(chain, 0, sizeof(chain_t));
+
+    // destroy the chain
+    free(chain);
+    chain = NULL;
+}
+
+//------------------------------------------------------------------------|
+void chain_clear(chain_t * chain)
+{
+
+    chain_reset(chain);
+    chain_rewind(chain, 1);
   
-  // delete links until last remaining (origin)
-  while (chain->link != chain->link->next)
-  {
-    chain_delete (chain);
-  }
+    // delete links until last remaining (origin)
+    while (chain->link != chain->link->next)
+    {
+        chain_delete (chain);
+    }
 
-  // free final link's data contents
-  error |= chain_undata (chain);
+    // The last link may still contain data.
+    // May need to add a dtor function to the chain factory
+    // and main data strucure to fix potential memory leak.
+    // valgrind this later to be sure
+    if (NULL != chain->link->data)
+    {
+       free(chain->link->data) ;
+       chain->link->data = NULL;
+    }
 
-  // reset list length
-  chain->length = (unsigned long) 0;
-
-
-  return (error);
+    chain->length = 0;
 }
 
 //------------------------------------------------------------------------|

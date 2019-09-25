@@ -51,12 +51,11 @@ typedef int (*link_compare_func_t) (const void *, const void *);
 typedef void * (*link_copy_func_t) (void *);
 
 //------------------------------------------------------------------------|
-int chain_create (chain_t *, const char *);	// initialize list instance
-int chain_destroy (chain_t *);			// completely deallocate list
-int chain_clear (chain_t *);			// revert state to after 'open'
-
-int chain_insert (chain_t *, void *, size_t, _vpfunc1); // add node after current
-int chain_delete (chain_t *);			// delete current node
+chain_t * chain_create();
+void chain_destroy(chain_t * chain);
+void chain_clear(chain_t * chain);          // remove all links (no data dtor!!)
+void chain_insert(chain_t * chain);         // insert new link after & go to it
+void chain_delete(chain_t * chain);         // delete current link & go back
 
 int chain_move (chain_t *, long);		// rewind/forward a list
 int chain_reset (chain_t *);			// reset to origin node
