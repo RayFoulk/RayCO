@@ -76,21 +76,6 @@ int chain_destroy (chain_t *chain)
 }
 
 //------------------------------------------------------------------------|
-// NOTE: normally private/static use only.  don't use unless you really
-// know what you're doing.  this callously blasts/initializes the list!
-int chain_init (chain_t *chain)
-{
-  int error = 0;
-
-  // initialize some static components
-  chain->link    = NULL;
-  chain->orig    = NULL;
-  chain->length  = (size_t) 0;
-
-  return (error);
-}
-
-//------------------------------------------------------------------------|
 // reset an active list back to it's state as if just after open while
 // preserving the origin link
 int chain_clear (chain_t *chain)

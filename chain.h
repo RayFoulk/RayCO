@@ -47,12 +47,12 @@ typedef struct
 chain_t;
 
 //------------------------------------------------------------------------|
+typedef int (*link_compare_func_t) (const void *, const void *);
+typedef void * (*link_copy_func_t) (void *);
+
+//------------------------------------------------------------------------|
 int chain_create (chain_t *, const char *);	// initialize list instance
 int chain_destroy (chain_t *);			// completely deallocate list
-
-int chain_vnclose (void *);
-
-int chain_init (chain_t *);			// initilize static components
 int chain_clear (chain_t *);			// revert state to after 'open'
 
 int chain_insert (chain_t *, void *, size_t, _vpfunc1); // add node after current
