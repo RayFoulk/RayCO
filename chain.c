@@ -35,20 +35,20 @@ chain_t * chain_create()
     if (!chain)
     {
         printf("%s: ERROR: malloc(sizeof(chain_t)) failed\n",
-                 __FUNCTION__);
+               __FUNCTION__);
         return NULL;
     }
 
     // initialize components
     memset(chain, 0, sizeof(chain_t));
-  
+
     // allocate initial link of this list
     // this will be the origin link.
     chain->link = (link_t *) malloc(sizeof(link_t));
     if (!chain->link)
     {
         printf("%s: ERROR: malloc(sizeof(link_t)) failed\n",
-                 __FUNCTION__);
+               __FUNCTION__);
         free(chain);
         chain = NULL;
         return NULL;
@@ -78,7 +78,7 @@ void chain_destroy(chain_t * chain)
     chain_clear(chain);
 
     // free the origin link, which is the only one left
-   free (chain->link);
+    free (chain->link);
 
     // zero out the remaining empty chain
     memset(chain, 0, sizeof(chain_t));
@@ -94,7 +94,7 @@ void chain_clear(chain_t * chain)
 
     chain_reset(chain);
     chain_rewind(chain, 1);
-  
+
     // delete links until last remaining (origin)
     while (chain->link != chain->link->next)
     {
@@ -107,137 +107,140 @@ void chain_clear(chain_t * chain)
     // valgrind this later to be sure
     if (NULL != chain->link->data)
     {
-       free(chain->link->data) ;
-       chain->link->data = NULL;
+        free(chain->link->data) ;
+        chain->link->data = NULL;
     }
 
     chain->length = 0;
 }
 
 //------------------------------------------------------------------------|
-// insert a link after current link and advance to it, alternatively
-// adding data to it.  data closure function pointer may be specified
-// on a per-link basis or else NULL is fine for data or vnclose
-int chain_insert (chain_t *chain, void *data, size_t size, _vpfunc1 vnclose)
+// insert a link after current link and advance to it
+void chain_insert(chain_t * chain)
 {
-  int error = 0;
-  link_t * link = NULL;
+    link_t * link = NULL;
 
-  // only add another link if length is non-zero
-  // because length can be zero while origin link exists
-  if (chain->length > 0) {
-    // create a new link
-    link = (link_t *) malloc (sizeof (struct link_t));
+    // only add another link if length is non-zero
+    // because length can be zero while origin link exists
+    if (chain->length > 0)
+    {
+        // create a new link
+        link = (link_t *) malloc (sizeof (struct link_t));
 
-    // link new link in between current and next link
-    chain->link->next->prev = link;
-    link->next = chain->link->next;
-    link->prev = chain->link;
-    chain->link->next = link;
+        // link new link in between current and next link
+        chain->link->next->prev = link;
+        link->next = chain->link->next;
+        link->prev = chain->link;
+        chain->link->next = link;
 
-    // move forward to the new link
-    // and initialize new link's contents
-    error |= chain_move (chain, (long) 1);
-    chain->link->data = NULL;
-    chain->vnclose = NULL;
-  }
+        // move forward to the new link
+        // and initialize new link's contents
+        error |= chain_move (chain, (long) 1);
+        chain->link->data = NULL;
+        chain->vnclose = NULL;
+    }
 
-  // UPDATE: add data / alloc mem with every insert
-  // increment length either way
-  //error |= chain_data (chain, data, size, vnclose);
-  chain->length ++;
+    // UPDATE: add data / alloc mem with every insert
+    // increment length either way
+    //error |= chain_data (chain, data, size, vnclose);
+    chain->length ++;
 
 
-  return (error);
+    return (error);
 }
 
 //------------------------------------------------------------------------|
 // delete current link and revert back to the previous link as current
 int chain_delete (chain_t *chain)
 {
-  int error = 0;
-  link_t * link = NULL;
+    int error = 0;
+    link_t * link = NULL;
 
-  // free link's data contents
-  error |= chain_undata (chain);
+    // free link's data contents
+    error |= chain_undata (chain);
 
-  // only delete link if length is greater than 1
-  if (chain->length > 1) {
-    // check if we're about to delete the origin link
-    if (chain->link == chain->orig) {
-      // appropriate thing to do may be to re-assign
-      // origin link to the next one before deleting it
-      // printf ("DEBUG: WARNING: DELETING ORIGIN link\n");
-      chain->orig = chain->link->next;
+    // only delete link if length is greater than 1
+    if (chain->length > 1)
+    {
+        // check if we're about to delete the origin link
+        if (chain->link == chain->orig)
+        {
+            // appropriate thing to do may be to re-assign
+            // origin link to the next one before deleting it
+            // printf ("DEBUG: WARNING: DELETING ORIGIN link\n");
+            chain->orig = chain->link->next;
+        }
+
+        // remember previous link
+        link = chain->link->prev;
+
+        // unlink current link
+        chain->link->prev->next = chain->link->next;
+        chain->link->next->prev = chain->link->prev;
+
+        // free the current link
+        free (chain->link);
+
+        // make current link old previous link
+        chain->link = link;
     }
 
-    // remember previous link
-    link = chain->link->prev;
-
-    // unlink current link
-    chain->link->prev->next = chain->link->next;
-    chain->link->next->prev = chain->link->prev;
-
-    // free the current link
-    free (chain->link);
-
-    // make current link old previous link
-    chain->link = link;
-  }
-
-  // decrement list length either way
-  chain->length --;
+    // decrement list length either way
+    chain->length --;
 
 
-  return (error);
+    return (error);
 }
 
 //------------------------------------------------------------------------|
-// rotate list forward or backward by signed index links
-int chain_move (chain_t *chain, long index)
+// Move forward through the chain by a positive number of links
+// Return false if ended on the origin node
+bool chain_forward(chain_t * chain, size_t index)
 {
-  int error = 0;
-  long count = 0;
-
-  if (index > 0) {
-    // move forward by 'index' links
-    for (count = 0; count < index; count ++) {
-      // increment by one link
-      chain->link = chain->link->next;
+    while (index > 0)
+    {
+        chain->link = chain->link->next;
+        index--;
     }
-  } else {
-    // move backwards by 'index' links
-    for (count = 0; count > index; count --) {
-      // decrement by one link
-      chain->link = chain->link->prev;
+
+    return (chain->link != chain->orig);
+}
+
+//------------------------------------------------------------------------|
+// Move backward through the chain by a positive number of links
+// Return false if ended on the origin node
+bool chain_rewind(chain_t * chain, size_t index)
+{
+    while (index > 0)
+    {
+        chain->link = chain->link->prev;
+        index--;
     }
-  }
 
-
-  return (error);
+    return (chain->link != chain->orig);
 }
 
 //------------------------------------------------------------------------|
 // set current link to origin link
 int chain_reset (chain_t *chain)
 {
-  int error = 0;
+    int error = 0;
 
-  // set current link to origin link
-  chain->link = chain->orig;
+    // set current link to origin link
+    chain->link = chain->orig;
 
 
-  return (error);
+    return (error);
 }
 
 //------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
 int chain_sort (chain_t *chain, _vpfunc2 compare)
 {
-  int error = 0;
+    int error = 0;
 
-  // TODO: use qsort on a dynamically allocated array of link pointers
-  return (error);
+    // TODO: use qsort on a dynamically allocated array of link pointers
+    return (error);
 }
 
 //------------------------------------------------------------------------|
@@ -248,36 +251,36 @@ int chain_sort (chain_t *chain, _vpfunc2 compare)
 // contains whatever is left over.  NOTE: UNTESTED!!
 int chain_part (chain_t *chain, chain_t *part, long begin, long end)
 {
-  int error = 0;
-  link_t * link = NULL;
+    int error = 0;
+    link_t * link = NULL;
 
-  // remove whatever partition list contains up till now including origin
-  error |= chain_clear (part);
-  free (part->link);
+    // remove whatever partition list contains up till now including origin
+    error |= chain_clear (part);
+    free (part->link);
 
-  // assign some key attributes
-  part->length = (unsigned long) end - begin;
-  
-  // move from start up to the 'begin' index
-  // this becomes the origin link of the partition
-  error |= chain_reset (chain);
-  error |= chain_move (chain, begin);
-  part->link = chain->link;
-  part->orig = chain->link;
+    // assign some key attributes
+    part->length = (unsigned long) end - begin;
 
-  // move up to one-after the final link in partition
-  // and remember final link there
-  chain_move (chain, part->length);
-  link = part->link->prev;
+    // move from start up to the 'begin' index
+    // this becomes the origin link of the partition
+    error |= chain_reset (chain);
+    error |= chain_move (chain, begin);
+    part->link = chain->link;
+    part->orig = chain->link;
 
-  // cut partition from main list & patch up.
-  // list is then shorter by the length of the partition
-  chain->link->prev->next = part->link;
-  part->link->prev = chain->link->prev;
-  link->next = chain->link;
-  chain->link->prev = link;
-  chain->length -= part->length;
+    // move up to one-after the final link in partition
+    // and remember final link there
+    chain_move (chain, part->length);
+    link = part->link->prev;
+
+    // cut partition from main list & patch up.
+    // list is then shorter by the length of the partition
+    chain->link->prev->next = part->link;
+    part->link->prev = chain->link->prev;
+    link->next = chain->link;
+    chain->link->prev = link;
+    chain->length -= part->length;
 
 
-  return (error);
+    return (error);
 }
