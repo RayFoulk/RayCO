@@ -34,8 +34,8 @@ chain_t * chain_create()
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
     {
-        printf("%s: ERROR: malloc(sizeof(chain_t)) failed\n",
-               __FUNCTION__);
+        // TODO: replace these witha vararg macro
+        printf("%s: ERROR: malloc(sizeof(chain_t)) failed\n", __FUNCTION__);
         return NULL;
     }
 
@@ -47,8 +47,7 @@ chain_t * chain_create()
     chain->link = (link_t *) malloc(sizeof(link_t));
     if (!chain->link)
     {
-        printf("%s: ERROR: malloc(sizeof(link_t)) failed\n",
-               __FUNCTION__);
+        printf("%s: ERROR: malloc(sizeof(link_t)) failed\n", __FUNCTION__);
         free(chain);
         chain = NULL;
         return NULL;
@@ -125,7 +124,12 @@ void chain_insert(chain_t * chain)
     if (chain->length > 0)
     {
         // create a new link
-        link = (link_t *) malloc (sizeof (struct link_t));
+        link = (link_t *) malloc(sizeof(link_t));
+        if (!link)
+        {
+            printf("%s: ERROR: malloc(sizeof(link_t)) failed\n", __FUNCTION__);
+            return;
+        }
 
         // link new link in between current and next link
         chain->link->next->prev = link;
@@ -135,29 +139,27 @@ void chain_insert(chain_t * chain)
 
         // move forward to the new link
         // and initialize new link's contents
-        error |= chain_move (chain, (long) 1);
+        chain_forward(chain, 1);
         chain->link->data = NULL;
-        chain->vnclose = NULL;
     }
 
-    // UPDATE: add data / alloc mem with every insert
-    // increment length either way
-    //error |= chain_data (chain, data, size, vnclose);
     chain->length ++;
-
-
-    return (error);
 }
 
 //------------------------------------------------------------------------|
 // delete current link and revert back to the previous link as current
-int chain_delete (chain_t *chain)
+void chain_delete(chain_t * chain)
 {
-    int error = 0;
     link_t * link = NULL;
 
     // free link's data contents
-    error |= chain_undata (chain);
+    // FIXME: this implementation assumes the chain user has allocated
+    // something using malloc.  this should be fixed using a dtor function
+    if (NULL != chain->link->data)
+    {
+       free(chain->link->data) ;
+       chain->link->data = NULL;
+    }
 
     // only delete link if length is greater than 1
     if (chain->length > 1)
@@ -165,9 +167,6 @@ int chain_delete (chain_t *chain)
         // check if we're about to delete the origin link
         if (chain->link == chain->orig)
         {
-            // appropriate thing to do may be to re-assign
-            // origin link to the next one before deleting it
-            // printf ("DEBUG: WARNING: DELETING ORIGIN link\n");
             chain->orig = chain->link->next;
         }
 
@@ -185,11 +184,8 @@ int chain_delete (chain_t *chain)
         chain->link = link;
     }
 
-    // decrement list length either way
+    // the chain is effectively one link shorter either way
     chain->length --;
-
-
-    return (error);
 }
 
 //------------------------------------------------------------------------|
@@ -221,26 +217,43 @@ bool chain_rewind(chain_t * chain, size_t index)
 }
 
 //------------------------------------------------------------------------|
-// set current link to origin link
-int chain_reset (chain_t *chain)
+void chain_trim(chain_t * chain)
 {
-    int error = 0;
+    if (chain->length > 0)
+    {
+        chain_reset(chain);
 
-    // set current link to origin link
-    chain->link = chain->orig;
+        do
+        {
+            if (!chain->link->data)
+            {
+                chain->link->data = NULL;
+                chain_delete(chain);
+                chain_reset(chain);
+            }
 
-
-    return (error);
+            chain_forward(chain, 1);
+        }
+        while (chain->link != chain->orig);
+    }
 }
 
 //------------------------------------------------------------------------|
+// set current link to origin link
+void chain_reset(chain_t * chain)
+{
+    chain->link = chain->orig;
+}
+
+
+//------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
-int chain_sort (chain_t *chain, _vpfunc2 compare)
+int chain_sort (chain_t *chain, link_compare_func_t compare)
 {
     int error = 0;
 
     // TODO: use qsort on a dynamically allocated array of link pointers
-    return (error);
+    return 0;
 }
 
 //------------------------------------------------------------------------|

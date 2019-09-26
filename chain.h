@@ -56,12 +56,12 @@ void chain_destroy(chain_t * chain);
 void chain_clear(chain_t * chain);          // remove all links (no data dtor!!)
 void chain_insert(chain_t * chain);         // insert new link after & go to it
 void chain_delete(chain_t * chain);         // delete current link & go back
-
 bool chain_forward(chain_t * chain, size_t index);
 bool chain_rewind(chain_t * chain, size_t index);
+void chain_trim(chain_t * chain);           // delete links with NULL data payload
+void chain_reset(chain_t * chain);          // reset position back to origin link
 
-int chain_reset (chain_t *);			// reset to origin node
 
-int chain_sort (chain_t *, _vpfunc2);		// sort using comparator
+void chain_sort (chain_t *, link_copy_fptr_t);		// sort using comparator
 int chain_part (chain_t *, chain_t *, long, long); // partition list into 2
 
