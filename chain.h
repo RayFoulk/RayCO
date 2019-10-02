@@ -60,8 +60,7 @@ bool chain_forward(chain_t * chain, size_t index);
 bool chain_rewind(chain_t * chain, size_t index);
 void chain_trim(chain_t * chain);           // delete links with NULL data payload
 void chain_reset(chain_t * chain);          // reset position back to origin link
+void chain_sort(chain_t * chain, link_compare_func_t compare_func);
 
-
-void chain_sort (chain_t *, link_copy_fptr_t);		// sort using comparator
-int chain_part (chain_t *, chain_t *, long, long); // partition list into 2
+chain_t * chain_segment (chain_t *, chain_t *, long, long); // partition list into 2
 

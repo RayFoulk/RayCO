@@ -21,11 +21,11 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-//------------------------------------------------------------------------|
-#include <string.h>
-#include <stdlib.h>
-
 #include "chain.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 //------------------------------------------------------------------------|
 // factory-style creation of chain-link list
@@ -245,15 +245,51 @@ void chain_reset(chain_t * chain)
     chain->link = chain->orig;
 }
 
-
 //------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
-int chain_sort (chain_t *chain, link_compare_func_t compare)
+int chain_sort (chain_t *chain, link_compare_func_t compare_func)
 {
-    int error = 0;
+    // cannot sort lists of length 0 or 1
+    if ((chain->length < 2) || (compare_func == NULL))
+    {
+        return;
+    }
 
-    // TODO: use qsort on a dynamically allocated array of link pointers
-    return 0;
+    // create an array of link pointers
+    link_t ** linkPtrs = (link_t **) malloc(sizeof(link_t *) * chain->length);
+    if (!linkPtrs)
+    {
+        printf("%s: ERROR: malloc(sizeof(link_t *) * %zu) failed\n", __FUNCTION__, chain->length);
+        return;
+    }
+
+    // fill in the link pointer array from the chain
+    size_t index = 0;
+    chain_reset(chain);
+    do
+    {
+        linkPtrs[index++] = chain->link;
+        chain_forward(chain, 1);
+    }
+    while (chain->link != chain->orig);
+
+
+    // call quicksort on the array of link pointers
+    qsort(linkPtrs, chain->length, sizeof(link_t *), compare_func);
+
+    // reset the origin to the first link
+    chain->orig = linkPtrs[0];
+
+    // now re-link the chain in the sorted order
+    for (index = 0; index < chain->length; index++)
+    {
+        linkPtrs[index]->next = linkPtrs[(index == (chain->length - 1)) ? 0 : index + 1];
+        linkPtrs[index]->prev = linkPtrs[(index == 0) ? (chain->length - 1) : index - 1];
+    }
+
+    // destroy the temporary array of link pointers
+    free(linkPtrs);
+    linkPtrs = NULL;
 }
 
 //------------------------------------------------------------------------|
@@ -262,9 +298,8 @@ int chain_sort (chain_t *chain, link_compare_func_t compare)
 // with the links from the beginning index and up to, but not including
 // the ending index.  the chain as passed in is modified in-place and
 // contains whatever is left over.  NOTE: UNTESTED!!
-int chain_part (chain_t *chain, chain_t *part, long begin, long end)
+chain_t * chain_segment (chain_t *chain, chain_t *part, long begin, long end)
 {
-    int error = 0;
     link_t * link = NULL;
 
     // remove whatever partition list contains up till now including origin
@@ -295,5 +330,5 @@ int chain_part (chain_t *chain, chain_t *part, long begin, long end)
     chain->length -= part->length;
 
 
-    return (error);
+    return (chain);
 }
