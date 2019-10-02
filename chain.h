@@ -24,7 +24,10 @@
 #pragma once
 
 #include <stddef.h>
-
+//#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+//#include <string.h>
 
 //------------------------------------------------------------------------|
 typedef struct link_t
@@ -62,5 +65,6 @@ void chain_trim(chain_t * chain);           // delete links with NULL data paylo
 void chain_reset(chain_t * chain);          // reset position back to origin link
 void chain_sort(chain_t * chain, link_compare_func_t compare_func);
 
+chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func);
 chain_t * chain_segment (chain_t *, chain_t *, long, long); // partition list into 2
 

@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 //------------------------------------------------------------------------|
@@ -90,7 +91,6 @@ void chain_destroy(chain_t * chain)
 //------------------------------------------------------------------------|
 void chain_clear(chain_t * chain)
 {
-
     chain_reset(chain);
     chain_rewind(chain, 1);
 
@@ -247,7 +247,7 @@ void chain_reset(chain_t * chain)
 
 //------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
-int chain_sort (chain_t *chain, link_compare_func_t compare_func)
+void chain_sort(chain_t *chain, link_compare_func_t compare_func)
 {
     // cannot sort lists of length 0 or 1
     if ((chain->length < 2) || (compare_func == NULL))
@@ -273,7 +273,6 @@ int chain_sort (chain_t *chain, link_compare_func_t compare_func)
     }
     while (chain->link != chain->orig);
 
-
     // call quicksort on the array of link pointers
     qsort(linkPtrs, chain->length, sizeof(link_t *), compare_func);
 
@@ -293,6 +292,34 @@ int chain_sort (chain_t *chain, link_compare_func_t compare_func)
 }
 
 //------------------------------------------------------------------------|
+// create a complete copy of a chain.  note this requires the caller to
+// define a link-copy function
+chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func)
+{
+    chain_t * copy = chain_create();
+
+    if (!copy)
+    {
+        printf("%s: ERROR: chain_create() copy failed\n", __FUNCTION__);
+        return NULL;
+    }
+
+    if (chain->length > 0)
+    {
+        chain_reset(chain);
+        do
+        {
+            chain_insert(copy);
+            copy->link->data = (*copy_func)(chain->link->data);
+            chain_forward(chain, 1);
+        }
+        while (chain->link != chain->orig);
+    }
+
+    return copy;
+}
+
+//------------------------------------------------------------------------|
 // this function expects chain to be a fully opened list with at least
 // one link and part should be an opened, but empty list which returns
 // with the links from the beginning index and up to, but not including
@@ -303,7 +330,7 @@ chain_t * chain_segment (chain_t *chain, chain_t *part, long begin, long end)
     link_t * link = NULL;
 
     // remove whatever partition list contains up till now including origin
-    error |= chain_clear (part);
+    chain_clear (part);
     free (part->link);
 
     // assign some key attributes
@@ -311,8 +338,8 @@ chain_t * chain_segment (chain_t *chain, chain_t *part, long begin, long end)
 
     // move from start up to the 'begin' index
     // this becomes the origin link of the partition
-    error |= chain_reset (chain);
-    error |= chain_move (chain, begin);
+    chain_reset (chain);
+    chain_move (chain, begin);
     part->link = chain->link;
     part->orig = chain->link;
 
