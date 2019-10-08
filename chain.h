@@ -66,5 +66,4 @@ void chain_reset(chain_t * chain);          // reset position back to origin lin
 void chain_sort(chain_t * chain, link_compare_func_t compare_func);
 
 chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func);
-chain_t * chain_segment (chain_t *, chain_t *, long, long); // partition list into 2
-
+chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);

@@ -320,33 +320,36 @@ chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func)
 }
 
 //------------------------------------------------------------------------|
-// this function expects chain to be a fully opened list with at least
-// one link and part should be an opened, but empty list which returns
-// with the links from the beginning index and up to, but not including
-// the ending index.  the chain as passed in is modified in-place and
-// contains whatever is left over.  NOTE: UNTESTED!!
-chain_t * chain_segment (chain_t *chain, chain_t *part, long begin, long end)
+// This breaks a chain into two segments: The segment specified by the
+// 'begin' and 'end' indexes into the chain is returned,  and the remainder
+// segment is repaired and left as the original chain object (minus the
+// separated segment).
+chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
 {
     link_t * link = NULL;
+    chain_t * segment = chain_create();
 
-    // remove whatever partition list contains up till now including origin
-    chain_clear (part);
-    free (part->link);
+    if (!segment)
+    {
+        printf("%s: ERROR: chain_create() segment failed\n",
+                 __FUNCTION__);
+        return NULL;
+    }
 
-    // assign some key attributes
-    part->length = (unsigned long) end - begin;
+    // We do not need the origin link in the new segment
+    // NOTE: This would not be necessary if we allowed truly empty
+    // chains.
+    free(segment->link);
 
-    // move from start up to the 'begin' index
-    // this becomes the origin link of the partition
-    chain_reset (chain);
-    chain_move (chain, begin);
-    part->link = chain->link;
-    part->orig = chain->link;
+    // set new segment length
+    segment->length = end - begin;
 
-    // move up to one-after the final link in partition
-    // and remember final link there
-    chain_move (chain, part->length);
-    link = part->link->prev;
+    // set the original chain to the first link in what will become the
+    // origin of the cut segment.
+    chain_reset(chain);
+    chain_forward(chain, begin);
+    segment->link = chain->link;
+    segment->orig = chain->link;
 
     // cut partition from main list & patch up.
     // list is then shorter by the length of the partition
