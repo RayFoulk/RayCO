@@ -64,6 +64,9 @@ bool chain_rewind(chain_t * chain, size_t index);
 void chain_trim(chain_t * chain);           // delete links with NULL data payload
 void chain_reset(chain_t * chain);          // reset position back to origin link
 void chain_sort(chain_t * chain, link_compare_func_t compare_func);
-
 chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func);
 chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);
+chain_t * chain_splice(chain_t * head, chain_t * tail);
+
+
+

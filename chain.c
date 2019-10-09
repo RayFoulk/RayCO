@@ -366,3 +366,45 @@ chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
     return segment;
 }
 
+//------------------------------------------------------------------------|
+// join together two chain segments and return the larger result.  the head
+// chain is modified and the tail chain is destroyed
+chain_t * chain_splice(chain_t * head, chain_t * tail)
+{
+    link_t * link = NULL;
+
+    // can't join empty lists, but it is allowable for one or the other
+    // to be empty.  this is a cheap workaround by adding empty links
+    // to avoid breakage, but will in some cases result in empty links,
+    // this implementation needs to be improved (TODO).
+    if (head->length == 0)
+    {
+        chain_insert(head);
+    }
+
+    if (tail->length == 0)
+    {
+        chain_insert(tail);
+    }
+
+    // reset both chains to origin link
+    chain_reset(head);
+    chain_reset(tail);
+
+    // link the tail segment to the end of the head segment
+    link = tail->link->prev;
+    head->link->prev->next = tail->link;
+    tail->link->prev = head->link->prev;
+    head->link->prev = link;
+    link->next = head->link;
+
+    // the tail container is no longer in a valid state: blow it away.
+    // memory management becomes the responsibility of the head chain
+    head->length += tail->length;
+
+    free(tail);
+    memset(tail, 0, sizeof(chain_t));
+
+    return head;
+}
+
