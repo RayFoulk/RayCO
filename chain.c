@@ -351,14 +351,18 @@ chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
     segment->link = chain->link;
     segment->orig = chain->link;
 
-    // cut partition from main list & patch up.
-    // list is then shorter by the length of the partition
-    chain->link->prev->next = part->link;
-    part->link->prev = chain->link->prev;
+    // set chain position to one-after the final link of the segment
+    // cache this link's prev because we'll need it to fix chain linkage
+    chain_forward(chain, segment->length);
+    link = segment->link->prev;
+
+    // separate the segment and fix up the now shorter chain
+    chain->link->prev->next = segment->link;
+    segment->link->prev = chain->link->prev;
     link->next = chain->link;
     chain->link->prev = link;
-    chain->length -= part->length;
+    chain->length -= segment->length;
 
-
-    return (chain);
+    return segment;
 }
+
