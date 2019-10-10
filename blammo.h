@@ -41,13 +41,13 @@
 #include <string.h>
 
 //------------------------------------------------------------------------|
-typedef enum blammo_t
+typedef enum
 {
     INFO    = 0,
     DEBUG   = 1,
     WARNING = 2,
     ERROR   = 3
-}
+} blammo_t ;
 
 //typedef struct
 //{

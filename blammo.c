@@ -27,8 +27,8 @@
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
-int blammo(const char * format, const blammo_t type,
-            const char * format, ...)
+int blammo(const char * func, const blammo_t type,
+           const char * format, ...)
 {
 
 
