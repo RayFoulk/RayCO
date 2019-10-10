@@ -28,9 +28,10 @@
 // BLAMMO_ENABLE is defined on the command line during build.  otherwise
 // BLAMMO() will be an empty macro.
 #ifndef BLAMMO_ENABLE
-#define BLAMMO(mt, fm, ...)
+#include <stdio.h>
+#define BLAMMO(mt, fm, ...)    printf(fm, ## __VA_ARGS__)
 #else
-#define BLAMMO(mt, fm, ...)    blammo(__FUNCTION__, mt, fm, __VA_ARGS__)
+#define BLAMMO(mt, fm, ...)    blammo(__FUNCTION__, mt, fm, ## __VA_ARGS__)
 
 //------------------------------------------------------------------------|
 #include <stddef.h>

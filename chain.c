@@ -22,8 +22,8 @@
 //------------------------------------------------------------------------|
 
 #include "chain.h"
+#include "blammo.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
@@ -36,7 +36,7 @@ chain_t * chain_create()
     if (!chain)
     {
         // TODO: replace these witha vararg macro
-        printf("%s: ERROR: malloc(sizeof(chain_t)) failed\n", __FUNCTION__);
+        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
         return NULL;
     }
 
@@ -48,7 +48,7 @@ chain_t * chain_create()
     chain->link = (link_t *) malloc(sizeof(link_t));
     if (!chain->link)
     {
-        printf("%s: ERROR: malloc(sizeof(link_t)) failed\n", __FUNCTION__);
+        BLAMMO(ERROR, "malloc(sizeof(link_t)) failed\n");
         free(chain);
         chain = NULL;
         return NULL;
@@ -127,7 +127,7 @@ void chain_insert(chain_t * chain)
         link = (link_t *) malloc(sizeof(link_t));
         if (!link)
         {
-            printf("%s: ERROR: malloc(sizeof(link_t)) failed\n", __FUNCTION__);
+            BLAMMO(ERROR, "malloc(sizeof(link_t)) failed\n");
             return;
         }
 
@@ -259,7 +259,7 @@ void chain_sort(chain_t *chain, link_compare_func_t compare_func)
     link_t ** linkPtrs = (link_t **) malloc(sizeof(link_t *) * chain->length);
     if (!linkPtrs)
     {
-        printf("%s: ERROR: malloc(sizeof(link_t *) * %zu) failed\n", __FUNCTION__, chain->length);
+        BLAMMO(ERROR, "malloc(sizeof(link_t *) * %zu) failed\n", chain->length);
         return;
     }
 
@@ -300,7 +300,7 @@ chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func)
 
     if (!copy)
     {
-        printf("%s: ERROR: chain_create() copy failed\n", __FUNCTION__);
+        BLAMMO(ERROR, "chain_create() copy failed\n");
         return NULL;
     }
 
@@ -331,8 +331,7 @@ chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
 
     if (!segment)
     {
-        printf("%s: ERROR: chain_create() segment failed\n",
-                 __FUNCTION__);
+        BLAMMO(ERROR, "chain_create() segment failed\n");
         return NULL;
     }
 
