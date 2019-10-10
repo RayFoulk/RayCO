@@ -21,13 +21,14 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-#ifdef MSGLOG_ENABLE
+#ifdef BLAMMO_ENABLE
 
 //------------------------------------------------------------------------|
-#include "msglog.h"
+#include "blammo.h"
 
 //------------------------------------------------------------------------|
-int msg_log(const msg_log_t msg_type, const char * format, ...)
+int blammo(const char * format, const blammo_t type,
+            const char * format, ...)
 {
 
 

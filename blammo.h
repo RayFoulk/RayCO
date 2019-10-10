@@ -24,13 +24,13 @@
 #pragma once
 
 //------------------------------------------------------------------------|
-// only really enable the MSGLOG() macro if the preprocessor directive
-// MSGLOG_ENABLE is defined on the command line during build.  otherwise
-// MSGLOG() will be an empty macro.
-#ifndef MSGLOG_ENABLE
-#define MSGLOG(mt, fm, __VA_ARGS__)
+// only really enable the BLAMMO() macro if the preprocessor directive
+// BLAMMO_ENABLE is defined on the command line during build.  otherwise
+// BLAMMO() will be an empty macro.
+#ifndef BLAMMO_ENABLE
+#define BLAMMO(mt, fm, ...)
 #else
-#define MSGLOG(mt, fm, __VA_ARGS__)    msg_log(mt, fm, __VA_ARGS__)
+#define BLAMMO(mt, fm, ...)    blammo(__FUNCTION__, mt, fm, __VA_ARGS__)
 
 //------------------------------------------------------------------------|
 #include <stddef.h>
@@ -40,7 +40,7 @@
 #include <string.h>
 
 //------------------------------------------------------------------------|
-typedef enum msg_log_t
+typedef enum blammo_t
 {
     INFO    = 0,
     DEBUG   = 1,
@@ -51,10 +51,10 @@ typedef enum msg_log_t
 //typedef struct
 //{
 //}
-//msg_log_data_t;
+//blammo_data_t;
 
 //------------------------------------------------------------------------|
-int msg_log(const msg_log_t msg_type, const char * format, ...);
+int blammo(const char * func, const blammo_t type,
+            const char * format, ...);
 
-
-#endif
+#endif // #ifdef BLAMMO_ENABLE

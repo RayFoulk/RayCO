@@ -1,4 +1,4 @@
-#include "msglog.h"
+#include "blammo.h"
 #include "chain.h"
 
 int main(int argc, char *argv[])
