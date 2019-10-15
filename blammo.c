@@ -27,10 +27,39 @@
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
+static const char * blammo_t_str[] =
+{
+    "INFO",
+    "DEBUG",
+    "WARNING",
+    "ERROR",
+    NULL
+};
+
+//------------------------------------------------------------------------|
+// get a log-friendly timestamp string for current time. This is NOT
+// thread-safe or re-entrant safe
+static void timestamp (char * ts, size_t size)
+{
+  time_t currtime = time(NULL);
+  struct tm * tmp = localtime(&currtime);
+  strftime (ts, size, "%F %T", tmp);
+}
+
+
+//------------------------------------------------------------------------|
 int blammo(const char * func, const blammo_t type,
            const char * format, ...)
 {
+    char ts[48];
+    va_list args;
 
+    timestamp(ts, 48);
+    fprintf(stdout, "%s %s ", ts, blammo_t_str[type]);
+
+    va_start(args, format);
+    vfprintf(stdout, format, args); 
+    va_end(args);
 
     return 0;
 }

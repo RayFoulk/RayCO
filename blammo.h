@@ -35,10 +35,12 @@
 
 //------------------------------------------------------------------------|
 #include <stddef.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
 //------------------------------------------------------------------------|
 typedef enum
@@ -47,7 +49,8 @@ typedef enum
     DEBUG   = 1,
     WARNING = 2,
     ERROR   = 3
-} blammo_t ;
+}
+blammo_t;
 
 //typedef struct
 //{

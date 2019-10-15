@@ -35,7 +35,6 @@ chain_t * chain_create()
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
     {
-        // TODO: replace these witha vararg macro
         BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
         return NULL;
     }
@@ -61,6 +60,8 @@ chain_t * chain_create()
     chain->orig = chain->link;
     chain->link->data = NULL;
 
+    BLAMMO(INFO, "Oh, Herro, Hans Brix\n");
+
     return chain;
 }
 
@@ -70,6 +71,7 @@ void chain_destroy(chain_t * chain)
     // guard against accidental double-destroy or early-destroy
     if (!chain || !chain->orig)
     {
+        BLAMMO(WARNING, "attempt to early or double-destroy\n"); 
         return;
     }
 
