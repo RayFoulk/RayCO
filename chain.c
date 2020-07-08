@@ -30,7 +30,7 @@
 
 //------------------------------------------------------------------------|
 // factory-style creation of chain-link list
-chain_t * chain_create()
+chain_t * chain_create(link_destroy_func_t link_destroy)
 {
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
@@ -59,6 +59,7 @@ chain_t * chain_create()
     chain->link->prev = chain->link;
     chain->orig = chain->link;
     chain->link->data = NULL;
+    chain->link_destroy = link_destroy;
 
     BLAMMO(INFO, "Oh, Herro, Hans Brix\n");
 
@@ -298,7 +299,7 @@ void chain_sort(chain_t *chain, link_compare_func_t compare_func)
 // define a link-copy function
 chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func)
 {
-    chain_t * copy = chain_create();
+    chain_t * copy = chain_create(chain->link_destroy);
 
     if (!copy)
     {
@@ -329,7 +330,7 @@ chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func)
 chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
 {
     link_t * link = NULL;
-    chain_t * segment = chain_create();
+    chain_t * segment = chain_create(chain->link_destroy);
 
     if (!segment)
     {

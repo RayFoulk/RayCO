@@ -28,55 +28,42 @@
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
+typedef int (*link_compare_func_t) (const void *, const void *);
+typedef void * (*link_copy_func_t) (void *);
+typedef void (*link_destroy_func_t) (void *);
+
+//------------------------------------------------------------------------|
+// NOTE: All links are assumed to be homogeneous.  Heterogeneous link
+// payloads are not considered in this implementation.
 typedef struct link_t
 {
     struct link_t * next;    // pointer to next node
     struct link_t * prev;    // pointer to previous node
     void * data;             // pointer to node's contents,
                              // caller is responsible for data size
-
-    // consider adding data dtor fptr for heterogeneous link payloads
 }
 link_t;
 
 typedef struct
 {
-    link_t * link;          // current link in chain
-    link_t * orig;          // origin link in chain
-    size_t length;          // list length
+    link_t * link;                     // current link in chain
+    link_t * orig;                     // origin link in chain
+    size_t length;                     // list length
+    link_destroy_func_t link_destroy;  // link destroyer function
 }
 chain_t;
 
 //------------------------------------------------------------------------|
-typedef int (*link_compare_func_t) (const void *, const void *);
-typedef void * (*link_copy_func_t) (void *);
-
-//------------------------------------------------------------------------|
-chain_t * chain_create();
-
+chain_t * chain_create(link_destroy_func_t link_destroy);
 void chain_destroy(chain_t * chain);
-
-void chain_clear(chain_t * chain);          // remove all links (no data dtor!!)
-
-void chain_insert(chain_t * chain);         // insert new link after & go to it
-
-void chain_delete(chain_t * chain);         // delete current link & go back
-
+void chain_clear(chain_t * chain);    // remove all links (no data dtor!!)
+void chain_insert(chain_t * chain);   // insert new link after & go to it
+void chain_delete(chain_t * chain);   // delete current link & go back
 bool chain_forward(chain_t * chain, size_t index);
-
 bool chain_rewind(chain_t * chain, size_t index);
-
-void chain_trim(chain_t * chain);           // delete links with NULL data payload
-
-void chain_reset(chain_t * chain);          // reset position back to origin link
-
+void chain_trim(chain_t * chain);     // delete links with NULL data payload
+void chain_reset(chain_t * chain);    // reset position back to origin link
 void chain_sort(chain_t * chain, link_compare_func_t compare_func);
-
 chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func);
-
 chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);
-
 chain_t * chain_splice(chain_t * head, chain_t * tail);
-
-
-
