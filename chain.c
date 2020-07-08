@@ -159,8 +159,8 @@ void chain_delete(chain_t * chain)
     // something using malloc.  this should be fixed using a dtor function
     if (NULL != chain->link->data)
     {
-       free(chain->link->data) ;
-       chain->link->data = NULL;
+        free(chain->link->data) ;
+        chain->link->data = NULL;
     }
 
     // only delete link if length is greater than 1

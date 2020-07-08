@@ -1,0 +1,5 @@
+- write unit tests for all chain functions, pass and fail, build only in TEST mode
+- refactor chain/link to not use empty origin node
+- verify all tests still pass
+- migrate over to sink project and refactor
+
