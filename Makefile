@@ -8,7 +8,7 @@ VPATH   := $(SRCDIRS)
 CC      := gcc
 BIN	:= /usr/local/bin
 LIB     := /usr/local/lib
-CFLAGS	:= $(INCLUDE) -Wall -pipe -std=c99
+CFLAGS	:= $(INCLUDE) -Wall -pipe -std=c99 -Wno-unused-label
 LDFLAGS	:= -lpthread -lc
 
 all: CFLAGS += -O2 -fomit-frame-pointer
