@@ -2,8 +2,26 @@
 #include "chain.h"
 #include "mut.h"
 
+// basic chain operations
+// * chain_create
+// chain_destroy
+// chain_clear
+// * chain_insert
+// chain_delete
+// chain_forward
+// chain_rewind
+// * chain_reset
+
+// advanced chain operations
+// chain_trim
+// chain_sort
+// chain_copy
+// chain_segment
+// chain_splice
+
 
 TESTSUITE_BEGIN
+
     TEST_BEGIN("basic chain operations")
         // create a simple chain
         chain_t * mychain = chain_create(NULL);
@@ -34,10 +52,25 @@ TESTSUITE_BEGIN
         *(int *)mychain->link->data = 2;
         CHECK(*(int *)mychain->link->data == 2);
 
+        // reset back to origin
+        CHECK(mychain->link != mychain->orig);
+        chain_reset(mychain);
+        CHECK(mychain->link == mychain->orig);
+        CHECK(mychain->link->data != NULL);
+        CHECK(*(int *)mychain->link->data == 1);
+       
         
 
         chain_destroy(mychain);
         //CHECK(mychain->orig == NULL);
 
     TEST_END
+
+    TEST_BEGIN("advanced chain operations")
+        chain_t * mychain = chain_create(NULL);
+        CHECK(mychain != NULL);
+        CHECK(mychain->length == 0);
+        chain_destroy(mychain);
+    TEST_END
+
 TESTSUITE_END

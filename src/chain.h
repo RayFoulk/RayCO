@@ -33,8 +33,8 @@ typedef void * (*link_copy_func_t) (void *);
 typedef void (*link_destroy_func_t) (void *);
 
 //------------------------------------------------------------------------|
-// NOTE: All links are assumed to be homogeneous.  Heterogeneous link
-// payloads are not considered in this implementation.
+// NOTE: All links data types are assumed to be homogeneous.  Heterogeneous
+// link payloads are not considered in this implementation.
 typedef struct link_t
 {
     struct link_t * next;    // pointer to next node

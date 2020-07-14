@@ -61,8 +61,6 @@ chain_t * chain_create(link_destroy_func_t link_destroy)
     chain->link->data = NULL;
     chain->link_destroy = link_destroy;
 
-    BLAMMO(INFO, "Oh, Herro, Hans Brix\n");
-
     return chain;
 }
 
