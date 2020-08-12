@@ -3,7 +3,7 @@ A Register-Transfer Level (RTL) circuit simulator framework similar to VHDL or V
 
 # Why?
 Mainly because I want to.  I enjoy creating and using my own tools.
-Also, VHDL and Verilog are both really a superset of what I need to accomplish my goals.
+ALso, VHDL and Verilog are both really a superset of what I need to accomplish my goals.
 
 # Status
 This project is purely vaporware at this point.  I need to lay out the design goals and formulate some hard requirements.
