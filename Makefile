@@ -8,8 +8,8 @@ VPATH   := $(SRCDIRS)
 CC      := gcc
 BIN	:= /usr/local/bin
 LIB     := /usr/local/lib
-CFLAGS	:= $(INCLUDE) -Wall -pipe -std=c99 -Wno-unused-label
-LDFLAGS	:= -lpthread -lc
+CFLAGS	:= $(INCLUDE) -Wall -pipe -std=c99 -Wno-unused-label -fPIC
+LDFLAGS	:= -lc -pie
 
 all: CFLAGS += -O2 -fomit-frame-pointer
 all: $(PROJECT)

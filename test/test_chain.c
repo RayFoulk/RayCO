@@ -28,10 +28,11 @@ TESTSUITE_BEGIN
         CHECK(mychain != NULL);
         CHECK(mychain->length == 0);
 
-        // add a link and set some simple data
+        // add the first link
         chain_insert(mychain);
         CHECK(mychain->link != NULL);
         CHECK(mychain->orig != NULL);
+        CHECK(mychain->link == mychain->orig); 
         CHECK(mychain->length == 1);
 
         // add and set some simple data
@@ -44,6 +45,7 @@ TESTSUITE_BEGIN
         chain_insert(mychain);
         CHECK(mychain->link != NULL);
         CHECK(mychain->orig != NULL);
+        CHECK(mychain->link != mychain->orig); 
         CHECK(mychain->length == 2);
 
         // add and set some more data
