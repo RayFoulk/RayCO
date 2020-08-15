@@ -7,9 +7,9 @@
 // chain_destroy
 // chain_clear
 // * chain_insert
-// chain_delete
-// chain_forward
-// chain_rewind
+// * chain_delete
+// * chain_forward
+// * chain_rewind
 // * chain_reset
 
 // advanced chain operations
@@ -54,6 +54,19 @@ TESTSUITE_BEGIN
         *(int *)mychain->link->data = 2;
         CHECK(*(int *)mychain->link->data == 2);
 
+        // add a third link
+        chain_insert(mychain);
+        CHECK(mychain->link != NULL);
+        CHECK(mychain->orig != NULL);
+        CHECK(mychain->link != mychain->orig); 
+        CHECK(mychain->length == 3);
+
+        // add and set data
+        mychain->link->data = malloc(sizeof(int));
+        CHECK(mychain->link->data != NULL);
+        *(int *)mychain->link->data = 3;
+        CHECK(*(int *)mychain->link->data == 3);
+
         // reset back to origin
         CHECK(mychain->link != mychain->orig);
         chain_reset(mychain);
@@ -61,7 +74,57 @@ TESTSUITE_BEGIN
         CHECK(mychain->link->data != NULL);
         CHECK(*(int *)mychain->link->data == 1);
        
+        // go forward two links
+        chain_forward(mychain, 2);
+        CHECK(mychain->link != mychain->orig); 
+        CHECK(*(int *)mychain->link->data == 3);
+    
+        // rewind one link
+        chain_rewind(mychain, 1);
+        CHECK(mychain->link != mychain->orig); 
+        CHECK(*(int *)mychain->link->data == 2);
+
+        // go forward two links
+        // because of circular property,
+        // it should be back at origin
+        chain_forward(mychain, 2);
+        CHECK(mychain->link == mychain->orig); 
+        CHECK(*(int *)mychain->link->data == 1);
         
+        // rewind two.  because of circular
+        // property, should be at index 2
+        chain_rewind(mychain, 2);
+        CHECK(mychain->link != mychain->orig); 
+        CHECK(*(int *)mychain->link->data == 2);
+        
+        // delete this link, leaving only 1 & 3
+        // should land on 1 just because it is prev
+        chain_delete(mychain);
+        CHECK(*(int *)mychain->link->data == 1);
+        CHECK(mychain->length == 2);
+
+        // go forward 1, we should be at 3
+        chain_forward(mychain, 1);
+        CHECK(mychain->link != mychain->orig); 
+        CHECK(*(int *)mychain->link->data == 3);
+        
+        // clear all links and data
+        // back to original state.
+        // NOTE: This will fail after refactor
+        chain_clear(mychain);
+        CHECK(mychain->length == 0);
+        CHECK(mychain->link != NULL);
+        CHECK(mychain->orig != NULL);
+        CHECK(mychain->link == mychain->orig); 
+
+        // allocate a whole bunch
+        int i;
+        for (i = 0; i < 99; i++)
+        {
+            chain_insert(mychain);
+            mychain->link->data = malloc(32);
+        }
+        CHECK(mychain->length == 99);
 
         chain_destroy(mychain);
         //CHECK(mychain->orig == NULL);

@@ -79,7 +79,7 @@ void chain_destroy(chain_t * chain)
     chain_clear(chain);
 
     // free the origin link, which is the only one left
-    free (chain->link);
+    free(chain->link);
 
     // zero out the remaining empty chain
     memset(chain, 0, sizeof(chain_t));
@@ -98,7 +98,7 @@ void chain_clear(chain_t * chain)
     // delete links until last remaining (origin)
     while (chain->link != chain->link->next)
     {
-        chain_delete (chain);
+        chain_delete(chain);
     }
 
     // The last link may still contain data.

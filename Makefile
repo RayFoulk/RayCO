@@ -29,3 +29,6 @@ uninstall:
 
 clean:
 	rm -f core *.o *.a $(PROJECT) $(PROJECT)_debug
+
+test: debug
+	./$(PROJECT)_debug
