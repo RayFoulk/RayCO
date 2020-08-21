@@ -5,7 +5,7 @@
 // basic chain operations
 // * chain_create
 // chain_destroy
-// chain_clear
+// * chain_clear
 // * chain_insert
 // * chain_delete
 // * chain_forward
@@ -13,16 +13,18 @@
 // * chain_reset
 
 // advanced chain operations
-// chain_trim
+// * chain_trim
 // chain_sort
 // chain_copy
 // chain_segment
 // chain_splice
 
+// data structures. also with dynamic payloads
+
 
 TESTSUITE_BEGIN
 
-    TEST_BEGIN("basic chain operations")
+    TEST_BEGIN("basic chain functions")
         // create a simple chain
         chain_t * mychain = chain_create(NULL);
         CHECK(mychain != NULL);
@@ -117,7 +119,7 @@ TESTSUITE_BEGIN
         CHECK(mychain->orig != NULL);
         CHECK(mychain->link == mychain->orig); 
 
-        // allocate a whole bunch
+        // allocate a whole bunch after clearing
         int i;
         for (i = 0; i < 99; i++)
         {
@@ -127,14 +129,39 @@ TESTSUITE_BEGIN
         CHECK(mychain->length == 99);
 
         chain_destroy(mychain);
-        //CHECK(mychain->orig == NULL);
+        // cannot check anything, but local pointer
+        // is invalid.  could solve with ** arg
 
     TEST_END
 
-    TEST_BEGIN("advanced chain operations")
+    TEST_BEGIN("advanced chain functions")
         chain_t * mychain = chain_create(NULL);
         CHECK(mychain != NULL);
         CHECK(mychain->length == 0);
+
+        // create a chain with sparse data
+        int i;
+        for (i = 0; i < 102; i++)
+        {
+            chain_insert(mychain);
+            if (i % 3 == 0)
+            {
+                mychain->link->data = malloc(sizeof(int));
+                *(int *)mychain->link->data = i;
+            }
+        }
+        CHECK(mychain->length == 102);
+        
+        // now trim out nodes without data
+        chain_trim(mychain);
+        CHECK(mychain->length == 34);
+        
+        // verify sane indexing
+        chain_forward(mychain, 33);
+        CHECK(*(int *)mychain->link->data == 99);
+                
+                        
+                                
         chain_destroy(mychain);
     TEST_END
 
