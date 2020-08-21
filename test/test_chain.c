@@ -19,8 +19,23 @@
 // chain_segment
 // chain_splice
 
-// data structures. also with dynamic payloads
+// test fixture payload
+typedef struct
+{
+    unsigned long id;
+    size_t size;
+    void * junk;
+}
+stuff_t;
 
+// test fixture functions
+static stuff_t * stuff_create(unsigned long id,
+                              size_t size,
+                              void * junk)
+{
+
+    return NULL;
+}                                 
 
 TESTSUITE_BEGIN
 
