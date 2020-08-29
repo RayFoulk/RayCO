@@ -19,23 +19,54 @@
 // chain_segment
 // chain_splice
 
-// test fixture payload
+// Test fixture payload.  Don't really actually
+// use heap for this, because we want to test
+// conditions and inspect state throughout.
+// This is more of a 'mock' dynamic payload
 typedef struct
 {
     unsigned long id;
-    size_t size;
-    void * junk;
+    bool is_created;
+    bool is_destroyed;
 }
-stuff_t;
+payload_t;
 
-// test fixture functions
-static stuff_t * stuff_create(unsigned long id,
-                              size_t size,
-                              void * junk)
+// statically allocate test payloads on
+// program stack for analysis.
+#define MAX_PAYLOADS 10
+static size_t payload_index = 0;
+static payload_t payloads[MAX_PAYLOADS];
+
+// test fixture functions, simulating a
+// factory / object interface
+static payload_t * payload_create(unsigned long id)
 {
-
-    return NULL;
+    if (payload_index >= MAX_PAYLOADS)
+    {
+        // Simulate malloc fail
+        return NULL;
+    }
+    
+    payload_t * payload = &payloads[payload_index];
+    payload_index++;
+    
+    payload->id = id;
+    payload->is_created = true;
+    return payload;
 }                                 
+
+static void payload_destroy(payload_t * payload)
+{
+    payload->is_destroyed = false;
+    
+    if (payload_index > 0)
+    {
+        payload_index--;
+    }
+}
+
+
+
 
 TESTSUITE_BEGIN
 
@@ -174,7 +205,10 @@ TESTSUITE_BEGIN
         // verify sane indexing
         chain_forward(mychain, 33);
         CHECK(*(int *)mychain->link->data == 99);
-                
+        
+        memset(payloads, 0, MAX_PAYLOADS *
+            sizeof(payload_t));
+        
                         
                                 
         chain_destroy(mychain);
