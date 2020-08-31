@@ -55,9 +55,10 @@ static payload_t * payload_create(unsigned long id)
     return payload;
 }                                 
 
-static void payload_destroy(payload_t * payload)
+static void payload_destroy(void * ptr)
 {
-    payload->is_destroyed = false;
+    payload_t * payload = (payload_t *) ptr;
+    payload->is_destroyed = true;
     
     if (payload_index > 0)
     {
@@ -72,7 +73,7 @@ TESTSUITE_BEGIN
 
     TEST_BEGIN("basic chain functions")
         // create a simple chain
-        chain_t * mychain = chain_create(NULL);
+        chain_t * mychain = chain_create(free);
         CHECK(mychain != NULL);
         CHECK(mychain->length == 0);
 
@@ -181,7 +182,7 @@ TESTSUITE_BEGIN
     TEST_END
 
     TEST_BEGIN("advanced chain functions")
-        chain_t * mychain = chain_create(NULL);
+        chain_t * mychain = chain_create(free);
         CHECK(mychain != NULL);
         CHECK(mychain->length == 0);
 
@@ -206,11 +207,17 @@ TESTSUITE_BEGIN
         chain_forward(mychain, 33);
         CHECK(*(int *)mychain->link->data == 99);
         
+        // start fresh, reset mock fixture
+        chain_destroy(mychain);
+        mychain = chain_create(payload_destroy);
         memset(payloads, 0, MAX_PAYLOADS *
             sizeof(payload_t));
         
-                        
-                                
+        chain_insert(mychain);
+        mychain->link->data = payload_create(11);               
+        
+        printf("destroyed: %s\n", payloads[0].is_destroyed ?
+            "true" : "false");
         chain_destroy(mychain);
     TEST_END
 

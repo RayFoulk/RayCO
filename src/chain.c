@@ -30,7 +30,7 @@
 
 //------------------------------------------------------------------------|
 // factory-style creation of chain-link list
-chain_t * chain_create(link_destroy_func_t link_destroy)
+chain_t * chain_create(link_destroy_f link_destroy)
 {
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
@@ -65,8 +65,10 @@ chain_t * chain_create(link_destroy_func_t link_destroy)
 }
 
 //------------------------------------------------------------------------|
-void chain_destroy(chain_t * chain)
+void chain_destroy(void * chain_ptr)
 {
+    chain_t * chain = (chain_t *) chain_ptr;
+    
     // guard against accidental double-destroy or early-destroy
     if (!chain || !chain->orig)
     {
@@ -104,10 +106,14 @@ void chain_clear(chain_t * chain)
     // The last link may still contain data.
     // May need to add a dtor function to the chain factory
     // and main data strucure to fix potential memory leak.
-    // valgrind this later to be sure
+    // TODO: valgrind this later to be sure
     if (NULL != chain->link->data)
     {
-        free(chain->link->data) ;
+        if (NULL != chain->link_destroy)
+        {
+            chain->link_destroy(chain->link->data);
+        }
+        //free(chain->link->data);
         chain->link->data = NULL;
     }
 
@@ -158,7 +164,11 @@ void chain_delete(chain_t * chain)
     // something using malloc.  this should be fixed using a dtor function
     if (NULL != chain->link->data)
     {
-        free(chain->link->data) ;
+        if (NULL != chain->link_destroy)
+        {
+            chain->link_destroy(chain->link->data);
+        }
+        //free(chain->link->data);
         chain->link->data = NULL;
     }
 
@@ -248,7 +258,7 @@ void chain_reset(chain_t * chain)
 
 //------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
-void chain_sort(chain_t *chain, link_compare_func_t compare_func)
+void chain_sort(chain_t *chain, link_compare_f compare_func)
 {
     // cannot sort lists of length 0 or 1
     if ((chain->length < 2) || (compare_func == NULL))
@@ -295,7 +305,7 @@ void chain_sort(chain_t *chain, link_compare_func_t compare_func)
 //------------------------------------------------------------------------|
 // create a complete copy of a chain.  note this requires the caller to
 // define a link-copy function
-chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func)
+chain_t * chain_copy(chain_t * chain, link_copy_f copy_func)
 {
     chain_t * copy = chain_create(chain->link_destroy);
 

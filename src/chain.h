@@ -28,9 +28,9 @@
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
-typedef int (*link_compare_func_t) (const void *, const void *);
-typedef void * (*link_copy_func_t) (void *);
-typedef void (*link_destroy_func_t) (void *);
+typedef int (*link_compare_f) (const void *, const void *);
+typedef void * (*link_copy_f) (void *);
+typedef void (*link_destroy_f) (void *);
 
 //------------------------------------------------------------------------|
 // NOTE: All links data types are assumed to be homogeneous.  Heterogeneous
@@ -46,16 +46,16 @@ link_t;
 
 typedef struct
 {
-    link_t * link;                     // current link in chain
-    link_t * orig;                     // origin link in chain
-    size_t length;                     // list length
-    link_destroy_func_t link_destroy;  // link destroyer function
+    link_t * link;                // current link in chain
+    link_t * orig;                // origin link in chain
+    size_t length;                // list length
+    link_destroy_f link_destroy;  // link destroyer function
 }
 chain_t;
 
 //------------------------------------------------------------------------|
-chain_t * chain_create(link_destroy_func_t link_destroy);
-void chain_destroy(chain_t * chain);
+chain_t * chain_create(link_destroy_f link_destroy);
+void chain_destroy(void * chain);
 void chain_clear(chain_t * chain);    // remove all links (no data dtor!!)
 void chain_insert(chain_t * chain);   // insert new link after & go to it
 void chain_delete(chain_t * chain);   // delete current link & go back
@@ -63,7 +63,7 @@ bool chain_forward(chain_t * chain, size_t index);
 bool chain_rewind(chain_t * chain, size_t index);
 void chain_trim(chain_t * chain);     // delete links with NULL data payload
 void chain_reset(chain_t * chain);    // reset position back to origin link
-void chain_sort(chain_t * chain, link_compare_func_t compare_func);
-chain_t * chain_copy(chain_t * chain, link_copy_func_t copy_func);
+void chain_sort(chain_t * chain, link_compare_f compare_func);
+chain_t * chain_copy(chain_t * chain, link_copy_f copy_func);
 chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);
 chain_t * chain_splice(chain_t * head, chain_t * tail);
