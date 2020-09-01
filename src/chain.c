@@ -150,6 +150,12 @@ void chain_insert(chain_t * chain, void * data)
         chain->link->data = data;
     }
 
+    // FIXME: Temporary workaround until origin node refactor is complete
+    else if (chain->link)
+    {
+        chain->link->data = data;
+    }
+
     chain->length ++;
 }
 
