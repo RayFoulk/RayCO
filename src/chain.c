@@ -122,7 +122,7 @@ void chain_clear(chain_t * chain)
 
 //------------------------------------------------------------------------|
 // insert a link after current link and advance to it
-void chain_insert(chain_t * chain)
+void chain_insert(chain_t * chain, void * data)
 {
     link_t * link = NULL;
 
@@ -147,7 +147,7 @@ void chain_insert(chain_t * chain)
         // move forward to the new link
         // and initialize new link's contents
         chain_forward(chain, 1);
-        chain->link->data = NULL;
+        chain->link->data = data;
     }
 
     chain->length ++;
@@ -320,8 +320,7 @@ chain_t * chain_copy(chain_t * chain, link_copy_f copy_func)
         chain_reset(chain);
         do
         {
-            chain_insert(copy);
-            copy->link->data = (*copy_func)(chain->link->data);
+            chain_insert(copy, (*copy_func)(chain->link->data));
             chain_forward(chain, 1);
         }
         while (chain->link != chain->orig);
@@ -389,12 +388,12 @@ chain_t * chain_splice(chain_t * head, chain_t * tail)
     // this implementation needs to be improved (TODO).
     if (head->length == 0)
     {
-        chain_insert(head);
+        chain_insert(head, NULL);
     }
 
     if (tail->length == 0)
     {
-        chain_insert(tail);
+        chain_insert(tail, NULL);
     }
 
     // reset both chains to origin link

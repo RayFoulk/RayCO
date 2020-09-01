@@ -49,7 +49,15 @@ typedef struct
     link_t * link;                // current link in chain
     link_t * orig;                // origin link in chain
     size_t length;                // list length
+
+    // TODO: pass this into delete() and destroy() rather than storing
+    // it here.  this either belongs as an object method of link_t or
+    // as a chain_t method argument
     link_destroy_f link_destroy;  // link destroyer function
+
+    // TODO: move all functions to here as object method function pointers
+    // that get populated in the factory function.
+
 }
 chain_t;
 
@@ -57,7 +65,7 @@ chain_t;
 chain_t * chain_create(link_destroy_f link_destroy);
 void chain_destroy(void * chain);
 void chain_clear(chain_t * chain);    // remove all links (no data dtor!!)
-void chain_insert(chain_t * chain);   // insert new link after & go to it
+void chain_insert(chain_t * chain, void * data);   // insert new link after & go to it
 void chain_delete(chain_t * chain);   // delete current link & go back
 bool chain_forward(chain_t * chain, size_t index);
 bool chain_rewind(chain_t * chain, size_t index);
