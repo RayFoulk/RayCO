@@ -2,4 +2,6 @@
 .project
 *.o
 *~
+raytl_debug
+raytl
 

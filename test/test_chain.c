@@ -2,6 +2,8 @@
 #include "chain.h"
 #include "mut.h"
 
+#include <string.h>
+
 // basic chain operations
 // * chain_create
 // chain_destroy
