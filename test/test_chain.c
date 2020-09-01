@@ -25,7 +25,7 @@
 // This is more of a 'mock' dynamic payload
 typedef struct
 {
-    unsigned long id;
+    size_t id;
     bool is_created;
     bool is_destroyed;
 }
@@ -39,7 +39,7 @@ static payload_t payloads[MAX_PAYLOADS];
 
 // test fixture functions, simulating a
 // factory / object interface
-static payload_t * payload_create(unsigned long id)
+static payload_t * payload_create(size_t id)
 {
     if (payload_index >= MAX_PAYLOADS)
     {
@@ -66,7 +66,24 @@ static void payload_destroy(void * ptr)
     }
 }
 
+static int payload_compare(const void * a, const void * b)
+{
+    payload_t * ap = (payload_t *) a;
+    payload_t * bp = (payload_t *) b;
+    return (int) ap->id - (int) bp->id;
+}
 
+static void payloads_report()
+{
+    int i;
+    for (i = 0; i < MAX_PAYLOADS; i++)
+    {
+        printf("payload %d: id: %zu created: %s destroyed: %s\n",
+            i, payloads[i].id,
+            payloads[i].is_created ? "true" : "false",
+            payloads[i].is_destroyed ? "true" : "false");
+    }
+}
 
 
 TESTSUITE_BEGIN
@@ -208,17 +225,43 @@ TESTSUITE_BEGIN
         CHECK(*(int *)mychain->link->data == 99);
         
         // start fresh, reset mock fixture
+        // now test the sort function
         chain_destroy(mychain);
+
         mychain = chain_create(payload_destroy);
         memset(payloads, 0, MAX_PAYLOADS *
             sizeof(payload_t));
-        
+        payloads_report();
+
         chain_insert(mychain);
         mychain->link->data = payload_create(11);               
-        
-        printf("destroyed: %s\n", payloads[0].is_destroyed ?
-            "true" : "false");
+        chain_insert(mychain);
+        mychain->link->data = payload_create(77);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(97);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(22);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(88);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(99);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(33);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(55);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(44);               
+        chain_insert(mychain);
+        mychain->link->data = payload_create(66);               
+            
+            
+        chain_sort(mychain, payload_compare);
+            
+        payloads_report();
         chain_destroy(mychain);
+        payloads_report();
+
+    
     TEST_END
 
 TESTSUITE_END
