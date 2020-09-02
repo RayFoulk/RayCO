@@ -239,6 +239,14 @@ TEST_BEGIN("advanced chain functions")
 	}
 
 	chain_sort(mychain, payload_compare);
+	
+    payload_t * p = NULL;
+	for (i = 0; i < MAX_PAYLOADS; i++)
+	{
+	    p = (payload_t *) mychain->link->data;
+	    printf("payload %d: id: %zu\n", i, p->id);
+		chain_forward(mychain, 1);
+	}
 
 	payloads_report();
 	chain_destroy(mychain);

@@ -264,7 +264,7 @@ void chain_reset(chain_t * chain)
 
 //------------------------------------------------------------------------|
 // sort list using specified link comparator function pointer
-void chain_sort(chain_t *chain, link_compare_f compare_func)
+void chain_sort(chain_t * chain, link_compare_f compare_func)
 {
     // cannot sort lists of length 0 or 1
     if ((chain->length < 2) || (compare_func == NULL))
@@ -273,8 +273,8 @@ void chain_sort(chain_t *chain, link_compare_f compare_func)
     }
 
     // create an array of link pointers
-    link_t ** linkPtrs = (link_t **) malloc(sizeof(link_t *) * chain->length);
-    if (!linkPtrs)
+    link_t ** link_ptrs = (link_t **) malloc(sizeof(link_t *) * chain->length);
+    if (!link_ptrs)
     {
         BLAMMO(ERROR, "malloc(sizeof(link_t *) * %zu) failed\n", chain->length);
         return;
@@ -285,27 +285,27 @@ void chain_sort(chain_t *chain, link_compare_f compare_func)
     chain_reset(chain);
     do
     {
-        linkPtrs[index++] = chain->link;
+        link_ptrs[index++] = chain->link;
         chain_forward(chain, 1);
     }
     while (chain->link != chain->orig);
 
     // call quicksort on the array of link pointers
-    qsort(linkPtrs, chain->length, sizeof(link_t *), compare_func);
+    qsort(link_ptrs, chain->length, sizeof(link_t *), compare_func);
 
     // reset the origin to the first link
-    chain->orig = linkPtrs[0];
+    chain->orig = link_ptrs[0];
 
     // now re-link the chain in the sorted order
     for (index = 0; index < chain->length; index++)
     {
-        linkPtrs[index]->next = linkPtrs[(index == (chain->length - 1)) ? 0 : index + 1];
-        linkPtrs[index]->prev = linkPtrs[(index == 0) ? (chain->length - 1) : index - 1];
+        link_ptrs[index]->next = link_ptrs[(index == (chain->length - 1)) ? 0 : index + 1];
+        link_ptrs[index]->prev = link_ptrs[(index == 0) ? (chain->length - 1) : index - 1];
     }
 
     // destroy the temporary array of link pointers
-    free(linkPtrs);
-    linkPtrs = NULL;
+    free(link_ptrs);
+    link_ptrs = NULL;
 }
 
 //------------------------------------------------------------------------|
