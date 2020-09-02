@@ -3,6 +3,7 @@
 #include "mut.h"
 
 #include <string.h>
+#include <limits.h>
 
 // basic chain operations
 // * chain_create
@@ -70,8 +71,18 @@ static void payload_destroy(void * ptr)
 
 static int payload_compare(const void * a, const void * b)
 {
-    payload_t * ap = (payload_t *) a;
-    payload_t * bp = (payload_t *) b;
+	link_t ** alp = (link_t **) a;
+	link_t ** blp = (link_t **) b;
+
+	// guard block against segfault
+	if (!(*alp) || !(*blp))
+	{
+		return INT_MIN;
+	}
+
+    payload_t * ap = (payload_t *) (*alp)->data;
+    payload_t * bp = (payload_t *) (*blp)->data;
+
     return (int) ap->id - (int) bp->id;
 }
 
