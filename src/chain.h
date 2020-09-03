@@ -27,8 +27,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define USE_REFACTORED_DATA_SORT
-#define USE_REFACTORED_ORIG_ALLOC
+//#define USE_REFACTORED_DATA_SORT
+//#define USE_REFACTORED_ORIG_ALLOC
 
 //------------------------------------------------------------------------|
 typedef int (*link_compare_f) (const void *, const void *);

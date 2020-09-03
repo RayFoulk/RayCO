@@ -273,7 +273,16 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     }
 
 #ifdef USE_REFACTORED_DATA_SORT
-
+    // No need to rearrange links, just the data
+    // pointers within each link.
+    void ** data_ptrs = (void **) malloc(sizeof(void *) * chain->length);
+    if (!data_ptrs)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(void *) * %zu) failed\n", chain->length);
+        return;
+    }
+    
+    free(data_ptrs);
 #else
 
     // create an array of link pointers
@@ -310,6 +319,7 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     // destroy the temporary array of link pointers
     free(link_ptrs);
     link_ptrs = NULL;
+    
 #endif
 }
 

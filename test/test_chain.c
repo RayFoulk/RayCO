@@ -272,7 +272,15 @@ TEST_BEGIN("advanced chain functions")
 	//payloads_report();
 	chain_destroy(mychain);
 	//payloads_report();
-
+    (void) payloads_report;
+    
+	for (i = 0; i < MAX_PAYLOADS; i++)
+	{
+        p = (payload_t *) &payloads[i];
+	    CHECK(p->is_created == true);
+	    CHECK(p->is_destroyed == true);
+	}
+    
 
 TEST_END
 
