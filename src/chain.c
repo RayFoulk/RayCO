@@ -272,6 +272,10 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
         return;
     }
 
+#ifdef USE_REFACTORED_DATA_SORT
+
+#else
+
     // create an array of link pointers
     link_t ** link_ptrs = (link_t **) malloc(sizeof(link_t *) * chain->length);
     if (!link_ptrs)
@@ -306,6 +310,7 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     // destroy the temporary array of link pointers
     free(link_ptrs);
     link_ptrs = NULL;
+#endif
 }
 
 //------------------------------------------------------------------------|

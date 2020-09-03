@@ -71,6 +71,11 @@ static void payload_destroy(void * ptr)
 
 static int payload_compare(const void * a, const void * b)
 {
+#ifdef USE_REFACTORED_DATA_SORT
+
+    return 0;
+#else
+
 	link_t ** alp = (link_t **) a;
 	link_t ** blp = (link_t **) b;
 
@@ -84,6 +89,8 @@ static int payload_compare(const void * a, const void * b)
     payload_t * bp = (payload_t *) (*blp)->data;
 
     return (int) ap->id - (int) bp->id;
+    
+#endif
 }
 
 static void payloads_report()
@@ -238,9 +245,8 @@ TEST_BEGIN("advanced chain functions")
 	chain_destroy(mychain);
 
 	mychain = chain_create(payload_destroy);
-	memset(payloads, 0, MAX_PAYLOADS *
-		sizeof(payload_t));
-	payloads_report();
+	memset(payloads, 0, MAX_PAYLOADS * sizeof(payload_t));
+	//payloads_report();
 
 	const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
 	const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
@@ -254,14 +260,18 @@ TEST_BEGIN("advanced chain functions")
     payload_t * p = NULL;
 	for (i = 0; i < MAX_PAYLOADS; i++)
 	{
-	    p = (payload_t *) mychain->link->data;
-	    printf("payload %d: id: %zu\n", i, p->id);
+        p = (payload_t *) mychain->link->data;
+        //printf("payload %d: id: %zu\n", i, p->id);
+        CHECK(p->id == ids_sorted[i]);
+	    CHECK(p->is_created == true);
+	    CHECK(p->is_destroyed == false);
+	    
 		chain_forward(mychain, 1);
 	}
 
-	payloads_report();
+	//payloads_report();
 	chain_destroy(mychain);
-	payloads_report();
+	//payloads_report();
 
 
 TEST_END
