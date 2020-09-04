@@ -298,11 +298,10 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     // now directly re-arrange all of the data pointers
     // the chain reset may not technically be necessary
     // because of the exit condition of the previous loop
-    index = 0;
     chain_reset(chain);
     for (index = 0; index < chain->length; index++)
     {
-        chain->link->data = data_ptrs[index++];
+        chain->link->data = data_ptrs[index];
         chain_forward(chain, 1);
     }
     
