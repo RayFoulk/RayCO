@@ -282,6 +282,30 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
         return;
     }
     
+    // fill in the link pointer array from the chain
+    size_t index = 0;
+    chain_reset(chain);
+    do
+    {
+        data_ptrs[index++] = chain->link->data;
+        chain_forward(chain, 1);
+    }
+    while (chain->link != chain->orig);
+
+    // call quicksort on the array of data pointers
+    qsort(data_ptrs, chain->length, sizeof(void *), compare_func);
+
+    // now directly re-arrange all of the data pointers
+    // the chain reset may not technically be necessary
+    // because of the exit condition of the previous loop
+    index = 0;
+    chain_reset(chain);
+    for (index = 0; index < chain->length; index++)
+    {
+        chain->link->data = data_ptrs[index++];
+        chain_forward(chain, 1);
+    }
+    
     free(data_ptrs);
 #else
 
