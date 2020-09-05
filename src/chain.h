@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-//#define USE_REFACTORED_DATA_SORT
+#define USE_REFACTORED_DATA_SORT
 //#define USE_REFACTORED_ORIG_ALLOC
 
 //------------------------------------------------------------------------|

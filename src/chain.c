@@ -306,6 +306,7 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     }
     
     free(data_ptrs);
+    data_ptrs = NULL;
 #else
 
     // create an array of link pointers
