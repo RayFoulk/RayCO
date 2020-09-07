@@ -7,7 +7,7 @@
 
 // basic chain operations
 // * chain_create
-// chain_destroy
+// * chain_destroy
 // * chain_clear
 // * chain_insert
 // * chain_delete
@@ -17,7 +17,7 @@
 
 // advanced chain operations
 // * chain_trim
-// chain_sort
+// * chain_sort
 // chain_copy
 // chain_segment
 // chain_splice
@@ -72,6 +72,16 @@ static void payload_destroy(void * ptr)
 static int payload_compare(const void * a, const void * b)
 {
 #ifdef USE_REFACTORED_DATA_SORT
+    payload_t * ap = (payload_t *) a;
+    payload_t * bp = (payload_t *) b;
+
+    if (!ap || !bp)
+    {
+        return INT_MIN;
+    }
+
+    return (int) ap->id - (int) bp->id;
+#else
     payload_t ** ap = (payload_t **) a;
     payload_t ** bp = (payload_t **) b;
 
@@ -81,22 +91,6 @@ static int payload_compare(const void * a, const void * b)
     }
 
     return (int) (*ap)->id - (int) (*bp)->id;
-#else
-
-	link_t ** alp = (link_t **) a;
-	link_t ** blp = (link_t **) b;
-
-	// guard block against segfault
-	if (!(*alp) || !(*blp))
-	{
-		return INT_MIN;
-	}
-
-    payload_t * ap = (payload_t *) (*alp)->data;
-    payload_t * bp = (payload_t *) (*blp)->data;
-
-    return (int) ap->id - (int) bp->id;
-    
 #endif
 }
 
@@ -269,7 +263,7 @@ TEST_BEGIN("advanced chain functions")
 	{
         p = (payload_t *) mychain->link->data;
         printf("payload %d: id: %zu\n", i, p->id);
-        //CHECK(p->id == ids_sorted[i]);
+        CHECK(p->id == ids_sorted[i]);
 	    CHECK(p->is_created == true);
 	    CHECK(p->is_destroyed == false);
 	    

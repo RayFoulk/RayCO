@@ -272,7 +272,6 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
         return;
     }
 
-#ifdef USE_REFACTORED_DATA_SORT
     // No need to rearrange links, just the data
     // pointers within each link.
     void ** data_ptrs = (void **) malloc(sizeof(void *) * chain->length);
@@ -293,7 +292,11 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     while (chain->link != chain->orig);
 
     // call quicksort on the array of data pointers
+#ifdef USE_REFACTORED_DATA_SORT
+    qsort(*data_ptrs, chain->length, sizeof(void *), compare_func);
+#else
     qsort(data_ptrs, chain->length, sizeof(void *), compare_func);
+#endif
 
     // now directly re-arrange all of the data pointers
     // the chain reset may not technically be necessary
@@ -307,44 +310,6 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     
     free(data_ptrs);
     data_ptrs = NULL;
-#else
-
-    // create an array of link pointers
-    link_t ** link_ptrs = (link_t **) malloc(sizeof(link_t *) * chain->length);
-    if (!link_ptrs)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(link_t *) * %zu) failed\n", chain->length);
-        return;
-    }
-
-    // fill in the link pointer array from the chain
-    size_t index = 0;
-    chain_reset(chain);
-    do
-    {
-        link_ptrs[index++] = chain->link;
-        chain_forward(chain, 1);
-    }
-    while (chain->link != chain->orig);
-
-    // call quicksort on the array of link pointers
-    qsort(link_ptrs, chain->length, sizeof(link_t *), compare_func);
-
-    // reset the origin to the first link
-    chain->orig = link_ptrs[0];
-
-    // now re-link the chain in the sorted order
-    for (index = 0; index < chain->length; index++)
-    {
-        link_ptrs[index]->next = link_ptrs[(index == (chain->length - 1)) ? 0 : index + 1];
-        link_ptrs[index]->prev = link_ptrs[(index == 0) ? (chain->length - 1) : index - 1];
-    }
-
-    // destroy the temporary array of link pointers
-    free(link_ptrs);
-    link_ptrs = NULL;
-    
-#endif
 }
 
 //------------------------------------------------------------------------|
