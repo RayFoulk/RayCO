@@ -71,9 +71,8 @@ static void payload_destroy(void * ptr)
 
 static int payload_compare(const void * a, const void * b)
 {
-#ifdef USE_REFACTORED_DATA_SORT
-    payload_t * ap = (payload_t *) a;
-    payload_t * bp = (payload_t *) b;
+    payload_t * ap = (payload_t *) *(void **) a;
+    payload_t * bp = (payload_t *) *(void **) b;
 
     if (!ap || !bp)
     {
@@ -81,17 +80,6 @@ static int payload_compare(const void * a, const void * b)
     }
 
     return (int) ap->id - (int) bp->id;
-#else
-    payload_t ** ap = (payload_t **) a;
-    payload_t ** bp = (payload_t **) b;
-
-    if (!(*ap) || !(*bp))
-    {
-        return INT_MIN;
-    }
-
-    return (int) (*ap)->id - (int) (*bp)->id;
-#endif
 }
 
 static void payloads_report()
@@ -210,8 +198,10 @@ TEST_BEGIN("basic chain functions")
 	CHECK(mychain->length == 99);
 
 	chain_destroy(mychain);
-	// cannot check anything, but local pointer
+	// cannot (easily) check heap, but local pointer
 	// is invalid.  could solve with ** arg
+    // however, destroy must have same signature
+    // as free()
 
 TEST_END
 

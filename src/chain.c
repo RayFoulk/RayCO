@@ -292,11 +292,7 @@ void chain_sort(chain_t * chain, link_compare_f compare_func)
     while (chain->link != chain->orig);
 
     // call quicksort on the array of data pointers
-#ifdef USE_REFACTORED_DATA_SORT
-    qsort(*data_ptrs, chain->length, sizeof(void *), compare_func);
-#else
     qsort(data_ptrs, chain->length, sizeof(void *), compare_func);
-#endif
 
     // now directly re-arrange all of the data pointers
     // the chain reset may not technically be necessary
