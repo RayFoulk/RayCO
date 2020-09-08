@@ -18,7 +18,7 @@
 // advanced chain operations
 // * chain_trim
 // * chain_sort
-// chain_copy
+// * chain_copy
 // chain_segment
 // chain_splice
 
@@ -48,25 +48,19 @@ fixture_t;
 // The test fixture
 static fixture_t fixture;
 
-static void fixture_reset()
+static void payload_report(int i, payload_t * p)
 {
-    memset(fixture.payloads, 0, FIXTURE_PAYLOADS * sizeof(payload_t));
-    fixture.i = 0;
-    fixture.j = FIXTURE_PAYLOADS - 1;
-}
-
-static void fixture_report()
-{
-    int i;
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    if (!p)
     {
-        printf("payload %d: id: %zu created: %s destroyed: %s\n"
-               " copy_of: %p\n", i, 
-               fixture.payloads[i].id,
-               fixture.payloads[i].is_created ? "true" : "false",
-               fixture.payloads[i].is_destroyed ? "true" : "false",
-               fixture.payloads[i].copy_of);
+        printf("NULL!\n");
+        return;
     }
+
+    printf("payload: %d  id: %zu  created: %s  destroyed: %s\n"
+           "    self: %p  copy_of: %p\n", i, p->id,
+           p->is_created ? "true" : "false",
+           p->is_destroyed ? "true" : "false",
+           p, p->copy_of);
 }
 
 // test fixture functions, simulating a
@@ -137,6 +131,22 @@ static void * payload_copy(const void * p)
     memcpy(copy, orig, sizeof(payload_t));
     copy->copy_of = orig;
     return copy;
+}
+
+static void fixture_reset()
+{
+    memset(fixture.payloads, 0, FIXTURE_PAYLOADS * sizeof(payload_t));
+    fixture.i = 0;
+    fixture.j = FIXTURE_PAYLOADS - 1;
+}
+
+static void fixture_report()
+{
+    int i;
+    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    {
+        payload_report(i, &fixture.payloads[i]);
+    }
 }
 
 TESTSUITE_BEGIN
@@ -282,10 +292,10 @@ TEST_BEGIN("advanced chain functions")
     ///////////////////////////////
     // test: sort
 	// now test the sort function
-	mychain = chain_create(payload_destroy);
 	// start fresh, reset mock fixture
     fixture_reset();
 	//fixture_report();
+	mychain = chain_create(payload_destroy);
 
 	const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
 	const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
@@ -300,7 +310,7 @@ TEST_BEGIN("advanced chain functions")
 	for (i = 0; i < FIXTURE_PAYLOADS; i++)
 	{
         p = (payload_t *) mychain->link->data;
-        printf("payload %d: id: %zu\n", i, p->id);
+        //payload_report(i, p);
         CHECK(p->id == ids_sorted[i]);
 	    CHECK(p->is_created == true);
 	    CHECK(p->is_destroyed == false);
@@ -327,6 +337,40 @@ TEST_BEGIN("advanced chain functions")
     
     // TODO: Break this down into a test per function
     fixture_reset();
+	mychain = chain_create(payload_destroy);
+
+	for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
+	{
+		chain_insert(mychain, payload_create(i * 2));
+	}
+    
+    payload_t * optr, * cptr;
+    chain_t * mycopy = chain_copy(mychain, payload_copy);
+	//fixture_report();
+
+    CHECK(mycopy != NULL)
+    CHECK(mycopy != mychain)
+
+    chain_reset(mychain);
+    chain_reset(mycopy);
+	for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
+    {
+        CHECK(mychain->link != mycopy->link);
+        optr = (payload_t *) mychain->link->data;
+        cptr = (payload_t *) mycopy->link->data;
+        CHECK(optr != NULL);
+        CHECK(cptr != NULL);
+        CHECK(optr != cptr);
+        CHECK(optr->id == cptr->id);
+        CHECK(optr->is_created == cptr->is_created);
+        CHECK(optr->is_destroyed == cptr->is_destroyed);
+
+        //payload_report(i, optr);
+        //payload_report(i, cptr);
+
+        chain_forward(mychain, 1);
+        chain_forward(mycopy, 1);
+	}
 
 
 TEST_END
