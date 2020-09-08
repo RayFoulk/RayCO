@@ -26,11 +26,12 @@
 // use heap for this, because we want to test
 // conditions and inspect state throughout.
 // This is more of a 'mock' dynamic payload
-typedef struct
+typedef struct payload_t
 {
     size_t id;
     bool is_created;
     bool is_destroyed;
+    struct payload_t * copy_of;
 }
 payload_t;
 
@@ -59,10 +60,12 @@ static void fixture_report()
     int i;
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
     {
-        printf("payload %d: id: %zu created: %s destroyed: %s\n",
-               i, fixture.payloads[i].id,
+        printf("payload %d: id: %zu created: %s destroyed: %s\n"
+               " copy_of: %p\n", i, 
+               fixture.payloads[i].id,
                fixture.payloads[i].is_created ? "true" : "false",
-               fixture.payloads[i].is_destroyed ? "true" : "false");
+               fixture.payloads[i].is_destroyed ? "true" : "false",
+               fixture.payloads[i].copy_of);
     }
 }
 
@@ -87,9 +90,21 @@ static void payload_destroy(void * ptr)
     payload_t * payload = (payload_t *) ptr;
     payload->is_destroyed = true;
     
-    if (fixture.i > 0)
+    if (!payload->copy_of)
     {
-        fixture.i--;
+        // created by create
+        if (fixture.i > 0)
+        {
+            fixture.i--;
+        }
+    }
+    else
+    {
+        // created by copy
+        if (fixture.j < FIXTURE_PAYLOADS)
+        {
+            fixture.j++;
+        }
     }
 }
 
@@ -120,6 +135,7 @@ static void * payload_copy(const void * p)
     // WARNING: Stack copies may not be 'destroyed' properly
 
     memcpy(copy, orig, sizeof(payload_t));
+    copy->copy_of = orig;
     return copy;
 }
 
