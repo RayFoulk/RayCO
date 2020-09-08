@@ -31,7 +31,7 @@
 
 //------------------------------------------------------------------------|
 typedef int (*link_compare_f) (const void *, const void *);
-typedef void * (*link_copy_f) (void *);
+typedef void * (*link_copy_f) (const void *);
 typedef void (*link_destroy_f) (void *);
 
 //------------------------------------------------------------------------|

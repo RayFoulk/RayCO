@@ -34,25 +34,49 @@ typedef struct
 }
 payload_t;
 
-// statically allocate test payloads on
-// program stack for analysis.
-#define MAX_PAYLOADS 10
-static size_t payload_index = 0;
-static payload_t payloads[MAX_PAYLOADS];
+#define FIXTURE_PAYLOADS 10
+typedef struct
+{
+    // statically allocate test fixture.payloads on
+    // program stack for analysis.
+    payload_t payloads[FIXTURE_PAYLOADS];
+    size_t i, j;
+}
+fixture_t;
+
+// The test fixture
+static fixture_t fixture;
+
+static void fixture_reset()
+{
+    memset(fixture.payloads, 0, FIXTURE_PAYLOADS * sizeof(payload_t));
+    fixture.i = 0;
+    fixture.j = FIXTURE_PAYLOADS - 1;
+}
+
+static void fixture_report()
+{
+    int i;
+    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    {
+        printf("payload %d: id: %zu created: %s destroyed: %s\n",
+               i, fixture.payloads[i].id,
+               fixture.payloads[i].is_created ? "true" : "false",
+               fixture.payloads[i].is_destroyed ? "true" : "false");
+    }
+}
 
 // test fixture functions, simulating a
 // factory / object interface
 static payload_t * payload_create(size_t id)
 {
-    if (payload_index >= MAX_PAYLOADS)
+    if (fixture.i >= FIXTURE_PAYLOADS)
     {
         // Simulate malloc fail
         return NULL;
     }
     
-    payload_t * payload = &payloads[payload_index];
-    payload_index++;
-    
+    payload_t * payload = &fixture.payloads[fixture.i++];
     payload->id = id;
     payload->is_created = true;
     return payload;
@@ -63,9 +87,9 @@ static void payload_destroy(void * ptr)
     payload_t * payload = (payload_t *) ptr;
     payload->is_destroyed = true;
     
-    if (payload_index > 0)
+    if (fixture.i > 0)
     {
-        payload_index--;
+        fixture.i--;
     }
 }
 
@@ -82,18 +106,22 @@ static int payload_compare(const void * a, const void * b)
     return (int) ap->id - (int) bp->id;
 }
 
-static void payloads_report()
+static void * payload_copy(const void * p)
 {
-    int i;
-    for (i = 0; i < MAX_PAYLOADS; i++)
-    {
-        printf("payload %d: id: %zu created: %s destroyed: %s\n",
-            i, payloads[i].id,
-            payloads[i].is_created ? "true" : "false",
-            payloads[i].is_destroyed ? "true" : "false");
-    }
-}
+    payload_t * orig = (payload_t *) p;
+    payload_t * copy = NULL;
 
+    if (!orig || fixture.j == 0)
+    {
+        return copy;
+    }
+
+    copy = &fixture.payloads[fixture.j--];
+    // WARNING: Stack copies may not be 'destroyed' properly
+
+    memcpy(copy, orig, sizeof(payload_t));
+    return copy;
+}
 
 TESTSUITE_BEGIN
 
@@ -206,6 +234,8 @@ TEST_BEGIN("basic chain functions")
 TEST_END
 
 TEST_BEGIN("advanced chain functions")
+    ///////////////////////////////
+    // test: trim
 	chain_t * mychain = chain_create(free);
 	CHECK(mychain != NULL);
 	CHECK(mychain->length == 0);
@@ -231,17 +261,19 @@ TEST_BEGIN("advanced chain functions")
 	chain_forward(mychain, 33);
 	CHECK(*(int *)mychain->link->data == 99);
 
-	// start fresh, reset mock fixture
-	// now test the sort function
 	chain_destroy(mychain);
 
+    ///////////////////////////////
+    // test: sort
+	// now test the sort function
 	mychain = chain_create(payload_destroy);
-	memset(payloads, 0, MAX_PAYLOADS * sizeof(payload_t));
-	//payloads_report();
+	// start fresh, reset mock fixture
+    fixture_reset();
+	//fixture_report();
 
 	const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
 	const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
-	for (i = 0; i < MAX_PAYLOADS; i++)
+	for (i = 0; i < FIXTURE_PAYLOADS; i++)
 	{
 		chain_insert(mychain, payload_create(ids[i]));
 	}
@@ -249,7 +281,7 @@ TEST_BEGIN("advanced chain functions")
 	chain_sort(mychain, payload_compare);
 	
     payload_t * p = NULL;
-	for (i = 0; i < MAX_PAYLOADS; i++)
+	for (i = 0; i < FIXTURE_PAYLOADS; i++)
 	{
         p = (payload_t *) mychain->link->data;
         printf("payload %d: id: %zu\n", i, p->id);
@@ -260,18 +292,26 @@ TEST_BEGIN("advanced chain functions")
 		chain_forward(mychain, 1);
 	}
 
-	//payloads_report();
+    ///////////////////////////////
+    // test: destroy
+	//fixture_report();
 	chain_destroy(mychain);
-	//payloads_report();
-    (void) payloads_report;
+	//fixture_report();
+    (void) fixture_report;
     
-	for (i = 0; i < MAX_PAYLOADS; i++)
+	for (i = 0; i < FIXTURE_PAYLOADS; i++)
 	{
-        p = (payload_t *) &payloads[i];
+        p = (payload_t *) &fixture.payloads[i];
 	    CHECK(p->is_created == true);
 	    CHECK(p->is_destroyed == true);
 	}
+
+    ///////////////////////////////
+    // test: copy
     
+    // TODO: Break this down into a test per function
+    fixture_reset();
+
 
 TEST_END
 
