@@ -1,5 +1,5 @@
 # RayTL
-A Register-Transfer Level (RTL) circuit simulator framework similar to VHDL or Verilog, but purposefully much more limited in scope.
+Goal: A Register-Transfer Level (RTL) circuit simulator framework similar to VHDL or Verilog, but purposefully simpler and much more limited in scope.
 
 # Why?
 Mainly because I want to.  I enjoy creating and using my own tools.
