@@ -1,6 +1,7 @@
 #include "blammo.h"
 #include "chain.h"
 #include "mut.h"
+#include "fixture.h"
 
 #include <string.h>
 #include <limits.h>
@@ -22,134 +23,12 @@
 // chain_segment
 // chain_splice
 
-// Test fixture payload.  Don't really actually
-// use heap for this, because we want to test
-// conditions and inspect state throughout.
-// This is more of a 'mock' dynamic payload
-typedef struct payload_t
-{
-    size_t id;
-    bool is_created;
-    bool is_destroyed;
-    struct payload_t * copy_of;
-}
-payload_t;
-
-#define FIXTURE_PAYLOADS 10
-typedef struct
-{
-    // statically allocate test fixture.payloads on
-    // program stack for analysis.
-    payload_t payloads[FIXTURE_PAYLOADS];
-    size_t i, j;
-}
-fixture_t;
-
-// The test fixture
-static fixture_t fixture;
-
-static void payload_report(int i, payload_t * p)
-{
-    if (!p)
-    {
-        printf("NULL!\n");
-        return;
-    }
-
-    printf("payload: %d  id: %zu  created: %s  destroyed: %s\n"
-           "    self: %p  copy_of: %p\n", i, p->id,
-           p->is_created ? "true" : "false",
-           p->is_destroyed ? "true" : "false",
-           p, p->copy_of);
-}
-
-// test fixture functions, simulating a
-// factory / object interface
-static payload_t * payload_create(size_t id)
-{
-    if (fixture.i >= FIXTURE_PAYLOADS)
-    {
-        // Simulate malloc fail
-        return NULL;
-    }
-    
-    payload_t * payload = &fixture.payloads[fixture.i++];
-    payload->id = id;
-    payload->is_created = true;
-    return payload;
-}                                 
-
-static void payload_destroy(void * ptr)
-{
-    payload_t * payload = (payload_t *) ptr;
-    payload->is_destroyed = true;
-    
-    if (!payload->copy_of)
-    {
-        // created by create
-        if (fixture.i > 0)
-        {
-            fixture.i--;
-        }
-    }
-    else
-    {
-        // created by copy
-        if (fixture.j < FIXTURE_PAYLOADS)
-        {
-            fixture.j++;
-        }
-    }
-}
-
-static int payload_compare(const void * a, const void * b)
-{
-    payload_t * ap = (payload_t *) *(void **) a;
-    payload_t * bp = (payload_t *) *(void **) b;
-
-    if (!ap || !bp)
-    {
-        return INT_MIN;
-    }
-
-    return (int) ap->id - (int) bp->id;
-}
-
-static void * payload_copy(const void * p)
-{
-    payload_t * orig = (payload_t *) p;
-    payload_t * copy = NULL;
-
-    if (!orig || fixture.j == 0)
-    {
-        return copy;
-    }
-
-    copy = &fixture.payloads[fixture.j--];
-    // WARNING: Stack copies may not be 'destroyed' properly
-
-    memcpy(copy, orig, sizeof(payload_t));
-    copy->copy_of = orig;
-    return copy;
-}
-
-static void fixture_reset()
-{
-    memset(fixture.payloads, 0, FIXTURE_PAYLOADS * sizeof(payload_t));
-    fixture.i = 0;
-    fixture.j = FIXTURE_PAYLOADS - 1;
-}
-
-static void fixture_report()
-{
-    int i;
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
-    {
-        payload_report(i, &fixture.payloads[i]);
-    }
-}
-
 TESTSUITE_BEGIN
+
+	// because these aren't always used, some warning eaters:
+	(void) fixture_reset;
+	(void) fixture_report;
+	(void) fixture_payload;
 
 TEST_BEGIN("basic chain functions")
 	// create a simple chain
@@ -321,11 +200,10 @@ TEST_BEGIN("advanced chain functions")
     //fixture_report();
     chain_destroy(mychain);
     //fixture_report();
-    (void) fixture_report;
     
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
     {
-        p = (payload_t *) &fixture.payloads[i];
+        p = (payload_t *) fixture_payload(i);
         CHECK(p->is_created == true);
         CHECK(p->is_destroyed == true);
     }
