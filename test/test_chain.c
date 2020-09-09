@@ -291,69 +291,66 @@ TEST_BEGIN("advanced chain functions")
 
     ///////////////////////////////
     // test: sort
-	// now test the sort function
-	// start fresh, reset mock fixture
+    // now test the sort function
+    // start fresh, reset mock fixture
     fixture_reset();
-	//fixture_report();
-	mychain = chain_create(payload_destroy);
+    //fixture_report();
+    mychain = chain_create(payload_destroy);
+    const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
+    const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
+    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    {
+        chain_insert(mychain, payload_create(ids[i]));
+    }
 
-	const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
-	const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
-	for (i = 0; i < FIXTURE_PAYLOADS; i++)
-	{
-		chain_insert(mychain, payload_create(ids[i]));
-	}
-
-	chain_sort(mychain, payload_compare);
+    chain_sort(mychain, payload_compare);
 	
     payload_t * p = NULL;
-	for (i = 0; i < FIXTURE_PAYLOADS; i++)
-	{
+    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    {
         p = (payload_t *) mychain->link->data;
         //payload_report(i, p);
         CHECK(p->id == ids_sorted[i]);
-	    CHECK(p->is_created == true);
-	    CHECK(p->is_destroyed == false);
-	    
-		chain_forward(mychain, 1);
-	}
+        CHECK(p->is_created == true);
+        CHECK(p->is_destroyed == false);
+        chain_forward(mychain, 1);
+    }
 
     ///////////////////////////////
     // test: destroy
-	//fixture_report();
-	chain_destroy(mychain);
-	//fixture_report();
+    //fixture_report();
+    chain_destroy(mychain);
+    //fixture_report();
     (void) fixture_report;
     
-	for (i = 0; i < FIXTURE_PAYLOADS; i++)
-	{
+    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    {
         p = (payload_t *) &fixture.payloads[i];
-	    CHECK(p->is_created == true);
-	    CHECK(p->is_destroyed == true);
-	}
+        CHECK(p->is_created == true);
+        CHECK(p->is_destroyed == true);
+    }
 
     ///////////////////////////////
     // test: copy
     
     // TODO: Break this down into a test per function
     fixture_reset();
-	mychain = chain_create(payload_destroy);
+    mychain = chain_create(payload_destroy);
 
-	for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
-	{
-		chain_insert(mychain, payload_create(i * 2));
-	}
+    for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
+    { 
+        chain_insert(mychain, payload_create(i * 2));
+    }
     
     payload_t * optr, * cptr;
     chain_t * mycopy = chain_copy(mychain, payload_copy);
-	//fixture_report();
-
+    //fixture_report();
     CHECK(mycopy != NULL)
     CHECK(mycopy != mychain)
 
     chain_reset(mychain);
     chain_reset(mycopy);
-	for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
     {
         CHECK(mychain->link != mycopy->link);
         optr = (payload_t *) mychain->link->data;
@@ -370,7 +367,7 @@ TEST_BEGIN("advanced chain functions")
 
         chain_forward(mychain, 1);
         chain_forward(mycopy, 1);
-	}
+    }
 
 
 TEST_END
