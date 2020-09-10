@@ -6,7 +6,6 @@
 #include <string.h>
 #include <limits.h>
 
-// basic chain operations
 // * chain_create
 // * chain_destroy
 // * chain_clear
@@ -15,8 +14,6 @@
 // * chain_forward
 // * chain_rewind
 // * chain_reset
-
-// advanced chain operations
 // * chain_trim
 // * chain_sort
 // * chain_copy
@@ -30,8 +27,16 @@ TESTSUITE_BEGIN
 	(void) fixture_report;
 	(void) fixture_payload;
 
-TEST_BEGIN("basic chain functions")
+TEST_BEGIN("create")
 	// create a simple chain
+	chain_t * mychain = chain_create(NULL);
+	CHECK(mychain != NULL);
+	CHECK(mychain->length == 0);
+
+    chain_destroy(mychain);
+TEST_END
+
+TEST_BEGIN("insert")
 	chain_t * mychain = chain_create(free);
 	CHECK(mychain != NULL);
 	CHECK(mychain->length == 0);
@@ -72,12 +77,26 @@ TEST_BEGIN("basic chain functions")
 	*(int *)mychain->link->data = 3;
 	CHECK(*(int *)mychain->link->data == 3);
 
+    chain_destroy(mychain);
+TEST_END
+
+TEST_BEGIN("reset")
+	chain_t * mychain = chain_create(free);
+	chain_insert(mychain, malloc(sizeof(int)));
+	*(int *)mychain->link->data = 1;
+	chain_insert(mychain, malloc(sizeof(int)));
+	*(int *)mychain->link->data = 2;
+	chain_insert(mychain, malloc(sizeof(int)));
+	*(int *)mychain->link->data = 3;
+
 	// reset back to origin
 	CHECK(mychain->link != mychain->orig);
 	chain_reset(mychain);
 	CHECK(mychain->link == mychain->orig);
 	CHECK(mychain->link->data != NULL);
 	CHECK(*(int *)mychain->link->data == 1);
+
+
 
 	// go forward two links
 	chain_forward(mychain, 2);
@@ -247,6 +266,15 @@ TEST_BEGIN("advanced chain functions")
         chain_forward(mycopy, 1);
     }
 
+    chain_destroy(mychain);
+    chain_destroy(mycopy);
+
+    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    {
+        p = (payload_t *) fixture_payload(i);
+        CHECK(p->is_created == true);
+        CHECK(p->is_destroyed == true);
+    }
 
 TEST_END
 
