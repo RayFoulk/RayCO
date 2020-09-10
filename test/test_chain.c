@@ -22,136 +22,136 @@
 
 TESTSUITE_BEGIN
 
-	// because these aren't always used, some warning eaters:
-	(void) fixture_reset;
-	(void) fixture_report;
-	(void) fixture_payload;
+    // because these aren't always used, some warning eaters:
+    (void) fixture_reset;
+    (void) fixture_report;
+    (void) fixture_payload;
 
 TEST_BEGIN("create")
-	// create a simple chain
-	chain_t * mychain = chain_create(NULL);
-	CHECK(mychain != NULL);
-	CHECK(mychain->length == 0);
+    // create a simple chain
+    chain_t * mychain = chain_create(NULL);
+    CHECK(mychain != NULL);
+    CHECK(mychain->length == 0);
 
     chain_destroy(mychain);
 TEST_END
 
 TEST_BEGIN("insert")
     int i;
-	chain_t * mychain = chain_create(free);
-	CHECK(mychain != NULL);
-	CHECK(mychain->length == 0);
+    chain_t * mychain = chain_create(free);
+    CHECK(mychain != NULL);
+    CHECK(mychain->length == 0);
 
-	for (i = 1; i <= 3; i++)
-	{
-		// add the nth link: first will be the origin
-		// all others will be distinct from the origin
-		chain_insert(mychain, malloc(sizeof(int)));
-		CHECK(mychain->link != NULL);
-		CHECK(mychain->orig != NULL);
-		CHECK(mychain->length == i);
+    for (i = 1; i <= 3; i++)
+    {
+        // add the nth link: first will be the origin
+        // all others will be distinct from the origin
+        chain_insert(mychain, malloc(sizeof(int)));
+        CHECK(mychain->link != NULL);
+        CHECK(mychain->orig != NULL);
+        CHECK(mychain->length == i);
 
-		if (i == 1)
-		{
-			CHECK(mychain->link == mychain->orig);
-		}
-		else
-		{
-			CHECK(mychain->link != mychain->orig);
-		}
+        if (i == 1)
+        {
+            CHECK(mychain->link == mychain->orig);
+        }
+        else
+        {
+            CHECK(mychain->link != mychain->orig);
+        }
 
-		// add and set some simple data
-		CHECK(mychain->link->data != NULL);
-		*(int *)mychain->link->data = i;
-		CHECK(*(int *)mychain->link->data == i);
+        // add and set some simple data
+        CHECK(mychain->link->data != NULL);
+        *(int *)mychain->link->data = i;
+        CHECK(*(int *)mychain->link->data == i);
     }
 
-	chain_destroy(mychain);
+    chain_destroy(mychain);
 TEST_END
 
 TEST_BEGIN("reset")
-	chain_t * mychain = chain_create(free);
-	chain_insert(mychain, malloc(sizeof(int)));
-	*(int *)mychain->link->data = 1;
-	chain_insert(mychain, malloc(sizeof(int)));
-	*(int *)mychain->link->data = 2;
-	chain_insert(mychain, malloc(sizeof(int)));
-	*(int *)mychain->link->data = 3;
+    chain_t * mychain = chain_create(free);
+    chain_insert(mychain, malloc(sizeof(int)));
+    *(int *)mychain->link->data = 1;
+    chain_insert(mychain, malloc(sizeof(int)));
+    *(int *)mychain->link->data = 2;
+    chain_insert(mychain, malloc(sizeof(int)));
+    *(int *)mychain->link->data = 3;
 
-	// reset back to origin
-	CHECK(mychain->link != mychain->orig);
-	chain_reset(mychain);
-	CHECK(mychain->link == mychain->orig);
-	CHECK(mychain->link->data != NULL);
-	CHECK(*(int *)mychain->link->data == 1);
+    // reset back to origin
+    CHECK(mychain->link != mychain->orig);
+    chain_reset(mychain);
+    CHECK(mychain->link == mychain->orig);
+    CHECK(mychain->link->data != NULL);
+    CHECK(*(int *)mychain->link->data == 1);
 
-	chain_destroy(mychain);
+    chain_destroy(mychain);
 TEST_END
 
 TEST_BEGIN("seek (forward/rewind)")
-	chain_t * mychain = chain_create(free);
-	chain_insert(mychain, malloc(sizeof(int)));
-	*(int *)mychain->link->data = 1;
-	chain_insert(mychain, malloc(sizeof(int)));
-	*(int *)mychain->link->data = 2;
-	chain_insert(mychain, malloc(sizeof(int)));
-	*(int *)mychain->link->data = 3;
-	chain_reset(mychain);
+    chain_t * mychain = chain_create(free);
+    chain_insert(mychain, malloc(sizeof(int)));
+    *(int *)mychain->link->data = 1;
+    chain_insert(mychain, malloc(sizeof(int)));
+    *(int *)mychain->link->data = 2;
+    chain_insert(mychain, malloc(sizeof(int)));
+    *(int *)mychain->link->data = 3;
+    chain_reset(mychain);
 
-	// go forward two links
-	chain_forward(mychain, 2);
-	CHECK(mychain->link != mychain->orig);
-	CHECK(*(int *)mychain->link->data == 3);
+    // go forward two links
+    chain_forward(mychain, 2);
+    CHECK(mychain->link != mychain->orig);
+    CHECK(*(int *)mychain->link->data == 3);
 
-	// rewind one link
-	chain_rewind(mychain, 1);
-	CHECK(mychain->link != mychain->orig);
-	CHECK(*(int *)mychain->link->data == 2);
+    // rewind one link
+    chain_rewind(mychain, 1);
+    CHECK(mychain->link != mychain->orig);
+    CHECK(*(int *)mychain->link->data == 2);
 
-	// go forward two links
-	// because of circular property,
-	// it should be back at origin
-	chain_forward(mychain, 2);
-	CHECK(mychain->link == mychain->orig);
-	CHECK(*(int *)mychain->link->data == 1);
+    // go forward two links
+    // because of circular property,
+    // it should be back at origin
+    chain_forward(mychain, 2);
+    CHECK(mychain->link == mychain->orig);
+    CHECK(*(int *)mychain->link->data == 1);
 
-	// rewind two.  because of circular
-	// property, should be at index 2
-	chain_rewind(mychain, 2);
-	CHECK(mychain->link != mychain->orig);
-	CHECK(*(int *)mychain->link->data == 2);
+    // rewind two.  because of circular
+    // property, should be at index 2
+    chain_rewind(mychain, 2);
+    CHECK(mychain->link != mychain->orig);
+    CHECK(*(int *)mychain->link->data == 2);
 
-	// delete this link, leaving only 1 & 3
-	// should land on 1 just because it is prev
-	chain_delete(mychain);
-	CHECK(*(int *)mychain->link->data == 1);
-	CHECK(mychain->length == 2);
+    // delete this link, leaving only 1 & 3
+    // should land on 1 just because it is prev
+    chain_delete(mychain);
+    CHECK(*(int *)mychain->link->data == 1);
+    CHECK(mychain->length == 2);
 
-	// go forward 1, we should be at 3
-	chain_forward(mychain, 1);
-	CHECK(mychain->link != mychain->orig);
-	CHECK(*(int *)mychain->link->data == 3);
+    // go forward 1, we should be at 3
+    chain_forward(mychain, 1);
+    CHECK(mychain->link != mychain->orig);
+    CHECK(*(int *)mychain->link->data == 3);
 
-	// clear all links and data
-	// back to original state.
-	// NOTE: This will fail after refactor
-	chain_clear(mychain);
-	CHECK(mychain->length == 0);
-	CHECK(mychain->link != NULL);
-	CHECK(mychain->orig != NULL);
-	CHECK(mychain->link == mychain->orig);
+    // clear all links and data
+    // back to original state.
+    // NOTE: This will fail after refactor
+    chain_clear(mychain);
+    CHECK(mychain->length == 0);
+    CHECK(mychain->link != NULL);
+    CHECK(mychain->orig != NULL);
+    CHECK(mychain->link == mychain->orig);
 
-	// allocate a whole bunch after clearing
-	int i;
-	for (i = 0; i < 99; i++)
-	{
-		chain_insert(mychain, malloc(32));
-	}
-	CHECK(mychain->length == 99);
+    // allocate a whole bunch after clearing
+    int i;
+    for (i = 0; i < 99; i++)
+    {
+        chain_insert(mychain, malloc(32));
+    }
+    CHECK(mychain->length == 99);
 
-	chain_destroy(mychain);
-	// cannot (easily) check heap, but local pointer
-	// is invalid.  could solve with ** arg
+    chain_destroy(mychain);
+    // cannot (easily) check heap, but local pointer
+    // is invalid.  could solve with ** arg
     // however, destroy must have same signature
     // as free()
 
@@ -160,32 +160,32 @@ TEST_END
 TEST_BEGIN("advanced chain functions")
     ///////////////////////////////
     // test: trim
-	chain_t * mychain = chain_create(free);
-	CHECK(mychain != NULL);
-	CHECK(mychain->length == 0);
+    chain_t * mychain = chain_create(free);
+    CHECK(mychain != NULL);
+    CHECK(mychain->length == 0);
 
-	// create a chain with sparse data
-	int i;
-	for (i = 0; i < 102; i++)
-	{
-		chain_insert(mychain, NULL);
-		if (i % 3 == 0)
-		{
-			mychain->link->data = malloc(sizeof(int));
-			*(int *)mychain->link->data = i;
-		}
-	}
-	CHECK(mychain->length == 102);
+    // create a chain with sparse data
+    int i;
+    for (i = 0; i < 102; i++)
+    {
+        chain_insert(mychain, NULL);
+        if (i % 3 == 0)
+        {
+            mychain->link->data = malloc(sizeof(int));
+            *(int *)mychain->link->data = i;
+        }
+    }
+    CHECK(mychain->length == 102);
 
-	// now trim out nodes without data
-	chain_trim(mychain);
-	CHECK(mychain->length == 34);
+    // now trim out nodes without data
+    chain_trim(mychain);
+    CHECK(mychain->length == 34);
 
-	// verify sane indexing
-	chain_forward(mychain, 33);
-	CHECK(*(int *)mychain->link->data == 99);
+    // verify sane indexing
+    chain_forward(mychain, 33);
+    CHECK(*(int *)mychain->link->data == 99);
 
-	chain_destroy(mychain);
+    chain_destroy(mychain);
 
     ///////////////////////////////
     // test: sort
@@ -202,7 +202,7 @@ TEST_BEGIN("advanced chain functions")
     }
 
     chain_sort(mychain, payload_compare);
-	
+    
     payload_t * p = NULL;
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
     {

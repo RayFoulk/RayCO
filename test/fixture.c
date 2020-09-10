@@ -109,7 +109,7 @@ void payload_report(int i, payload_t * p)
 {
     if (!p)
     {
-    	BLAMMO(DEBUG, "NULL payload!\n");
+        BLAMMO(DEBUG, "NULL payload!\n");
         return;
     }
 
@@ -139,5 +139,5 @@ void fixture_report()
 
 payload_t * fixture_payload(int i)
 {
-	return &fixture.payloads[i];
+    return &fixture.payloads[i];
 }
