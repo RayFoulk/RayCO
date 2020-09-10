@@ -37,47 +37,36 @@ TEST_BEGIN("create")
 TEST_END
 
 TEST_BEGIN("insert")
+    int i;
 	chain_t * mychain = chain_create(free);
 	CHECK(mychain != NULL);
 	CHECK(mychain->length == 0);
 
-	// add the first link
-	chain_insert(mychain, malloc(sizeof(int)));
-	CHECK(mychain->link != NULL);
-	CHECK(mychain->orig != NULL);
-	CHECK(mychain->link == mychain->orig);
-	CHECK(mychain->length == 1);
+	for (i = 1; i <= 3; i++)
+	{
+		// add the nth link: first will be the origin
+		// all others will be distinct from the origin
+		chain_insert(mychain, malloc(sizeof(int)));
+		CHECK(mychain->link != NULL);
+		CHECK(mychain->orig != NULL);
+		CHECK(mychain->length == i);
 
-	// add and set some simple data
-	CHECK(mychain->link->data != NULL);
-	*(int *)mychain->link->data = 1;
-	CHECK(*(int *)mychain->link->data == 1);
+		if (i == 1)
+		{
+			CHECK(mychain->link == mychain->orig);
+		}
+		else
+		{
+			CHECK(mychain->link != mychain->orig);
+		}
 
-	// add another link
-	chain_insert(mychain, malloc(sizeof(int)));
-	CHECK(mychain->link != NULL);
-	CHECK(mychain->orig != NULL);
-	CHECK(mychain->link != mychain->orig);
-	CHECK(mychain->length == 2);
+		// add and set some simple data
+		CHECK(mychain->link->data != NULL);
+		*(int *)mychain->link->data = i;
+		CHECK(*(int *)mychain->link->data == i);
+    }
 
-	// add and set some more data
-	CHECK(mychain->link->data != NULL);
-	*(int *)mychain->link->data = 2;
-	CHECK(*(int *)mychain->link->data == 2);
-
-	// add a third link
-	chain_insert(mychain, malloc(sizeof(int)));
-	CHECK(mychain->link != NULL);
-	CHECK(mychain->orig != NULL);
-	CHECK(mychain->link != mychain->orig);
-	CHECK(mychain->length == 3);
-
-	// add and set data
-	CHECK(mychain->link->data != NULL);
-	*(int *)mychain->link->data = 3;
-	CHECK(*(int *)mychain->link->data == 3);
-
-    chain_destroy(mychain);
+	chain_destroy(mychain);
 TEST_END
 
 TEST_BEGIN("reset")
@@ -96,7 +85,18 @@ TEST_BEGIN("reset")
 	CHECK(mychain->link->data != NULL);
 	CHECK(*(int *)mychain->link->data == 1);
 
+	chain_destroy(mychain);
+TEST_END
 
+TEST_BEGIN("seek (forward/rewind)")
+	chain_t * mychain = chain_create(free);
+	chain_insert(mychain, malloc(sizeof(int)));
+	*(int *)mychain->link->data = 1;
+	chain_insert(mychain, malloc(sizeof(int)));
+	*(int *)mychain->link->data = 2;
+	chain_insert(mychain, malloc(sizeof(int)));
+	*(int *)mychain->link->data = 3;
+	chain_reset(mychain);
 
 	// go forward two links
 	chain_forward(mychain, 2);

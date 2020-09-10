@@ -27,6 +27,9 @@ install: $(PROJECT)
 uninstall:
 	rm -f $(BIN)/$(PROJECT)
 
+notabs:
+	find . -type f -regex ".*\.[ch]" -exec sed -i '' "s/\t/    /g" {} +
+
 clean:
 	rm -f core *.o *.a $(PROJECT) $(PROJECT)_debug
 
