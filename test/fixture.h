@@ -61,7 +61,7 @@ payload_t * payload_create(size_t id);
 void payload_destroy(void * ptr);
 int payload_compare(const void * a, const void * b);
 void * payload_copy(const void * p);
-void payload_report(int i, payload_t * p);
+void payload_report(payload_t * p, int i);
 
 //------------------------------------------------------------------------|
 void fixture_reset();

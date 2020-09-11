@@ -105,7 +105,7 @@ void * payload_copy(const void * p)
     return copy;
 }
 
-void payload_report(int i, payload_t * p)
+void payload_report(payload_t * p, int i)
 {
     if (!p)
     {
@@ -133,7 +133,7 @@ void fixture_report()
     int i;
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
     {
-        payload_report(i, &fixture.payloads[i]);
+        payload_report(&fixture.payloads[i], i);
     }
 }
 
