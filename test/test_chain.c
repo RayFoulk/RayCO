@@ -6,20 +6,6 @@
 #include <string.h>
 #include <limits.h>
 
-// ** chain_create
-// ** chain_destroy
-// ** chain_clear
-// ** chain_insert
-// ** chain_delete
-// ** chain_forward
-// ** chain_rewind
-// ** chain_reset
-// ** chain_trim
-// ** chain_sort
-// ** chain_copy
-// chain_segment
-// chain_splice
-
 TESTSUITE_BEGIN
 
     // because these aren't always used, some warning eaters:
@@ -28,11 +14,9 @@ TESTSUITE_BEGIN
     (void) fixture_payload;
 
 TEST_BEGIN("create")
-    // create a simple chain
     chain_t * mychain = chain_create(NULL);
     CHECK(mychain != NULL);
     CHECK(mychain->length == 0);
-
     chain_destroy(mychain);
 TEST_END
 
@@ -168,6 +152,7 @@ TEST_BEGIN("delete")
     CHECK(mychain->link != mychain->orig);
     CHECK(mychain->link->data == (void *) 3);
 
+    chain_destroy(mychain);
 TEST_END
 
 TEST_BEGIN("clear")
@@ -252,6 +237,7 @@ TEST_BEGIN("sort")
         chain_forward(mychain, 1);
     }
 
+    chain_destroy(mychain);
 TEST_END
 
 TEST_BEGIN("destroy")
