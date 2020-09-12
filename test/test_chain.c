@@ -318,6 +318,44 @@ TEST_BEGIN("copy")
 TEST_END
 
 TEST_BEGIN("segment")
+    size_t i;
+    chain_t * mychain = chain_create(NULL);
+    CHECK(mychain != NULL);
+    CHECK(mychain->length == 0);
+
+    for (i = 1; i <= 7; i++)
+    {
+        chain_insert(mychain, (void *) i);
+        CHECK(mychain->link != NULL);
+        CHECK(mychain->orig != NULL);
+        CHECK(mychain->length == i);
+        CHECK(mychain->link->data != NULL);
+        CHECK(mychain->link->data == (void *) i);
+    }
+
+    chain_t * segment = chain_segment(mychain, 4, 7);
+    CHECK(segment->length == 3);
+    CHECK(mychain->length == 4);
+    CHECK(mychain->orig != segment->orig);
+
+    chain_reset(mychain);
+    chain_reset(segment);
+    for (i = 1; i <= 7; i++)
+    {
+        CHECK(mychain->link->data != NULL);
+        CHECK(mychain->link->data == (void *)
+            ((i - 1) % mychain->length + 1));
+
+        CHECK(segment->link->data != NULL);
+        CHECK(segment->link->data == (void *)
+            ((i - 1) % segment->length + 5));
+
+        chain_forward(mychain, 1);
+        chain_forward(segment, 1);
+    }
+
+    chain_destroy(mychain);
+    chain_destroy(segment);
 TEST_END
 
 TEST_BEGIN("splice")
