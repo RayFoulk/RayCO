@@ -327,7 +327,6 @@ TEST_BEGIN("segment")
     {
         chain_insert(mychain, (void *) i);
         CHECK(mychain->link != NULL);
-        CHECK(mychain->orig != NULL);
         CHECK(mychain->length == i);
         CHECK(mychain->link->data != NULL);
         CHECK(mychain->link->data == (void *) i);
@@ -340,7 +339,7 @@ TEST_BEGIN("segment")
 
     chain_reset(mychain);
     chain_reset(segment);
-    for (i = 1; i <= 7; i++)
+    for (i = 1; i <= 5; i++)
     {
         CHECK(mychain->link->data != NULL);
         CHECK(mychain->link->data == (void *)
@@ -359,6 +358,37 @@ TEST_BEGIN("segment")
 TEST_END
 
 TEST_BEGIN("splice")
+    size_t i;
+    chain_t * achain = chain_create(NULL);
+    chain_t * bchain = chain_create(NULL);
+    CHECK(achain != NULL);
+    CHECK(bchain != NULL);
+    CHECK(achain->length == 0);
+    CHECK(bchain->length == 0);
+
+    for (i = 1; i <= 4; i++)
+    {
+        chain_insert(achain, (void *) i);
+        chain_insert(bchain, (void *) (i + 4));
+        CHECK(achain->link != NULL);
+        CHECK(achain->length == i);
+        CHECK(achain->link->data != NULL);
+        CHECK(achain->link->data == (void *) i);
+    }
+
+    achain = chain_splice(achain, bchain);
+    CHECK(achain->length == 8);
+
+    chain_reset(achain);
+    for (i = 1; i <= 8; i++)
+    {
+        CHECK(achain->link != NULL);
+        CHECK(achain->link->data != NULL);
+        CHECK(achain->link->data == (void *) i);
+        chain_forward(achain, 1);
+    }
+
+    chain_destroy(achain);
 TEST_END
 
 TESTSUITE_END

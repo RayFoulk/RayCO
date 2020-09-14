@@ -417,8 +417,8 @@ chain_t * chain_splice(chain_t * head, chain_t * tail)
     // memory management becomes the responsibility of the head chain
     head->length += tail->length;
 
-    free(tail);
     memset(tail, 0, sizeof(chain_t));
+    free(tail);
 
     return head;
 }
