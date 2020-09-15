@@ -165,9 +165,15 @@ TEST_BEGIN("clear")
     // NOTE: This will fail after origin node refactor
     chain_clear(mychain);
     CHECK(mychain->length == 0);
+
+#ifdef USE_REFACTORED_ORIG_ALLOC
+    CHECK(mychain->link == NULL);
+    CHECK(mychain->orig == NULL);
+#else
     CHECK(mychain->link != NULL);
     CHECK(mychain->orig != NULL);
     CHECK(mychain->link == mychain->orig);
+#endif
 
     // able to add more nodes after clear
     chain_insert(mychain, (void *) 4);

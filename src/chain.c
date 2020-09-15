@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018 by Raymond M. Foulk IV
+// Copyright (c) 2018-2020 by Raymond M. Foulk IV
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -42,6 +42,7 @@ chain_t * chain_create(link_destroy_f link_destroy)
     // initialize components
     memset(chain, 0, sizeof(chain_t));
 
+#ifndef USE_REFACTORED_ORIG_ALLOC
     // allocate initial link of this list
     // this will be the origin link.
     chain->link = (link_t *) malloc(sizeof(link_t));
@@ -59,6 +60,8 @@ chain_t * chain_create(link_destroy_f link_destroy)
     chain->link->prev = chain->link;
     chain->orig = chain->link;
     chain->link->data = NULL;
+#endif
+
     chain->link_destroy = link_destroy;
 
     return chain;
@@ -80,8 +83,10 @@ void chain_destroy(void * chain_ptr)
     // expected to have previously called free() on every payload.
     chain_clear(chain);
 
+#ifndef USE_REFACTORED_ORIG_ALLOC
     // free the origin link, which is the only one left
     free(chain->link);
+#endif
 
     // zero out the remaining empty chain
     memset(chain, 0, sizeof(chain_t));
@@ -113,7 +118,6 @@ void chain_clear(chain_t * chain)
         {
             chain->link_destroy(chain->link->data);
         }
-        //free(chain->link->data);
         chain->link->data = NULL;
     }
 
@@ -126,17 +130,33 @@ void chain_insert(chain_t * chain, void * data)
 {
     link_t * link = NULL;
 
+#ifndef USE_REFACTORED_ORIG_ALLOC
     // only add another link if length is non-zero
     // because length can be zero while origin link exists
     if (chain->length > 0)
     {
-        // create a new link
-        link = (link_t *) malloc(sizeof(link_t));
-        if (!link)
-        {
-            BLAMMO(ERROR, "malloc(sizeof(link_t)) failed\n");
-            return;
-        }
+#endif
+
+    // create a new link
+    link = (link_t *) malloc(sizeof(link_t));
+    if (!link)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(link_t)) failed\n");
+        return;
+    }
+
+#ifdef USE_REFACTORED_ORIG_ALLOC
+    // check if linking in the origin
+    if (chain->link == NULL)
+    {
+        chain->link = link;
+        chain->orig = link;
+        chain->link->next = link;
+        chain->link->prev = link;
+    }
+    else
+    {
+#endif
 
         // link new link in between current and next link
         chain->link->next->prev = link;
@@ -144,10 +164,18 @@ void chain_insert(chain_t * chain, void * data)
         link->prev = chain->link;
         chain->link->next = link;
 
-        // move forward to the new link
-        // and initialize new link's contents
-        chain_forward(chain, 1);
-        chain->link->data = data;
+#ifdef USE_REFACTORED_ORIG_ALLOC
+    }
+#endif
+ 
+    // move forward to the new link
+    // NOTE: Harmless but unnecessary
+    // call/return for origin node.
+    // and initialize new link's contents
+    chain_forward(chain, 1);
+    chain->link->data = data;
+
+#ifndef USE_REFACTORED_ORIG_ALLOC
     }
 
     // FIXME: Temporary workaround until origin node refactor is complete
@@ -155,6 +183,7 @@ void chain_insert(chain_t * chain, void * data)
     {
         chain->link->data = data;
     }
+#endif
 
     chain->length ++;
 }
@@ -166,40 +195,46 @@ void chain_delete(chain_t * chain)
     link_t * link = NULL;
 
     // free link's data contents
-    // FIXME: this implementation assumes the chain user has allocated
-    // something using malloc.  this should be fixed using a dtor function
     if (NULL != chain->link->data)
     {
         if (NULL != chain->link_destroy)
         {
             chain->link_destroy(chain->link->data);
         }
-        //free(chain->link->data);
         chain->link->data = NULL;
     }
 
+#ifndef USE_REFACTORED_ORIG_ALLOC
     // only delete link if length is greater than 1
     if (chain->length > 1)
     {
-        // check if we're about to delete the origin link
-        if (chain->link == chain->orig)
-        {
-            chain->orig = chain->link->next;
-        }
+#endif
 
-        // remember previous link
-        link = chain->link->prev;
+    // check if we're about to delete the origin link
+    // if so, redefine the new origin as the next link
+    if (chain->link == chain->orig)
+    {
+        chain->orig = chain->link->next;
+    }
 
-        // unlink current link
-        chain->link->prev->next = chain->link->next;
-        chain->link->next->prev = chain->link->prev;
+    // remember previous link
+    link = chain->link->prev;
 
-        // free the current link
-        free (chain->link);
+    // unlink current link
+    chain->link->prev->next = chain->link->next;
+    chain->link->next->prev = chain->link->prev;
 
+    // free the current link
+    free (chain->link);
+
+#ifdef USE_REFACTORED_ORIG_ALLOC
+    // make current link old previous link
+    chain->link = chain->length > 1 ? link : NULL;
+#else
         // make current link old previous link
         chain->link = link;
     }
+#endif
 
     // the chain is effectively one link shorter either way
     chain->length --;
@@ -392,6 +427,9 @@ chain_t * chain_splice(chain_t * head, chain_t * tail)
     // to be empty.  this is a cheap workaround by adding empty links
     // to avoid breakage, but will in some cases result in empty links,
     // this implementation needs to be improved (TODO).
+
+    // FIXME: BROKEN HACK
+
     if (head->length == 0)
     {
         chain_insert(head, NULL);

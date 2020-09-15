@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2019 by Raymond M. Foulk IV
+// Copyright (c) 2018-2020 by Raymond M. Foulk IV
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-//#define USE_REFACTORED_ORIG_ALLOC
+#define USE_REFACTORED_ORIG_ALLOC
 
 //------------------------------------------------------------------------|
 typedef int (*link_compare_f) (const void *, const void *);
