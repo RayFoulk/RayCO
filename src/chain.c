@@ -73,7 +73,11 @@ void chain_destroy(void * chain_ptr)
     chain_t * chain = (chain_t *) chain_ptr;
     
     // guard against accidental double-destroy or early-destroy
+#ifdef USE_REFACTORED_ORIG_ALLOC
+    if (!chain)
+#else
     if (!chain || !chain->orig)
+#endif
     {
         BLAMMO(WARNING, "attempt to early or double-destroy\n"); 
         return;
@@ -99,10 +103,21 @@ void chain_destroy(void * chain_ptr)
 //------------------------------------------------------------------------|
 void chain_clear(chain_t * chain)
 {
+#ifdef USE_REFACTORED_ORIG_ALLOC
+
+    // delete links until none left
+    while (chain->link != NULL)
+    {
+        chain_delete(chain);
+    }
+
+#else
     chain_reset(chain);
     chain_rewind(chain, 1);
 
+
     // delete links until last remaining (origin)
+
     while (chain->link != chain->link->next)
     {
         chain_delete(chain);
@@ -120,7 +135,9 @@ void chain_clear(chain_t * chain)
         }
         chain->link->data = NULL;
     }
+#endif
 
+    chain->orig = NULL;
     chain->length = 0;
 }
 
@@ -201,6 +218,7 @@ void chain_delete(chain_t * chain)
         {
             chain->link_destroy(chain->link->data);
         }
+
         chain->link->data = NULL;
     }
 
@@ -225,7 +243,7 @@ void chain_delete(chain_t * chain)
     chain->link->next->prev = chain->link->prev;
 
     // free the current link
-    free (chain->link);
+    free(chain->link);
 
 #ifdef USE_REFACTORED_ORIG_ALLOC
     // make current link old previous link

@@ -16,6 +16,10 @@ TESTSUITE_BEGIN
 TEST_BEGIN("create")
     chain_t * mychain = chain_create(NULL);
     CHECK(mychain != NULL);
+#ifdef USE_REFACTORED_ORIG_ALLOC
+    CHECK(mychain->link == NULL);
+    CHECK(mychain->orig == NULL);
+#endif
     CHECK(mychain->length == 0);
     chain_destroy(mychain);
 TEST_END
