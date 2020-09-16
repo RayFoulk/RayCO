@@ -24,10 +24,9 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-#define USE_REFACTORED_ORIG_ALLOC
 
 //------------------------------------------------------------------------|
 typedef int (*link_compare_f) (const void *, const void *);
@@ -48,6 +47,10 @@ link_t;
 
 typedef struct
 {
+    
+
+
+    // TODO convert this to PIMPL void * data
     link_t * link;                // current link in chain
     link_t * orig;                // origin link in chain
     size_t length;                // list length
@@ -65,11 +68,12 @@ chain_t;
 //------------------------------------------------------------------------|
 chain_t * chain_create(link_destroy_f link_destroy);
 void chain_destroy(void * chain);
+
+// TODO: Make these static / object methods
 void chain_clear(chain_t * chain);    // remove all links (no data dtor!!)
 void chain_insert(chain_t * chain, void * data); // insert new link after & go to it
 void chain_delete(chain_t * chain);   // delete current link & go back
-bool chain_forward(chain_t * chain, size_t index);
-bool chain_rewind(chain_t * chain, size_t index);
+bool chain_spin(chain_t * chain, int64_t index);
 void chain_trim(chain_t * chain);     // delete links with NULL data payload
 void chain_reset(chain_t * chain);    // reset position back to origin link
 void chain_sort(chain_t * chain, link_compare_f compare_func);

@@ -16,10 +16,8 @@ TESTSUITE_BEGIN
 TEST_BEGIN("create")
     chain_t * mychain = chain_create(NULL);
     CHECK(mychain != NULL);
-#ifdef USE_REFACTORED_ORIG_ALLOC
     CHECK(mychain->link == NULL);
     CHECK(mychain->orig == NULL);
-#endif
     CHECK(mychain->length == 0);
     chain_destroy(mychain);
 TEST_END
@@ -114,23 +112,23 @@ TEST_BEGIN("seek (forward/rewind)")
     chain_reset(mychain);
 
     // go forward two links
-    chain_forward(mychain, 2);
+    chain_spin(mychain, 2);
     CHECK(mychain->link != mychain->orig);
     CHECK(mychain->link->data == (void *) 3);
 
     // rewind one link
-    chain_rewind(mychain, 1);
+    chain_spin(mychain, -1);
     CHECK(mychain->link != mychain->orig);
     CHECK(mychain->link->data == (void *) 2);
 
     // going forward two links should be back at origin
     // because of circular property of chains
-    chain_forward(mychain, 2);
+    chain_spin(mychain, 2);
     CHECK(mychain->link == mychain->orig);
     CHECK(mychain->link->data == (void *) 1);
 
     // rewind two and should be at index 2
-    chain_rewind(mychain, 2);
+    chain_spin(mychain, -2);
     CHECK(mychain->link != mychain->orig);
     CHECK(mychain->link->data == (void *) 2);
 
@@ -143,7 +141,7 @@ TEST_BEGIN("delete")
     chain_insert(mychain, (void *) 2);
     chain_insert(mychain, (void *) 3);
     chain_reset(mychain);
-    chain_forward(mychain, 1);
+    chain_spin(mychain, 1);
 
     // delete this link, leaving only 1 & 3
     // should land on 1 just because it is prev
@@ -152,7 +150,7 @@ TEST_BEGIN("delete")
     CHECK(mychain->length == 2);
 
     // go forward 1, we should be at 3
-    chain_forward(mychain, 1);
+    chain_spin(mychain, 1);
     CHECK(mychain->link != mychain->orig);
     CHECK(mychain->link->data == (void *) 3);
 
@@ -169,15 +167,8 @@ TEST_BEGIN("clear")
     // NOTE: This will fail after origin node refactor
     chain_clear(mychain);
     CHECK(mychain->length == 0);
-
-#ifdef USE_REFACTORED_ORIG_ALLOC
     CHECK(mychain->link == NULL);
     CHECK(mychain->orig == NULL);
-#else
-    CHECK(mychain->link != NULL);
-    CHECK(mychain->orig != NULL);
-    CHECK(mychain->link == mychain->orig);
-#endif
 
     // able to add more nodes after clear
     chain_insert(mychain, (void *) 4);
@@ -214,7 +205,7 @@ TEST_BEGIN("trim")
     CHECK(mychain->length == 34);
 
     // verify sane indexing
-    chain_forward(mychain, 33);
+    chain_spin(mychain, 33);
     CHECK(*(int *)mychain->link->data == 99);
 
     chain_destroy(mychain);
@@ -244,7 +235,7 @@ TEST_BEGIN("sort")
         CHECK(p->id == ids_sorted[i]);
         CHECK(p->is_created == true);
         CHECK(p->is_destroyed == false);
-        chain_forward(mychain, 1);
+        chain_spin(mychain, 1);
     }
 
     chain_destroy(mychain);
@@ -311,8 +302,8 @@ TEST_BEGIN("copy")
         //payload_report(i, optr);
         //payload_report(i, cptr);
 
-        chain_forward(mychain, 1);
-        chain_forward(mycopy, 1);
+        chain_spin(mychain, 1);
+        chain_spin(mycopy, 1);
     }
 
     chain_destroy(mychain);
@@ -359,8 +350,8 @@ TEST_BEGIN("segment")
         CHECK(segment->link->data == (void *)
             ((i - 1) % segment->length + 5));
 
-        chain_forward(mychain, 1);
-        chain_forward(segment, 1);
+        chain_spin(mychain, 1);
+        chain_spin(segment, 1);
     }
 
     chain_destroy(mychain);
@@ -395,7 +386,7 @@ TEST_BEGIN("splice")
         CHECK(achain->link != NULL);
         CHECK(achain->link->data != NULL);
         CHECK(achain->link->data == (void *) i);
-        chain_forward(achain, 1);
+        chain_spin(achain, 1);
     }
 
     chain_destroy(achain);
