@@ -35,7 +35,7 @@ static void chain_clear(chain_t * chain)
     // delete links until none left
     while (chain->link != NULL)
     {
-        chain_delete(chain);
+        chain->delete(chain);
     }
 
     chain->orig = NULL;
@@ -76,58 +76,13 @@ static void chain_insert(chain_t * chain, void * data)
     // NOTE: Harmless but unnecessary
     // call/return for origin node.
     // and initialize new link's contents
-    chain_spin(chain, 1);
+    chain->spin(chain, 1);
     chain->link->data = data;
     chain->length ++;
 }
 
 //------------------------------------------------------------------------|
-// factory-style creation of chain-link list
-chain_t * chain_create(data_destroy_f data_destroy)
-{
-    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
-    if (!chain)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
-        return NULL;
-    }
-
-    // initialize components
-    memset(chain, 0, sizeof(chain_t));
-    chain->clear = chain_clear;
-    chain->insert = chain_insert;
-    chain->data_destroy = data_destroy;
-
-    return chain;
-}
-
-//------------------------------------------------------------------------|
-void chain_destroy(void * chain_ptr)
-{
-    chain_t * chain = (chain_t *) chain_ptr;
-    
-    // guard against accidental double-destroy or early-destroy
-    if (!chain)
-    {
-        BLAMMO(WARNING, "attempt to early or double-destroy\n"); 
-        return;
-    }
-
-    // remove all links - note there is no data dtor here, so the user is
-    // expected to have previously called free() on every payload.
-    chain_clear(chain);
-
-    // zero out the remaining empty chain
-    memset(chain, 0, sizeof(chain_t));
-
-    // destroy the chain
-    free(chain);
-    chain = NULL;
-}
-
-//------------------------------------------------------------------------|
-// delete current link and revert back to the previous link as current
-void chain_delete(chain_t * chain)
+static void chain_delete(chain_t * chain)
 {
     link_t * link = NULL;
 
@@ -167,16 +122,13 @@ void chain_delete(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
-// set current link to origin link
-void chain_reset(chain_t * chain)
+static void chain_reset(chain_t * chain)
 {
     chain->link = chain->orig;
 }
 
 //------------------------------------------------------------------------|
-// Move forward through the chain by a positive number of links
-// Return false if ended on the origin node
-bool chain_spin(chain_t * chain, int64_t index)
+static bool chain_spin(chain_t * chain, int64_t index)
 {
     while (index > 0)
     {
@@ -194,22 +146,71 @@ bool chain_spin(chain_t * chain, int64_t index)
 }
 
 //------------------------------------------------------------------------|
+// factory-style creation of chain-link list
+chain_t * chain_create(data_destroy_f data_destroy)
+{
+    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
+    if (!chain)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
+        return NULL;
+    }
+
+    // initialize components
+    memset(chain, 0, sizeof(chain_t));
+
+    chain->clear = chain_clear;
+    chain->insert = chain_insert;
+    chain->delete = chain_delete;
+    chain->reset = chain_reset;
+    chain->spin = chain_spin;
+
+    chain->data_destroy = data_destroy;
+
+    return chain;
+}
+
+//------------------------------------------------------------------------|
+void chain_destroy(void * chain_ptr)
+{
+    chain_t * chain = (chain_t *) chain_ptr;
+    
+    // guard against accidental double-destroy or early-destroy
+    if (!chain)
+    {
+        BLAMMO(WARNING, "attempt to early or double-destroy\n"); 
+        return;
+    }
+
+    // remove all links - note there is no data dtor here, so the user is
+    // expected to have previously called free() on every payload.
+    chain_clear(chain);
+
+    // zero out the remaining empty chain
+    memset(chain, 0, sizeof(chain_t));
+
+    // destroy the chain
+    free(chain);
+    chain = NULL;
+}
+
+//------------------------------------------------------------------------|
 void chain_trim(chain_t * chain)
 {
     if (chain->length > 0)
     {
-        chain_reset(chain);
+        chain->reset(chain);
 
         do
         {
             if (!chain->link->data)
             {
                 chain->link->data = NULL;
-                chain_delete(chain);
-                chain_reset(chain);
+                chain->delete(chain);
+                chain->reset(chain);
             }
 
-            chain_spin(chain, 1);
+            chain->spin(chain, 1);
         }
         while (chain->link != chain->orig);
     }
@@ -236,11 +237,11 @@ void chain_sort(chain_t * chain, data_compare_f data_compare)
     
     // fill in the link pointer array from the chain
     size_t index = 0;
-    chain_reset(chain);
+    chain->reset(chain);
     do
     {
         data_ptrs[index++] = chain->link->data;
-        chain_spin(chain, 1);
+        chain->spin(chain, 1);
     }
     while (chain->link != chain->orig);
 
@@ -250,11 +251,11 @@ void chain_sort(chain_t * chain, data_compare_f data_compare)
     // now directly re-arrange all of the data pointers
     // the chain reset may not technically be necessary
     // because of the exit condition of the previous loop
-    chain_reset(chain);
+    chain->reset(chain);
     for (index = 0; index < chain->length; index++)
     {
         chain->link->data = data_ptrs[index];
-        chain_spin(chain, 1);
+        chain->spin(chain, 1);
     }
     
     free(data_ptrs);
@@ -277,12 +278,12 @@ chain_t * chain_copy(chain_t * chain, data_copy_f data_copy)
 
     if (chain->length > 0)
     {
-        chain_reset(chain);
+        chain->reset(chain);
         do
         {
         	data = data_copy ? data_copy(chain->link->data) : chain->link->data;
             chain->insert(copy, data);
-            chain_spin(chain, 1);
+            chain->spin(chain, 1);
         }
         while (chain->link != chain->orig);
     }
@@ -316,14 +317,14 @@ chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
 
     // set the original chain to the first link in what will become the
     // origin of the cut segment.
-    chain_reset(chain);
-    chain_spin(chain, begin);
+    chain->reset(chain);
+    chain->spin(chain, begin);
     segment->link = chain->link;
     segment->orig = chain->link;
 
     // set chain position to one-after the final link of the segment
     // cache this link's prev because we'll need it to fix chain linkage
-    chain_spin(chain, segment->length);
+    chain->spin(chain, segment->length);
     link = segment->link->prev;
 
     // separate the segment and fix up the now shorter chain
@@ -361,8 +362,8 @@ chain_t * chain_splice(chain_t * head, chain_t * tail)
     }
 
     // reset both chains to origin link
-    chain_reset(head);
-    chain_reset(tail);
+    head->reset(head);
+    tail->reset(tail);
 
     // link the tail segment to the end of the head segment
     link = tail->link->prev;

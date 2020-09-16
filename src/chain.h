@@ -47,13 +47,27 @@ link_t;
 
 typedef struct chain_t
 {
-	// Empties the chain: Removes all links and destroys their data payloads
+	// Empties the chain: Removes all links and destroys their data payloads.
+	// Effectively brings the chain back to factory condition.
     void (*clear)(struct chain_t * chain);
 
     // Insert a new link after the current link, spin forward to it,
     // and assign data to the new link.  Data is assumed to be of the uniform
     // type that can be destroyed by data_destroy_f data_destroy.
     void (*insert)(struct chain_t * chain, void * data);
+
+    // Delete the current link, destroying its data payload, and spin back to
+    // the previous link.  All data payloads are assumed to be of the uniform
+    // type that can be destroyed by data_destroy_f data_destroy.
+    void (*delete)(struct chain_t * chain);
+
+    // Reset the chain position back to the origin link
+    void (*reset)(struct chain_t * chain);
+
+    // Seeks the chain to the requested position, either forward (positive
+    // offset) or backward (negative offset).  Note there is the possibility
+    // that if the chain length gets larger than MAX_
+    bool (*spin)(struct chain_t * chain, int64_t offset);
 
 
 	////////////////////////////////////////////////////
@@ -80,10 +94,6 @@ chain_t * chain_create(data_destroy_f data_destroy);
 void chain_destroy(void * chain);
 
 // TODO: Make these static / object methods
-//void chain_insert(chain_t * chain, void * data); // insert new link after & go to it
-void chain_delete(chain_t * chain);   // delete current link & go back
-void chain_reset(chain_t * chain);    // reset position back to origin link
-bool chain_spin(chain_t * chain, int64_t index);
 void chain_trim(chain_t * chain);     // delete links with NULL data payload
 void chain_sort(chain_t * chain, data_compare_f data_compare);
 chain_t * chain_copy(chain_t * chain, data_copy_f data_copy);

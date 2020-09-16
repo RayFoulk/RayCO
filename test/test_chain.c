@@ -95,7 +95,7 @@ TEST_BEGIN("reset")
 
     // reset back to origin
     CHECK(chain->link != chain->orig);
-    chain_reset(chain);
+    chain->reset(chain);
     CHECK(chain->link == chain->orig);
     CHECK(chain->link->data != NULL);
     CHECK(chain->link->data == (void *) 1);
@@ -109,26 +109,26 @@ TEST_BEGIN("seek (forward/rewind)")
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
     chain->insert(chain, (void *) 3);
-    chain_reset(chain);
+    chain->reset(chain);
 
     // go forward two links
-    chain_spin(chain, 2);
+    chain->spin(chain, 2);
     CHECK(chain->link != chain->orig);
     CHECK(chain->link->data == (void *) 3);
 
     // rewind one link
-    chain_spin(chain, -1);
+    chain->spin(chain, -1);
     CHECK(chain->link != chain->orig);
     CHECK(chain->link->data == (void *) 2);
 
     // going forward two links should be back at origin
     // because of circular property of chains
-    chain_spin(chain, 2);
+    chain->spin(chain, 2);
     CHECK(chain->link == chain->orig);
     CHECK(chain->link->data == (void *) 1);
 
     // rewind two and should be at index 2
-    chain_spin(chain, -2);
+    chain->spin(chain, -2);
     CHECK(chain->link != chain->orig);
     CHECK(chain->link->data == (void *) 2);
 
@@ -140,17 +140,17 @@ TEST_BEGIN("delete")
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
     chain->insert(chain, (void *) 3);
-    chain_reset(chain);
-    chain_spin(chain, 1);
+    chain->reset(chain);
+    chain->spin(chain, 1);
 
     // delete this link, leaving only 1 & 3
     // should land on 1 just because it is prev
-    chain_delete(chain);
+    chain->delete(chain);
     CHECK(chain->link->data == (void *) 1);
     CHECK(chain->length == 2);
 
     // go forward 1, we should be at 3
-    chain_spin(chain, 1);
+    chain->spin(chain, 1);
     CHECK(chain->link != chain->orig);
     CHECK(chain->link->data == (void *) 3);
 
@@ -205,7 +205,7 @@ TEST_BEGIN("trim")
     CHECK(chain->length == 34);
 
     // verify sane indexing
-    chain_spin(chain, 33);
+    chain->spin(chain, 33);
     CHECK(*(int *)chain->link->data == 99);
 
     chain_destroy(chain);
@@ -235,7 +235,7 @@ TEST_BEGIN("sort")
         CHECK(p->id == ids_sorted[i]);
         CHECK(p->is_created == true);
         CHECK(p->is_destroyed == false);
-        chain_spin(chain, 1);
+        chain->spin(chain, 1);
     }
 
     chain_destroy(chain);
@@ -285,8 +285,8 @@ TEST_BEGIN("copy")
     CHECK(mycopy != NULL)
     CHECK(mycopy != chain)
 
-    chain_reset(chain);
-    chain_reset(mycopy);
+    chain->reset(chain);
+    mycopy->reset(mycopy);
     for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
     {
         CHECK(chain->link != mycopy->link);
@@ -302,8 +302,8 @@ TEST_BEGIN("copy")
         //payload_report(i, optr);
         //payload_report(i, cptr);
 
-        chain_spin(chain, 1);
-        chain_spin(mycopy, 1);
+        chain->spin(chain, 1);
+        chain->spin(mycopy, 1);
     }
 
     chain_destroy(chain);
@@ -338,8 +338,8 @@ TEST_BEGIN("segment")
     CHECK(chain->length == 4);
     CHECK(chain->orig != segment->orig);
 
-    chain_reset(chain);
-    chain_reset(segment);
+    chain->reset(chain);
+    segment->reset(segment);
     for (i = 1; i <= 5; i++)
     {
         CHECK(chain->link->data != NULL);
@@ -350,8 +350,8 @@ TEST_BEGIN("segment")
         CHECK(segment->link->data == (void *)
             ((i - 1) % segment->length + 5));
 
-        chain_spin(chain, 1);
-        chain_spin(segment, 1);
+        chain->spin(chain, 1);
+        chain->spin(segment, 1);
     }
 
     chain_destroy(chain);
@@ -380,13 +380,13 @@ TEST_BEGIN("splice")
     achain = chain_splice(achain, bchain);
     CHECK(achain->length == 8);
 
-    chain_reset(achain);
+    achain->reset(achain);
     for (i = 1; i <= 8; i++)
     {
         CHECK(achain->link != NULL);
         CHECK(achain->link->data != NULL);
         CHECK(achain->link->data == (void *) i);
-        chain_spin(achain, 1);
+        achain->spin(achain, 1);
     }
 
     chain_destroy(achain);
