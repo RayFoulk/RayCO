@@ -19,7 +19,7 @@ TEST_BEGIN("create")
     CHECK(chain->link == NULL);
     CHECK(chain->orig == NULL);
     CHECK(chain->length == 0);
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("insert (heap primitive)")
@@ -52,7 +52,7 @@ TEST_BEGIN("insert (heap primitive)")
         CHECK(*(int *)chain->link->data == i);
     }
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("insert (pointer value / static primitive)")
@@ -84,7 +84,7 @@ TEST_BEGIN("insert (pointer value / static primitive)")
         CHECK(chain->link->data == (void *) i);
     }
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("reset")
@@ -101,7 +101,7 @@ TEST_BEGIN("reset")
     CHECK(chain->link->data == (void *) 1);
     CHECK(chain->length == 3);
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("seek (forward/rewind)")
@@ -132,7 +132,7 @@ TEST_BEGIN("seek (forward/rewind)")
     CHECK(chain->link != chain->orig);
     CHECK(chain->link->data == (void *) 2);
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("delete")
@@ -154,7 +154,7 @@ TEST_BEGIN("delete")
     CHECK(chain->link != chain->orig);
     CHECK(chain->link->data == (void *) 3);
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("clear")
@@ -179,7 +179,7 @@ TEST_BEGIN("clear")
     CHECK(chain->link->data == (void *) 6);
     CHECK(chain->length == 3);
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("trim")
@@ -201,14 +201,14 @@ TEST_BEGIN("trim")
     CHECK(chain->length == 102);
 
     // now trim out nodes without data
-    chain_trim(chain);
+    chain->trim(chain);
     CHECK(chain->length == 34);
 
     // verify sane indexing
     chain->spin(chain, 33);
     CHECK(*(int *)chain->link->data == 99);
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("sort")
@@ -225,7 +225,7 @@ TEST_BEGIN("sort")
         chain->insert(chain, payload_create(ids[i]));
     }
 
-    chain_sort(chain, payload_compare);
+    chain->sort(chain, payload_compare);
     
     payload_t * p = NULL;
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
@@ -238,7 +238,7 @@ TEST_BEGIN("sort")
         chain->spin(chain, 1);
     }
 
-    chain_destroy(chain);
+    chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("destroy")
@@ -254,7 +254,7 @@ TEST_BEGIN("destroy")
     }
 
     //fixture_report();
-    chain_destroy(chain);
+    chain->destroy(chain);
     //fixture_report();
     
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
@@ -306,8 +306,8 @@ TEST_BEGIN("copy")
         chain->spin(mycopy, 1);
     }
 
-    chain_destroy(chain);
-    chain_destroy(mycopy);
+    chain->destroy(chain);
+    mycopy->destroy(mycopy);
 
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
     {
@@ -354,8 +354,8 @@ TEST_BEGIN("segment")
         chain->spin(segment, 1);
     }
 
-    chain_destroy(chain);
-    chain_destroy(segment);
+    chain->destroy(chain);
+    segment->destroy(segment);
 TEST_END
 
 TEST_BEGIN("splice")
@@ -389,7 +389,7 @@ TEST_BEGIN("splice")
         achain->spin(achain, 1);
     }
 
-    chain_destroy(achain);
+    achain->destroy(achain);
 TEST_END
 
 TESTSUITE_END

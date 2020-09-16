@@ -146,56 +146,7 @@ static bool chain_spin(chain_t * chain, int64_t index)
 }
 
 //------------------------------------------------------------------------|
-// factory-style creation of chain-link list
-chain_t * chain_create(data_destroy_f data_destroy)
-{
-    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
-    if (!chain)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
-        return NULL;
-    }
-
-    // initialize components
-    memset(chain, 0, sizeof(chain_t));
-
-    chain->clear = chain_clear;
-    chain->insert = chain_insert;
-    chain->delete = chain_delete;
-    chain->reset = chain_reset;
-    chain->spin = chain_spin;
-
-    chain->data_destroy = data_destroy;
-
-    return chain;
-}
-
-//------------------------------------------------------------------------|
-void chain_destroy(void * chain_ptr)
-{
-    chain_t * chain = (chain_t *) chain_ptr;
-    
-    // guard against accidental double-destroy or early-destroy
-    if (!chain)
-    {
-        BLAMMO(WARNING, "attempt to early or double-destroy\n"); 
-        return;
-    }
-
-    // remove all links - note there is no data dtor here, so the user is
-    // expected to have previously called free() on every payload.
-    chain_clear(chain);
-
-    // zero out the remaining empty chain
-    memset(chain, 0, sizeof(chain_t));
-
-    // destroy the chain
-    free(chain);
-    chain = NULL;
-}
-
-//------------------------------------------------------------------------|
-void chain_trim(chain_t * chain)
+static void chain_trim(chain_t * chain)
 {
     if (chain->length > 0)
     {
@@ -217,8 +168,7 @@ void chain_trim(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
-// sort list using specified link comparator function pointer
-void chain_sort(chain_t * chain, data_compare_f data_compare)
+static void chain_sort(chain_t * chain, data_compare_f data_compare)
 {
     // cannot sort lists of length 0 or 1
     if ((chain->length < 2) || (data_compare == NULL))
@@ -234,7 +184,7 @@ void chain_sort(chain_t * chain, data_compare_f data_compare)
         BLAMMO(ERROR, "malloc(sizeof(void *) * %zu) failed\n", chain->length);
         return;
     }
-    
+
     // fill in the link pointer array from the chain
     size_t index = 0;
     chain->reset(chain);
@@ -257,9 +207,63 @@ void chain_sort(chain_t * chain, data_compare_f data_compare)
         chain->link->data = data_ptrs[index];
         chain->spin(chain, 1);
     }
-    
+
     free(data_ptrs);
     data_ptrs = NULL;
+}
+
+//------------------------------------------------------------------------|
+// Not static because also exposed via the header, so that it can be
+// included as a payload in other chains.
+void chain_destroy(void * chain_ptr)
+{
+    chain_t * chain = (chain_t *) chain_ptr;
+
+    // guard against accidental double-destroy or early-destroy
+    if (!chain)
+    {
+        BLAMMO(WARNING, "attempt to early or double-destroy\n");
+        return;
+    }
+
+    // remove all links - note there is no data dtor here, so the user is
+    // expected to have previously called free() on every payload.
+    chain->clear(chain);
+
+    // zero out the remaining empty chain
+    memset(chain, 0, sizeof(chain_t));
+
+    // destroy the chain
+    free(chain);
+    chain = NULL;
+}
+
+//------------------------------------------------------------------------|
+chain_t * chain_create(data_destroy_f data_destroy)
+{
+    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
+    if (!chain)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
+        return NULL;
+    }
+
+    // initialize components
+    memset(chain, 0, sizeof(chain_t));
+
+    chain->create = chain_create;
+    chain->destroy = chain_destroy;
+    chain->clear = chain_clear;
+    chain->insert = chain_insert;
+    chain->delete = chain_delete;
+    chain->reset = chain_reset;
+    chain->spin = chain_spin;
+    chain->trim = chain_trim;
+    chain->sort = chain_sort;
+
+    chain->data_destroy = data_destroy;
+
+    return chain;
 }
 
 //------------------------------------------------------------------------|

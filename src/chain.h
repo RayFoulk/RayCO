@@ -47,6 +47,17 @@ link_t;
 
 typedef struct chain_t
 {
+	// Factory function that creates a chain.  A destructor callback may
+	// be provided for destroying data payload memory.  This callback must
+	// have the same signature as free().  NULL may be passed if the data
+	// is static or if the pointer value itself is directly assigned or
+	// not to be managed by the chain.  'free' may be passed if the data
+	// was allocated by a simple 'malloc' call.
+	struct chain_t * (*create)(data_destroy_f data_destroy);
+
+	// Chain destructor function
+	void (*destroy)(void * chain);
+
 	// Empties the chain: Removes all links and destroys their data payloads.
 	// Effectively brings the chain back to factory condition.
     void (*clear)(struct chain_t * chain);
@@ -69,6 +80,22 @@ typedef struct chain_t
     // that if the chain length gets larger than MAX_
     bool (*spin)(struct chain_t * chain, int64_t offset);
 
+    // Walk through the chain and delete all links with NULL data payloads.
+    // This can be very useful after collecting data, and before processing
+    // analyzing, and presenting results.
+    void (*trim)(struct chain_t * chain);
+
+    // Sort the data payloads within a chains according to the data comparator
+    // function provided.  The form of the comparator callback should be:
+    //
+    //     int compare(const void * a, const void * b)
+    //     {
+    //         mytype_t * aptr = (mytype_t *) *(void **) a;
+    //         mytype_t * bptr = (mytype_t *) *(void **) b;
+    //
+    // Internally, this uses the libc qsort() function on a dynamic array of
+    // data payload pointers for optimum performance.
+    void (*sort)(struct chain_t * chain, data_compare_f data_compare);
 
 	////////////////////////////////////////////////////
     // TODO convert this to PIMPL void * data
@@ -94,8 +121,8 @@ chain_t * chain_create(data_destroy_f data_destroy);
 void chain_destroy(void * chain);
 
 // TODO: Make these static / object methods
-void chain_trim(chain_t * chain);     // delete links with NULL data payload
-void chain_sort(chain_t * chain, data_compare_f data_compare);
+//void chain_trim(chain_t * chain);     // delete links with NULL data payload
+//void chain_sort(chain_t * chain, data_compare_f data_compare);
 chain_t * chain_copy(chain_t * chain, data_copy_f data_copy);
 chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);
 chain_t * chain_splice(chain_t * head, chain_t * tail);
