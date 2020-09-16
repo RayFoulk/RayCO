@@ -29,9 +29,9 @@
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
-typedef int (*link_compare_f) (const void *, const void *);
-typedef void * (*link_copy_f) (const void *);
-typedef void (*link_destroy_f) (void *);
+typedef int (*data_compare_f) (const void *, const void *);
+typedef void * (*data_copy_f) (const void *);
+typedef void (*data_destroy_f) (void *);
 
 //------------------------------------------------------------------------|
 // NOTE: All links data types are assumed to be homogeneous.  Heterogeneous
@@ -45,11 +45,18 @@ typedef struct link_t
 }
 link_t;
 
-typedef struct
+typedef struct chain_t
 {
-    
+	// Empties the chain: Removes all links and destroys their data payloads
+    void (*clear)(struct chain_t * chain);
+
+    // Insert a new link after the current link, spin forward to it,
+    // and assign data to the new link.  Data is assumed to be of the uniform
+    // type that can be destroyed by data_destroy_f data_destroy.
+    void (*insert)(struct chain_t * chain, void * data);
 
 
+	////////////////////////////////////////////////////
     // TODO convert this to PIMPL void * data
     link_t * link;                // current link in chain
     link_t * orig;                // origin link in chain
@@ -58,7 +65,7 @@ typedef struct
     // TODO: pass this into delete() and destroy() rather than storing
     // it here.  this either belongs as an object method of link_t or
     // as a chain_t method argument
-    link_destroy_f link_destroy;  // link destroyer function
+    data_destroy_f data_destroy;  // link destroyer function
 
     // TODO: move all functions to here as object method function pointers
     // that get populated in the factory function.
@@ -66,17 +73,19 @@ typedef struct
 chain_t;
 
 //------------------------------------------------------------------------|
-chain_t * chain_create(link_destroy_f link_destroy);
+// Factory function that creates a Chain
+chain_t * chain_create(data_destroy_f data_destroy);
+
+// Destructor function for a Chain
 void chain_destroy(void * chain);
 
 // TODO: Make these static / object methods
-void chain_clear(chain_t * chain);    // remove all links (no data dtor!!)
-void chain_insert(chain_t * chain, void * data); // insert new link after & go to it
+//void chain_insert(chain_t * chain, void * data); // insert new link after & go to it
 void chain_delete(chain_t * chain);   // delete current link & go back
+void chain_reset(chain_t * chain);    // reset position back to origin link
 bool chain_spin(chain_t * chain, int64_t index);
 void chain_trim(chain_t * chain);     // delete links with NULL data payload
-void chain_reset(chain_t * chain);    // reset position back to origin link
-void chain_sort(chain_t * chain, link_compare_f compare_func);
-chain_t * chain_copy(chain_t * chain, link_copy_f copy_func);
+void chain_sort(chain_t * chain, data_compare_f data_compare);
+chain_t * chain_copy(chain_t * chain, data_copy_f data_copy);
 chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);
 chain_t * chain_splice(chain_t * head, chain_t * tail);
