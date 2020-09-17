@@ -32,10 +32,10 @@
 //------------------------------------------------------------------------|
 static void chain_clear(chain_t * chain)
 {
-    // delete links until none left
+    // remove links until none left
     while (chain->link != NULL)
     {
-        chain->delete(chain);
+        chain->remove(chain);
     }
 
     chain->orig = NULL;
@@ -82,7 +82,7 @@ static void chain_insert(chain_t * chain, void * data)
 }
 
 //------------------------------------------------------------------------|
-static void chain_delete(chain_t * chain)
+static void chain_remove(chain_t * chain)
 {
     link_t * link = NULL;
 
@@ -97,7 +97,7 @@ static void chain_delete(chain_t * chain)
         chain->link->data = NULL;
     }
 
-    // check if we're about to delete the origin link
+    // check if we're about to remove the origin link
     // if so, redefine the new origin as the next link
     if (chain->link == chain->orig)
     {
@@ -157,7 +157,7 @@ static void chain_trim(chain_t * chain)
             if (!chain->link->data)
             {
                 chain->link->data = NULL;
-                chain->delete(chain);
+                chain->remove(chain);
                 chain->reset(chain);
             }
 
@@ -213,6 +213,118 @@ static void chain_sort(chain_t * chain, data_compare_f data_compare)
 }
 
 //------------------------------------------------------------------------|
+static chain_t * chain_copy(chain_t * chain, data_copy_f data_copy)
+{
+    chain_t * copy = chain_create(chain->data_destroy);
+    void * data = NULL;
+
+    if (!copy)
+    {
+        BLAMMO(ERROR, "chain_create() copy failed\n");
+        return NULL;
+    }
+
+    if (chain->length > 0)
+    {
+        chain->reset(chain);
+        do
+        {
+            data = data_copy ? data_copy(chain->link->data) : chain->link->data;
+            chain->insert(copy, data);
+            chain->spin(chain, 1);
+        }
+        while (chain->link != chain->orig);
+    }
+
+    return copy;
+}
+
+//------------------------------------------------------------------------|
+static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
+{
+    link_t * link = NULL;
+    chain_t * segment = chain_create(chain->data_destroy);
+
+    if (!segment)
+    {
+        BLAMMO(ERROR, "chain_create() segment failed\n");
+        return NULL;
+    }
+
+    // We do not need the origin link in the new segment
+    // NOTE: This would not be necessary if we allowed truly empty
+    // chains.
+    free(segment->link);
+
+    // set new segment length
+    segment->length = end - begin;
+
+    // set the original chain to the first link in what will become the
+    // origin of the cut segment.
+    chain->reset(chain);
+    chain->spin(chain, begin);
+    segment->link = chain->link;
+    segment->orig = chain->link;
+
+    // set chain position to one-after the final link of the segment
+    // cache this link's prev because we'll need it to fix chain linkage
+    chain->spin(chain, segment->length);
+    link = segment->link->prev;
+
+    // separate the segment and fix up the now shorter chain
+    chain->link->prev->next = segment->link;
+    segment->link->prev = chain->link->prev;
+    link->next = chain->link;
+    chain->link->prev = link;
+    chain->length -= segment->length;
+
+    return segment;
+}
+
+//------------------------------------------------------------------------|
+static chain_t * chain_join(chain_t * head, chain_t * tail)
+{
+    link_t * link = NULL;
+
+    // can't join empty lists, but it is allowable for one or the other
+    // to be empty.  this is a cheap workaround by adding empty links
+    // to avoid breakage, but will in some cases result in empty links,
+    // this implementation needs to be improved (TODO).
+
+    // FIXME: BROKEN HACK
+
+    if (head->length == 0)
+    {
+        head->insert(head, NULL);
+    }
+
+    if (tail->length == 0)
+    {
+        tail->insert(tail, NULL);
+    }
+
+    // reset both chains to origin link
+    head->reset(head);
+    tail->reset(tail);
+
+    // link the tail segment to the end of the head segment
+    link = tail->link->prev;
+    head->link->prev->next = tail->link;
+    tail->link->prev = head->link->prev;
+    head->link->prev = link;
+    link->next = head->link;
+
+    // the tail container is no longer in a valid state: blow it away.
+    // memory management becomes the responsibility of the head chain
+    head->length += tail->length;
+
+    memset(tail, 0, sizeof(chain_t));
+    free(tail);
+
+    return head;
+}
+
+//------------------------------------------------------------------------|
 // Not static because also exposed via the header, so that it can be
 // included as a payload in other chains.
 void chain_destroy(void * chain_ptr)
@@ -255,134 +367,16 @@ chain_t * chain_create(data_destroy_f data_destroy)
     chain->destroy = chain_destroy;
     chain->clear = chain_clear;
     chain->insert = chain_insert;
-    chain->delete = chain_delete;
+    chain->remove = chain_remove;
     chain->reset = chain_reset;
     chain->spin = chain_spin;
     chain->trim = chain_trim;
     chain->sort = chain_sort;
+    chain->copy = chain_copy;
+    chain->split = chain_split;
+    chain->join = chain_join;
 
     chain->data_destroy = data_destroy;
 
     return chain;
 }
-
-//------------------------------------------------------------------------|
-// create a complete copy of a chain.  note this requires the caller to
-// define a link-copy function
-chain_t * chain_copy(chain_t * chain, data_copy_f data_copy)
-{
-    chain_t * copy = chain_create(chain->data_destroy);
-    void * data = NULL;
-
-    if (!copy)
-    {
-        BLAMMO(ERROR, "chain_create() copy failed\n");
-        return NULL;
-    }
-
-    if (chain->length > 0)
-    {
-        chain->reset(chain);
-        do
-        {
-        	data = data_copy ? data_copy(chain->link->data) : chain->link->data;
-            chain->insert(copy, data);
-            chain->spin(chain, 1);
-        }
-        while (chain->link != chain->orig);
-    }
-
-    return copy;
-}
-
-//------------------------------------------------------------------------|
-// This breaks a chain into two segments: The segment specified by the
-// 'begin' and 'end' indexes into the chain is returned,  and the remainder
-// segment is repaired and left as the original chain object (minus the
-// separated segment).
-chain_t * chain_segment(chain_t * chain, size_t begin, size_t end)
-{
-    link_t * link = NULL;
-    chain_t * segment = chain_create(chain->data_destroy);
-
-    if (!segment)
-    {
-        BLAMMO(ERROR, "chain_create() segment failed\n");
-        return NULL;
-    }
-
-    // We do not need the origin link in the new segment
-    // NOTE: This would not be necessary if we allowed truly empty
-    // chains.
-    free(segment->link);
-
-    // set new segment length
-    segment->length = end - begin;
-
-    // set the original chain to the first link in what will become the
-    // origin of the cut segment.
-    chain->reset(chain);
-    chain->spin(chain, begin);
-    segment->link = chain->link;
-    segment->orig = chain->link;
-
-    // set chain position to one-after the final link of the segment
-    // cache this link's prev because we'll need it to fix chain linkage
-    chain->spin(chain, segment->length);
-    link = segment->link->prev;
-
-    // separate the segment and fix up the now shorter chain
-    chain->link->prev->next = segment->link;
-    segment->link->prev = chain->link->prev;
-    link->next = chain->link;
-    chain->link->prev = link;
-    chain->length -= segment->length;
-
-    return segment;
-}
-
-//------------------------------------------------------------------------|
-// join together two chain segments and return the larger result.  the head
-// chain is modified and the tail chain is destroyed
-chain_t * chain_splice(chain_t * head, chain_t * tail)
-{
-    link_t * link = NULL;
-
-    // can't join empty lists, but it is allowable for one or the other
-    // to be empty.  this is a cheap workaround by adding empty links
-    // to avoid breakage, but will in some cases result in empty links,
-    // this implementation needs to be improved (TODO).
-
-    // FIXME: BROKEN HACK
-
-    if (head->length == 0)
-    {
-    	head->insert(head, NULL);
-    }
-
-    if (tail->length == 0)
-    {
-    	tail->insert(tail, NULL);
-    }
-
-    // reset both chains to origin link
-    head->reset(head);
-    tail->reset(tail);
-
-    // link the tail segment to the end of the head segment
-    link = tail->link->prev;
-    head->link->prev->next = tail->link;
-    tail->link->prev = head->link->prev;
-    head->link->prev = link;
-    link->next = head->link;
-
-    // the tail container is no longer in a valid state: blow it away.
-    // memory management becomes the responsibility of the head chain
-    head->length += tail->length;
-
-    memset(tail, 0, sizeof(chain_t));
-    free(tail);
-
-    return head;
-}
-

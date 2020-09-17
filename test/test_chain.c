@@ -135,7 +135,7 @@ TEST_BEGIN("seek (forward/rewind)")
     chain->destroy(chain);
 TEST_END
 
-TEST_BEGIN("delete")
+TEST_BEGIN("remove")
     chain_t * chain = chain_create(NULL);
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
@@ -143,9 +143,9 @@ TEST_BEGIN("delete")
     chain->reset(chain);
     chain->spin(chain, 1);
 
-    // delete this link, leaving only 1 & 3
+    // remove this link, leaving only 1 & 3
     // should land on 1 just because it is prev
-    chain->delete(chain);
+    chain->remove(chain);
     CHECK(chain->link->data == (void *) 1);
     CHECK(chain->length == 2);
 
@@ -280,7 +280,7 @@ TEST_BEGIN("copy")
     }
     
     payload_t * optr, * cptr;
-    chain_t * mycopy = chain_copy(chain, payload_copy);
+    chain_t * mycopy = chain->copy(chain, payload_copy);
     //fixture_report();
     CHECK(mycopy != NULL)
     CHECK(mycopy != chain)
@@ -318,7 +318,7 @@ TEST_BEGIN("copy")
 
 TEST_END
 
-TEST_BEGIN("segment")
+TEST_BEGIN("split")
     size_t i;
     chain_t * chain = chain_create(NULL);
     CHECK(chain != NULL);
@@ -333,7 +333,7 @@ TEST_BEGIN("segment")
         CHECK(chain->link->data == (void *) i);
     }
 
-    chain_t * segment = chain_segment(chain, 4, 7);
+    chain_t * segment = chain->split(chain, 4, 7);
     CHECK(segment->length == 3);
     CHECK(chain->length == 4);
     CHECK(chain->orig != segment->orig);
@@ -369,15 +369,15 @@ TEST_BEGIN("splice")
 
     for (i = 1; i <= 4; i++)
     {
-    	achain->insert(achain, (void *) i);
-    	bchain->insert(bchain, (void *) (i + 4));
+        achain->insert(achain, (void *) i);
+        bchain->insert(bchain, (void *) (i + 4));
         CHECK(achain->link != NULL);
         CHECK(achain->length == i);
         CHECK(achain->link->data != NULL);
         CHECK(achain->link->data == (void *) i);
     }
 
-    achain = chain_splice(achain, bchain);
+    achain = achain->join(achain, bchain);
     CHECK(achain->length == 8);
 
     achain->reset(achain);

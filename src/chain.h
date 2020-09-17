@@ -47,19 +47,19 @@ link_t;
 
 typedef struct chain_t
 {
-	// Factory function that creates a chain.  A destructor callback may
-	// be provided for destroying data payload memory.  This callback must
-	// have the same signature as free().  NULL may be passed if the data
-	// is static or if the pointer value itself is directly assigned or
-	// not to be managed by the chain.  'free' may be passed if the data
-	// was allocated by a simple 'malloc' call.
-	struct chain_t * (*create)(data_destroy_f data_destroy);
+    // Factory function that creates a chain.  A destructor callback may
+    // be provided for destroying data payload memory.  This callback must
+    // have the same signature as free().  NULL may be passed if the data
+    // is static or if the pointer value itself is directly assigned or
+    // not to be managed by the chain.  'free' may be passed if the data
+    // was allocated by a simple 'malloc' call.
+    struct chain_t * (*create)(data_destroy_f data_destroy);
 
-	// Chain destructor function
-	void (*destroy)(void * chain);
+    // Chain destructor function
+    void (*destroy)(void * chain);
 
-	// Empties the chain: Removes all links and destroys their data payloads.
-	// Effectively brings the chain back to factory condition.
+    // Empties the chain: Removes all links and destroys their data payloads.
+    // Effectively brings the chain back to factory condition.
     void (*clear)(struct chain_t * chain);
 
     // Insert a new link after the current link, spin forward to it,
@@ -70,7 +70,7 @@ typedef struct chain_t
     // Delete the current link, destroying its data payload, and spin back to
     // the previous link.  All data payloads are assumed to be of the uniform
     // type that can be destroyed by data_destroy_f data_destroy.
-    void (*delete)(struct chain_t * chain);
+    void (*remove)(struct chain_t * chain);
 
     // Reset the chain position back to the origin link
     void (*reset)(struct chain_t * chain);
@@ -80,7 +80,7 @@ typedef struct chain_t
     // that if the chain length gets larger than MAX_
     bool (*spin)(struct chain_t * chain, int64_t offset);
 
-    // Walk through the chain and delete all links with NULL data payloads.
+    // Walk through the chain and remove all links with NULL data payloads.
     // This can be very useful after collecting data, and before processing
     // analyzing, and presenting results.
     void (*trim)(struct chain_t * chain);
@@ -97,13 +97,30 @@ typedef struct chain_t
     // data payload pointers for optimum performance.
     void (*sort)(struct chain_t * chain, data_compare_f data_compare);
 
-	////////////////////////////////////////////////////
+    // Makes a full deep copy of the given chain.  The data_copy function
+    // (if not NULL) is called for each link data payload.
+    struct chain_t * (*copy)(struct chain_t * chain, data_copy_f data_copy);
+
+    // This splits a chain into two segments: The segment specified by the
+    // 'begin' and 'end' indexes into the chain is returned,  and the remainder
+    // segment is repaired and left as the original chain object (minus the
+    // separated segment).
+    struct chain_t * (*split)(struct chain_t * chain, size_t begin, size_t end);
+
+    // Joins together two chain segments and return the larger result.  The head
+    // chain is modified and the tail chain is destroyed
+    struct chain_t * (*join)(struct chain_t * head, struct chain_t * tail);
+
+
+    // TODO: length() and data() as accessor methods
+
+    ////////////////////////////////////////////////////
     // TODO convert this to PIMPL void * data
     link_t * link;                // current link in chain
     link_t * orig;                // origin link in chain
     size_t length;                // list length
 
-    // TODO: pass this into delete() and destroy() rather than storing
+    // TODO: pass this into remove() and destroy() rather than storing
     // it here.  this either belongs as an object method of link_t or
     // as a chain_t method argument
     data_destroy_f data_destroy;  // link destroyer function
@@ -114,15 +131,8 @@ typedef struct chain_t
 chain_t;
 
 //------------------------------------------------------------------------|
-// Factory function that creates a Chain
+// Public factory function that creates a new chain
 chain_t * chain_create(data_destroy_f data_destroy);
 
-// Destructor function for a Chain
+// Public destructor function that destroys a chain
 void chain_destroy(void * chain);
-
-// TODO: Make these static / object methods
-//void chain_trim(chain_t * chain);     // delete links with NULL data payload
-//void chain_sort(chain_t * chain, data_compare_f data_compare);
-chain_t * chain_copy(chain_t * chain, data_copy_f data_copy);
-chain_t * chain_segment(chain_t * chain, size_t begin, size_t end);
-chain_t * chain_splice(chain_t * head, chain_t * tail);
