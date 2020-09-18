@@ -29,6 +29,41 @@
 #include <string.h>
 #include <stddef.h>
 
+#ifdef CHAIN_USE_PIMPL_REFACTOR
+//------------------------------------------------------------------------|
+// chain PIMPL data
+typedef struct
+{
+    // Current link in the chain
+    link_t * link;
+
+    // The 'origin' link of the chain
+    link_t * orig;
+
+    // The chain length, number of links
+    size_t length;
+
+    // The link data destructor function for all links.
+    // This can be NULL for static or unmanaged data
+    data_destroy_f data_destroy;
+}
+chain_priv_t;
+#endif
+
+//------------------------------------------------------------------------|
+static void * chain_data(chain_t * chain)
+{
+    //return ((chain_priv_t *) chain->priv)->link->data;
+    return chain->link->data;
+}
+
+//------------------------------------------------------------------------|
+static size_t chain_length(chain_t * chain)
+{
+    //return ((chain_priv_t *) chain->priv)->length;
+    return chain->length;
+}
+
 //------------------------------------------------------------------------|
 static void chain_clear(chain_t * chain)
 {
@@ -353,6 +388,7 @@ void chain_destroy(void * chain_ptr)
 //------------------------------------------------------------------------|
 chain_t * chain_create(data_destroy_f data_destroy)
 {
+    // Allocate and initialize public interface
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
     {
@@ -360,11 +396,27 @@ chain_t * chain_create(data_destroy_f data_destroy)
         return NULL;
     }
 
-    // initialize components
     memset(chain, 0, sizeof(chain_t));
+
+#ifdef CHAIN_USE_PIMPL_REFACTOR
+    // Allocate and initialize private implementation
+    chain->priv = malloc(sizeof(chain_priv_t));
+    if (!chain->priv)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(chain_priv_t)) failed\n");
+        free(chain);
+        return NULL;
+    }
+
+    memset(chain->priv, 0, sizeof(chain_priv_t));
+    ((chain_priv_t *) chain->priv)->data_destroy = data_destroy;
+#endif
 
     chain->create = chain_create;
     chain->destroy = chain_destroy;
+    chain->data = chain_data;
+    //chain->length = chain_length;
+    (void) chain_length;
     chain->clear = chain_clear;
     chain->insert = chain_insert;
     chain->remove = chain_remove;

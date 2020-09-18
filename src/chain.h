@@ -28,6 +28,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define CHAIN_USE_PIMPL_REFACTOR
+//#define CHAIN_REMOVE_NON_PIMPL_MEMBERS
+
 //------------------------------------------------------------------------|
 typedef int (*data_compare_f) (const void *, const void *);
 typedef void * (*data_copy_f) (const void *);
@@ -57,6 +60,12 @@ typedef struct chain_t
 
     // Chain destructor function
     void (*destroy)(void * chain);
+
+    // Access to current link data
+    void * (*data)(struct chain_t * chain);
+
+    // Get the chain's current length
+    //size_t (*length)(struct chain_t * chain);
 
     // Empties the chain: Removes all links and destroys their data payloads.
     // Effectively brings the chain back to factory condition.
@@ -111,9 +120,8 @@ typedef struct chain_t
     // chain is modified and the tail chain is destroyed
     struct chain_t * (*join)(struct chain_t * head, struct chain_t * tail);
 
-
+#ifndef CHAIN_REMOVE_NON_PIMPL_MEMBERS
     // TODO: length() and data() as accessor methods
-
     ////////////////////////////////////////////////////
     // TODO convert this to PIMPL void * data
     link_t * link;                // current link in chain
@@ -124,9 +132,12 @@ typedef struct chain_t
     // it here.  this either belongs as an object method of link_t or
     // as a chain_t method argument
     data_destroy_f data_destroy;  // link destroyer function
+#endif
 
-    // TODO: move all functions to here as object method function pointers
-    // that get populated in the factory function.
+#ifdef CHAIN_USE_PIMPL_REFACTOR
+    // Private data (TODO: finish this)
+    void * priv;
+#endif
 }
 chain_t;
 
