@@ -6,3 +6,4 @@
   initialized from factory function
 - pass in link dtor function to delete and destroy, do not cache
 - refactor into pimpl private data pattern
+- fix chain_join
