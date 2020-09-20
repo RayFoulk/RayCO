@@ -28,26 +28,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define CHAIN_USE_PIMPL_REFACTOR
-//#define CHAIN_REMOVE_NON_PIMPL_MEMBERS
-
 //------------------------------------------------------------------------|
 typedef int (*data_compare_f) (const void *, const void *);
 typedef void * (*data_copy_f) (const void *);
 typedef void (*data_destroy_f) (void *);
 
 //------------------------------------------------------------------------|
-// NOTE: All links data types are assumed to be homogeneous.  Heterogeneous
-// link payloads are not considered in this implementation.
-typedef struct link_t
-{
-    struct link_t * next;    // pointer to next node
-    struct link_t * prev;    // pointer to previous node
-    void * data;             // pointer to node's contents,
-                             // caller is responsible for data size
-}
-link_t;
-
 typedef struct chain_t
 {
     // Factory function that creates a chain.  A destructor callback may
@@ -65,7 +51,7 @@ typedef struct chain_t
     void * (*data)(struct chain_t * chain);
 
     // Get the chain's current length
-    //size_t (*length)(struct chain_t * chain);
+    size_t (*length)(struct chain_t * chain);
 
     // Empties the chain: Removes all links and destroys their data payloads.
     // Effectively brings the chain back to factory condition.
@@ -120,24 +106,8 @@ typedef struct chain_t
     // chain is modified and the tail chain is destroyed
     struct chain_t * (*join)(struct chain_t * head, struct chain_t * tail);
 
-#ifndef CHAIN_REMOVE_NON_PIMPL_MEMBERS
-    // TODO: length() and data() as accessor methods
-    ////////////////////////////////////////////////////
-    // TODO convert this to PIMPL void * data
-    link_t * link;                // current link in chain
-    link_t * orig;                // origin link in chain
-    size_t length;                // list length
-
-    // TODO: pass this into remove() and destroy() rather than storing
-    // it here.  this either belongs as an object method of link_t or
-    // as a chain_t method argument
-    data_destroy_f data_destroy;  // link destroyer function
-#endif
-
-#ifdef CHAIN_USE_PIMPL_REFACTOR
-    // Private data (TODO: finish this)
+    // Private data
     void * priv;
-#endif
 }
 chain_t;
 
