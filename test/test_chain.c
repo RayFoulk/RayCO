@@ -200,7 +200,7 @@ TEST_BEGIN("trim")
 
     // verify sane indexing
     chain->spin(chain, 33);
-    CHECK(*(int *)chain->data(chain) == 99);
+    CHECK((size_t)chain->data(chain) == 99);
 
     chain->destroy(chain);
 TEST_END
