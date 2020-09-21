@@ -40,7 +40,7 @@ typedef struct link_t
     // Pointer to previous link
     struct link_t * prev;
 
-    // Pointer to node's contents,
+    // Pointer to link's contents,
     void * data;
 }
 link_t;
@@ -64,9 +64,16 @@ typedef struct
 chain_priv_t;
 
 //------------------------------------------------------------------------|
-static inline void * chain_data(chain_t * chain)
+static void * chain_data(chain_t * chain)
 {
-    return ((chain_priv_t *) chain->priv)->link->data;
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+
+    if (NULL == priv->link)
+    {
+        return NULL;
+    }
+
+    return priv->link->data;
 }
 
 //------------------------------------------------------------------------|
@@ -76,12 +83,26 @@ static inline size_t chain_length(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
+static inline bool chain_empty(chain_t * chain)
+{
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+    return (NULL == priv->link);    
+}
+
+//------------------------------------------------------------------------|
+static inline bool chain_orig(chain_t * chain)
+{
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+    return (priv->orig == priv->link);    
+}
+
+//------------------------------------------------------------------------|
 static void chain_clear(chain_t * chain)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
 
     // remove links until none left
-    while (priv->link)
+    while (NULL != priv->link)
     {
         chain->remove(chain);
     }
@@ -124,7 +145,7 @@ static void chain_insert(chain_t * chain, void * data)
     // call/return for origin node.
     // and initialize new link's contents
     chain->spin(chain, 1);
-    ((chain_priv_t *) chain->priv)->link->data = data;
+    priv->link->data = data;
     chain->length ++;
 }
 
@@ -170,7 +191,7 @@ static void chain_remove(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
-static void chain_reset(chain_t * chain)
+static inline void chain_reset(chain_t * chain)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     priv->link = priv->orig;
@@ -430,6 +451,8 @@ chain_t * chain_create(data_destroy_f data_destroy)
     chain->destroy = chain_destroy;
     chain->data = chain_data;
     chain->length = chain_length;
+    chain->empty = chain_empty;
+    chain->orig = chain_orig;
     chain->clear = chain_clear;
     chain->insert = chain_insert;
     chain->remove = chain_remove;

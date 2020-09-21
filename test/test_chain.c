@@ -16,9 +16,10 @@ TESTSUITE_BEGIN
 TEST_BEGIN("create")
     chain_t * chain = chain_create(NULL);
     CHECK(chain != NULL);
-    CHECK(chain->link == NULL);
-    CHECK(chain->orig == NULL);
-    CHECK(chain->length == 0);
+    CHECK(chain->priv != NULL);
+    CHECK(chain->empty(chain));
+    CHECK(chain->orig(chain));
+    CHECK(chain->length(chain) == 0);
     chain->destroy(chain);
 TEST_END
 
@@ -26,30 +27,30 @@ TEST_BEGIN("insert (heap primitive)")
     int i;
     chain_t * chain = chain_create(free);
     CHECK(chain != NULL);
-    CHECK(chain->length == 0);
+    CHECK(chain->priv != NULL);
+    CHECK(chain->length(chain) == 0);
 
     for (i = 1; i <= 3; i++)
     {
         // add the nth link: first will be the origin
         // all others will be distinct from the origin
         chain->insert(chain, malloc(sizeof(int)));
-        CHECK(chain->link != NULL);
-        CHECK(chain->orig != NULL);
-        CHECK(chain->length == i);
+        CHECK(!chain->empty(chain));
+        CHECK(chain->length(chain) == i);
 
         if (i == 1)
         {
-            CHECK(chain->link == chain->orig);
+            CHECK(chain->orig(chain));
         }
         else
         {
-            CHECK(chain->link != chain->orig);
+            CHECK(!chain->orig(chain));
         }
 
         // add and set some simple data
-        CHECK(chain->link->data != NULL);
-        *(int *)chain->link->data = i;
-        CHECK(*(int *)chain->link->data == i);
+        CHECK(chain->data(chain) != NULL);
+        *(int *)chain->data(chain) = i;
+        CHECK(*(int *)chain->data(chain) == i);
     }
 
     chain->destroy(chain);
@@ -59,29 +60,28 @@ TEST_BEGIN("insert (pointer value / static primitive)")
     size_t i;
     chain_t * chain = chain_create(NULL);
     CHECK(chain != NULL);
-    CHECK(chain->length == 0);
+    CHECK(chain->length(chain) == 0);
 
     for (i = 1; i <= 3; i++)
     {
         // add the nth link: first will be the origin
         // all others will be distinct from the origin
         chain->insert(chain, (void *) i);
-        CHECK(chain->link != NULL);
-        CHECK(chain->orig != NULL);
-        CHECK(chain->length == i);
+        CHECK(!chain->empty(chain));
+        CHECK(chain->length(chain) == i);
 
         if (i == 1)
         {
-            CHECK(chain->link == chain->orig);
+            CHECK(chain->orig(chain));
         }
         else
         {
-            CHECK(chain->link != chain->orig);
+            CHECK(!chain->orig(chain));
         }
 
         // add and set some simple data
-        CHECK(chain->link->data != NULL);
-        CHECK(chain->link->data == (void *) i);
+        CHECK(chain->data(chain) != NULL);
+        CHECK(chain->data(chain) == (void *) i);
     }
 
     chain->destroy(chain);
@@ -94,12 +94,12 @@ TEST_BEGIN("reset")
     chain->insert(chain, (void *) 3);
 
     // reset back to origin
-    CHECK(chain->link != chain->orig);
+    CHECK(!chain->orig(chain));
     chain->reset(chain);
-    CHECK(chain->link == chain->orig);
-    CHECK(chain->link->data != NULL);
-    CHECK(chain->link->data == (void *) 1);
-    CHECK(chain->length == 3);
+    CHECK(chain->orig(chain));
+    CHECK(chain->data(chain) != NULL);
+    CHECK(chain->data(chain) == (void *) 1);
+    CHECK(chain->length(chain) == 3);
 
     chain->destroy(chain);
 TEST_END
@@ -113,24 +113,24 @@ TEST_BEGIN("seek (forward/rewind)")
 
     // go forward two links
     chain->spin(chain, 2);
-    CHECK(chain->link != chain->orig);
-    CHECK(chain->link->data == (void *) 3);
+    CHECK(!chain->orig(chain));
+    CHECK(chain->data(chain) == (void *) 3);
 
     // rewind one link
     chain->spin(chain, -1);
-    CHECK(chain->link != chain->orig);
-    CHECK(chain->link->data == (void *) 2);
+    CHECK(!chain->orig(chain));
+    CHECK(chain->data(chain) == (void *) 2);
 
     // going forward two links should be back at origin
     // because of circular property of chains
     chain->spin(chain, 2);
-    CHECK(chain->link == chain->orig);
-    CHECK(chain->link->data == (void *) 1);
+    CHECK(chain->orig(chain));
+    CHECK(chain->data(chain) == (void *) 1);
 
     // rewind two and should be at index 2
     chain->spin(chain, -2);
-    CHECK(chain->link != chain->orig);
-    CHECK(chain->link->data == (void *) 2);
+    CHECK(!chain->orig(chain));
+    CHECK(chain->data(chain) == (void *) 2);
 
     chain->destroy(chain);
 TEST_END
@@ -146,13 +146,13 @@ TEST_BEGIN("remove")
     // remove this link, leaving only 1 & 3
     // should land on 1 just because it is prev
     chain->remove(chain);
-    CHECK(chain->link->data == (void *) 1);
-    CHECK(chain->length == 2);
+    CHECK(chain->data(chain) == (void *) 1);
+    CHECK(chain->length(chain) == 2);
 
     // go forward 1, we should be at 3
     chain->spin(chain, 1);
-    CHECK(chain->link != chain->orig);
-    CHECK(chain->link->data == (void *) 3);
+    CHECK(!chain->orig(chain));
+    CHECK(chain->data(chain) == (void *) 3);
 
     chain->destroy(chain);
 TEST_END
@@ -166,47 +166,41 @@ TEST_BEGIN("clear")
     // clear all links and data back to original state.
     // NOTE: This will fail after origin node refactor
     chain->clear(chain);
-    CHECK(chain->length == 0);
-    CHECK(chain->link == NULL);
-    CHECK(chain->orig == NULL);
+    CHECK(chain->length(chain) == 0);
+    CHECK(chain->empty(chain));
 
     // able to add more nodes after clear
     chain->insert(chain, (void *) 4);
     chain->insert(chain, (void *) 5);
     chain->insert(chain, (void *) 6);
-    CHECK(chain->link != chain->orig);
-    CHECK(chain->link->data != NULL);
-    CHECK(chain->link->data == (void *) 6);
-    CHECK(chain->length == 3);
+    CHECK(!chain->orig(chain));
+    CHECK(chain->data(chain) != NULL);
+    CHECK(chain->data(chain) == (void *) 6);
+    CHECK(chain->length(chain) == 3);
 
     chain->destroy(chain);
 TEST_END
 
 TEST_BEGIN("trim")
-    chain_t * chain = chain_create(free);
+    chain_t * chain = chain_create(NULL);
     CHECK(chain != NULL);
-    CHECK(chain->length == 0);
+    CHECK(chain->length(chain) == 0);
 
     // create a chain with sparse data
-    int i;
+    size_t i;
     for (i = 0; i < 102; i++)
     {
-        chain->insert(chain, NULL);
-        if (i % 3 == 0)
-        {
-            chain->link->data = malloc(sizeof(int));
-            *(int *)chain->link->data = i;
-        }
+        chain->insert(chain, (i % 3 == 0) ? (void *) i : NULL);
     }
-    CHECK(chain->length == 102);
+    CHECK(chain->length(chain) == 102);
 
     // now trim out nodes without data
     chain->trim(chain);
-    CHECK(chain->length == 34);
+    CHECK(chain->length(chain) == 34);
 
     // verify sane indexing
     chain->spin(chain, 33);
-    CHECK(*(int *)chain->link->data == 99);
+    CHECK(*(int *)chain->data(chain) == 99);
 
     chain->destroy(chain);
 TEST_END
@@ -230,7 +224,7 @@ TEST_BEGIN("sort")
     payload_t * p = NULL;
     for (i = 0; i < FIXTURE_PAYLOADS; i++)
     {
-        p = (payload_t *) chain->link->data;
+        p = (payload_t *) chain->data(chain);
         //payload_report(p, i);
         CHECK(p->id == ids_sorted[i]);
         CHECK(p->is_created == true);
@@ -289,9 +283,9 @@ TEST_BEGIN("copy")
     mycopy->reset(mycopy);
     for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
     {
-        CHECK(chain->link != mycopy->link);
-        optr = (payload_t *) chain->link->data;
-        cptr = (payload_t *) mycopy->link->data;
+        //CHECK(chain->link != mycopy->link);
+        optr = (payload_t *) chain->data(chain);
+        cptr = (payload_t *) mycopy->data(mycopy);
         CHECK(optr != NULL);
         CHECK(cptr != NULL);
         CHECK(optr != cptr);
@@ -322,33 +316,33 @@ TEST_BEGIN("split")
     size_t i;
     chain_t * chain = chain_create(NULL);
     CHECK(chain != NULL);
-    CHECK(chain->length == 0);
+    CHECK(chain->length(chain) == 0);
 
     for (i = 1; i <= 7; i++)
     {
         chain->insert(chain, (void *) i);
-        CHECK(chain->link != NULL);
-        CHECK(chain->length == i);
-        CHECK(chain->link->data != NULL);
-        CHECK(chain->link->data == (void *) i);
+        CHECK(!chain->empty(chain));
+        CHECK(chain->length(chain) == i);
+        CHECK(chain->data(chain) != NULL);
+        CHECK(chain->data(chain) == (void *) i);
     }
 
     chain_t * segment = chain->split(chain, 4, 7);
-    CHECK(segment->length == 3);
-    CHECK(chain->length == 4);
-    CHECK(chain->orig != segment->orig);
+    CHECK(segment->length(segment) == 3);
+    CHECK(chain->length(chain) == 4);
+    //CHECK(chain->orig != segment->orig);
 
     chain->reset(chain);
     segment->reset(segment);
     for (i = 1; i <= 5; i++)
     {
-        CHECK(chain->link->data != NULL);
-        CHECK(chain->link->data == (void *)
-            ((i - 1) % chain->length + 1));
+        CHECK(chain->data(chain) != NULL);
+        CHECK(chain->data(chain) == (void *)
+            ((i - 1) % chain->length(chain) + 1));
 
-        CHECK(segment->link->data != NULL);
-        CHECK(segment->link->data == (void *)
-            ((i - 1) % segment->length + 5));
+        CHECK(segment->data(segment) != NULL);
+        CHECK(segment->data(segment) == (void *)
+            ((i - 1) % segment->length(segment) + 5));
 
         chain->spin(chain, 1);
         chain->spin(segment, 1);
@@ -364,28 +358,32 @@ TEST_BEGIN("splice")
     chain_t * bchain = chain_create(NULL);
     CHECK(achain != NULL);
     CHECK(bchain != NULL);
-    CHECK(achain->length == 0);
-    CHECK(bchain->length == 0);
+    CHECK(achain->length(achain) == 0);
+    CHECK(bchain->length(bchain) == 0);
 
     for (i = 1; i <= 4; i++)
     {
         achain->insert(achain, (void *) i);
+        CHECK(!achain->empty(achain));
+        CHECK(achain->length(achain) == i);
+        CHECK(achain->data(achain) != NULL);
+        CHECK(achain->data(achain) == (void *) i);
         bchain->insert(bchain, (void *) (i + 4));
-        CHECK(achain->link != NULL);
-        CHECK(achain->length == i);
-        CHECK(achain->link->data != NULL);
-        CHECK(achain->link->data == (void *) i);
+        CHECK(!bchain->empty(bchain));
+        CHECK(bchain->length(bchain) == i);
+        CHECK(bchain->data(bchain) != NULL);
+        CHECK(bchain->data(bchain) == (void *) (i + 4));
     }
 
     achain = achain->join(achain, bchain);
-    CHECK(achain->length == 8);
+    CHECK(achain->length(achain) == 8);
 
     achain->reset(achain);
     for (i = 1; i <= 8; i++)
     {
-        CHECK(achain->link != NULL);
-        CHECK(achain->link->data != NULL);
-        CHECK(achain->link->data == (void *) i);
+        CHECK(!achain->empty(achain));
+        CHECK(achain->data(achain) != NULL);
+        CHECK(achain->data(achain) == (void *) i);
         achain->spin(achain, 1);
     }
 
