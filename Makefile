@@ -17,7 +17,7 @@ all: $(PROJECT)
 $(PROJECT): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(PROJECT) $(OBJECTS) $(LDFLAGS)
 
-debug: CFLAGS += -O0 -g -D BLAMMO_ENABLE
+debug: CFLAGS += -O0 -g -D BLAMMO_ENABLE -fmax-errors=3
 debug: $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(PROJECT)_debug $(OBJECTS) $(LDFLAGS)
 

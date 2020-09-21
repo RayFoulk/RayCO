@@ -53,6 +53,12 @@ typedef struct chain_t
     // Get the chain's current length
     size_t (*length)(struct chain_t * chain);
 
+    // Returns true if the chain is empty and false otherwise
+    bool (*empty)(struct chain_t * chain);
+
+    // Returns true if chain is positioned at origin link
+    bool (*orig)(struct chain_t * chain);
+
     // Empties the chain: Removes all links and destroys their data payloads.
     // Effectively brings the chain back to factory condition.
     void (*clear)(struct chain_t * chain);
