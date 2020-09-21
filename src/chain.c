@@ -183,7 +183,16 @@ static void chain_remove(chain_t * chain)
     free(priv->link);
 
     // make current link old previous link
-    priv->link = priv->length > 1 ? link : NULL;
+    if (priv->length > 1)
+    {
+    	priv->link = link;
+    }
+    else
+    {
+    	// The origin link itself was just removed.
+    	priv->link = NULL;
+    	priv->orig = NULL;
+    }
 
     // the chain is effectively one link shorter either way
     priv->length --;
@@ -200,6 +209,12 @@ static inline void chain_reset(chain_t * chain)
 static bool chain_spin(chain_t * chain, int64_t index)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
+
+    // Attempting to spin an empty chain?
+    if (NULL == priv->link)
+    {
+    	return false;
+    }
 
     while (index > 0)
     {
@@ -225,6 +240,7 @@ static void chain_trim(chain_t * chain)
     {
         chain->reset(chain);
 
+        //while(chain->spin(chain, 1))
         do
         {
             if (!priv->link->data)
@@ -234,9 +250,10 @@ static void chain_trim(chain_t * chain)
             }
 
             // TODO: use bool return from spin
-            chain->spin(chain, 1);
+            //chain->spin(chain, 1);
         }
-        while (priv->link != priv->orig);
+        //while (priv->link != priv->orig);
+        while(chain->spin(chain, 1));
     }
 }
 
@@ -336,7 +353,7 @@ static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
     chain->spin(chain, begin);
 
     // set the original chain to the first link in what will become the
-    // origin of the cut seg.  set new seg length
+    // origin of the cut segment.  set new segment length
     chain_priv_t * seg_priv = (chain_priv_t *) seg->priv;
     seg_priv->link = priv->link;
     seg_priv->orig = priv->link;

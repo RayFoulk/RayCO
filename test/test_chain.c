@@ -186,6 +186,13 @@ TEST_BEGIN("trim")
     CHECK(chain != NULL);
     CHECK(chain->length(chain) == 0);
 
+    // trimming an empty chain should not crash
+    chain->trim(chain);
+
+    // trim a single NULL origin link should not crash
+    chain->insert(chain, NULL);
+    chain->trim(chain);
+
     // create a chain with sparse data
     size_t i;
     for (i = 0; i < 102; i++)
