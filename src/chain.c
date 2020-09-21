@@ -85,8 +85,7 @@ static inline size_t chain_length(chain_t * chain)
 //------------------------------------------------------------------------|
 static inline bool chain_empty(chain_t * chain)
 {
-    chain_priv_t * priv = (chain_priv_t *) chain->priv;
-    return (NULL == priv->link);    
+    return (NULL == ((chain_priv_t *) chain->priv)->link);
 }
 
 //------------------------------------------------------------------------|
@@ -124,7 +123,7 @@ static void chain_insert(chain_t * chain, void * data)
     }
 
     // check if linking in the origin
-    if (!priv->link)
+    if (NULL == priv->link)
     {
         priv->link = link;
         priv->orig = link;
@@ -146,7 +145,7 @@ static void chain_insert(chain_t * chain, void * data)
     // and initialize new link's contents
     chain->spin(chain, 1);
     priv->link->data = data;
-    chain->length ++;
+    priv->length ++;
 }
 
 //------------------------------------------------------------------------|
@@ -220,9 +219,10 @@ static bool chain_spin(chain_t * chain, int64_t index)
 //------------------------------------------------------------------------|
 static void chain_trim(chain_t * chain)
 {
-    if (chain->length > 0)
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+
+    if (priv->length > 0)
     {
-        chain_priv_t * priv = (chain_priv_t *) chain->priv;
         chain->reset(chain);
 
         do
@@ -230,7 +230,7 @@ static void chain_trim(chain_t * chain)
             if (!priv->link->data)
             {
                 chain->remove(chain);
-                chain->reset(chain);
+                chain->reset(chain);    // TODO: This can be a lot more efficient
             }
 
             // TODO: use bool return from spin
@@ -256,7 +256,7 @@ static void chain_sort(chain_t * chain, data_compare_f data_compare)
     void ** data_ptrs = (void **) malloc(sizeof(void *) * priv->length);
     if (!data_ptrs)
     {
-        BLAMMO(ERROR, "malloc(sizeof(void *) * %zu) failed\n", chain->length);
+        BLAMMO(ERROR, "malloc(sizeof(void *) * %zu) failed\n", priv->length);
         return;
     }
 
@@ -301,7 +301,7 @@ static chain_t * chain_copy(chain_t * chain, data_copy_f data_copy)
         return NULL;
     }
 
-    if (chain->length > 0)
+    if (priv->length > 0)
     {
         chain->reset(chain);
         do
@@ -323,11 +323,11 @@ static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
 {
     link_t * link = NULL;
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
-    chain_t * segment = chain_create(priv->data_destroy);
+    chain_t * seg = chain_create(priv->data_destroy);
 
-    if (!segment)
+    if (!seg)
     {
-        BLAMMO(ERROR, "chain_create() segment failed\n");
+        BLAMMO(ERROR, "chain_create() seg failed\n");
         return NULL;
     }
 
@@ -336,25 +336,25 @@ static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
     chain->spin(chain, begin);
 
     // set the original chain to the first link in what will become the
-    // origin of the cut segment.  set new segment length
-    chain_priv_t * segment_priv = (chain_priv_t *) segment->priv;
-    segment_priv->link = priv->link;
-    segment_priv->orig = priv->link;
-    segment_priv->length = end - begin;
+    // origin of the cut seg.  set new seg length
+    chain_priv_t * seg_priv = (chain_priv_t *) seg->priv;
+    seg_priv->link = priv->link;
+    seg_priv->orig = priv->link;
+    seg_priv->length = end - begin;
 
-    // set chain position to one-after the final link of the segment
+    // set chain position to one-after the final link of the seg
     // cache this link's prev because we'll need it to fix chain linkage
-    chain->spin(chain, segment_priv->length);
-    link = segment_priv->link->prev;
+    chain->spin(chain, seg_priv->length);
+    link = seg_priv->link->prev;
 
-    // separate the segment and fix up the now shorter chain
-    priv->link->prev->next = segment_priv->link;
-    segment_priv->link->prev = priv->link->prev;
+    // separate the seg and fix up the now shorter chain
+    priv->link->prev->next = seg_priv->link;
+    seg_priv->link->prev = priv->link->prev;
     link->next = priv->link;
     priv->link->prev = link;
-    priv->length -= segment_priv->length;
+    priv->length -= seg_priv->length;
 
-    return segment;
+    return seg;
 }
 
 //------------------------------------------------------------------------|
@@ -385,7 +385,7 @@ static chain_t * chain_join(chain_t * head, chain_t * tail)
     head->reset(head);
     tail->reset(tail);
 
-    // link the tail segment to the end of the head segment
+    // link the tail seg to the end of the head segment
     link = tail_priv->link->prev;
     head_priv->link->prev->next = tail_priv->link;
     tail_priv->link->prev = head_priv->link->prev;
