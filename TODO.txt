@@ -1,9 +1,9 @@
-- write unit tests for all chain functions, pass and fail, build only in TEST mode
+~ write unit tests for all chain functions, pass and fail, build only in TEST mode
 * refactor chain/link to not use empty origin node
 * verify all tests still pass
-- migrate over to sink project and refactor
 * move all function pointers into chain typedef and make static
   initialized from factory function
-- pass in link dtor function to delete and destroy, do not cache
-- refactor into pimpl private data pattern
-- fix chain_join
+X pass in link dtor function to delete and destroy, do not cache
+* refactor into pimpl private data pattern
+* fix chain_join
+- migrate over to sink project and refactor

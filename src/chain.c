@@ -379,27 +379,43 @@ static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
 }
 
 //------------------------------------------------------------------------|
-static chain_t * chain_join(chain_t * head, chain_t * tail)
+static bool chain_join(chain_t * head, chain_t * tail)
 {
     link_t * link = NULL;
     chain_priv_t * head_priv = (chain_priv_t *) head->priv;
     chain_priv_t * tail_priv = (chain_priv_t *) tail->priv;
     
-    // can't join empty lists, but it is allowable for one or the other
-    // to be empty.  this is a cheap workaround by adding empty links
-    // to avoid breakage, but will in some cases result in empty links,
-    // this implementation needs to be improved (TODO).
-
-    // FIXME: BROKEN HACK
-
-    if (head_priv->length == 0)
+    // Cannot join chains of dissimilar data types
+    if (head_priv->data_destroy != tail_priv->data_destroy)
     {
-        head->insert(head, NULL);
+        BLAMMO(ERROR, "chain_join() cannot join chains with dissimilar "
+            "data destructors %p and %p\n",
+            head_priv->data_destroy,
+            tail_priv->data_destroy);
+        return false;
     }
 
-    if (tail_priv->length == 0)
+    // One or the other chain may be empty.  If the achain is empty, then
+    // simply take all the contents from the bchain as the final result.
+    // if the bchain itself is also empty, this still validly returns
+    // an empty result.
+    if (head->empty(head))
     {
-        tail->insert(tail, NULL);
+        // memcpy() would work too, but unnecessarily clobber destructor
+        head_priv->link = tail_priv->link;
+        head_priv->orig = tail_priv->orig;
+        head_priv->length = tail_priv->length;
+        tail_priv->link = NULL;
+        tail_priv->orig = NULL;
+        tail_priv->length = 0;
+        return true;
+    }
+
+    // Here we know the head is not empty, but if the tail is empty,
+    // then we're effectively done.  No operation is necessary!
+    if (tail->empty(tail))
+    {
+        return true;
     }
 
     // reset both chains to origin link
@@ -413,21 +429,12 @@ static chain_t * chain_join(chain_t * head, chain_t * tail)
     head_priv->link->prev = link;
     link->next = head_priv->link;
 
-    // TODO: Refactor to simply take ownership of links
-    // leaving the tail empty but valid
-
-    // the tail container is no longer in a valid state: destroy it
-    // memory management becomes the responsibility of the head chain
+    // the tail container is now empty, and the head chain has assumed
+    // ownership of all it's links.
     head_priv->length += tail_priv->length;
+    tail_priv->length = 0;
 
-    // this is essentially destroy() without clear()
-    memset(tail->priv, 0, sizeof(chain_priv_t));
-    free(tail->priv);
-
-    memset(tail, 0, sizeof(chain_t));
-    free(tail);
-
-    return head;
+    return true;
 }
 
 //------------------------------------------------------------------------|

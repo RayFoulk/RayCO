@@ -372,12 +372,21 @@ TEST_BEGIN("join")
     CHECK(achain->length(achain) == 0);
     CHECK(bchain->length(bchain) == 0);
 
+    // join empty chains one way and then another
+    achain->insert(achain, (void *) 0xBEEF);
+    achain->join(achain, bchain);
+    CHECK(achain->length(achain) == 1);
+    CHECK(bchain->length(bchain) == 0);
+    CHECK(achain->empty(achain) == false);
+    CHECK(bchain->empty(bchain) == true);
+    CHECK(achain->data(achain) == (void *) 0xBEEF);
 
-    // try some edge cases
-    //achain->insert(achain, (void *) 0xBEEF);
-    //achain = achain->join(achain, bchain);
-    //CHECK(achain->length(achain) == 1);
-
+    bchain->join(bchain, achain);
+    CHECK(achain->length(achain) == 0);
+    CHECK(bchain->length(bchain) == 1);
+    CHECK(achain->empty(achain) == true);
+    CHECK(bchain->empty(bchain) == false);
+    CHECK(bchain->data(bchain) == (void *) 0xBEEF);
 
     // clear both back to original state
     achain->clear(achain);
@@ -398,7 +407,7 @@ TEST_BEGIN("join")
         CHECK(bchain->data(bchain) == (void *) (i + 4));
     }
 
-    achain = achain->join(achain, bchain);
+    achain->join(achain, bchain);
     CHECK(achain->length(achain) == 8);
 
     achain->reset(achain);

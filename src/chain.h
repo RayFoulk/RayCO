@@ -115,9 +115,11 @@ typedef struct chain_t
     // separated segment).
     struct chain_t * (*split)(struct chain_t * chain, size_t begin, size_t end);
 
-    // Joins together two chain segments and return the larger result.  The head
-    // chain is modified and the tail chain is destroyed
-    struct chain_t * (*join)(struct chain_t * head, struct chain_t * tail);
+    // Joins together the _contents_ of two chain segments.  Both chains are
+    // modified in place: The 'head' chain accumulates the concatenated links
+    // of the 'tail' chain and its own, while the 'tail' chain is emptied back
+    // to it's factory state.  Returns true on success or false on failure.
+    bool (*join)(struct chain_t * head, struct chain_t * tail);
 
     // Private data
     void * priv;
