@@ -29,8 +29,15 @@
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
+// Function pointer type for link data comparator callback used with sort()
 typedef int (*data_compare_f) (const void *, const void *);
+
+// Function pointer type for link data copy callback used with copy()
 typedef void * (*data_copy_f) (const void *);
+
+// Function pointer type for link data destructor callback used internally
+// by the chain whenever links are removed, cleared, or destroyed.
+// Effectively this designates the data type of the chain.
 typedef void (*data_destroy_f) (void *);
 
 //------------------------------------------------------------------------|
@@ -57,7 +64,7 @@ typedef struct chain_t
     bool (*empty)(struct chain_t * chain);
 
     // Returns true if chain is positioned at origin link
-    bool (*orig)(struct chain_t * chain);
+    bool (*origin)(struct chain_t * chain);
 
     // Empties the chain: Removes all links and destroys their data payloads.
     // Effectively brings the chain back to factory condition.
@@ -84,7 +91,7 @@ typedef struct chain_t
     // Walk through the chain and remove all links with NULL data payloads.
     // This can be very useful after collecting data, and before processing
     // analyzing, and presenting results.
-    void (*trim)(struct chain_t * chain);
+    size_t (*trim)(struct chain_t * chain);
 
     // Sort the data payloads within a chains according to the data comparator
     // function provided.  The form of the comparator callback should be:
