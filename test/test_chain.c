@@ -18,7 +18,7 @@ TEST_BEGIN("create")
     CHECK(chain != NULL);
     CHECK(chain->priv != NULL);
     CHECK(chain->empty(chain));
-    CHECK(chain->orig(chain));
+    CHECK(chain->origin(chain));
     CHECK(chain->length(chain) == 0);
     chain->destroy(chain);
 TEST_END
@@ -40,11 +40,11 @@ TEST_BEGIN("insert (heap primitive)")
 
         if (i == 1)
         {
-            CHECK(chain->orig(chain));
+            CHECK(chain->origin(chain));
         }
         else
         {
-            CHECK(!chain->orig(chain));
+            CHECK(!chain->origin(chain));
         }
 
         // add and set some simple data
@@ -72,11 +72,11 @@ TEST_BEGIN("insert (pointer value / static primitive)")
 
         if (i == 1)
         {
-            CHECK(chain->orig(chain));
+            CHECK(chain->origin(chain));
         }
         else
         {
-            CHECK(!chain->orig(chain));
+            CHECK(!chain->origin(chain));
         }
 
         // add and set some simple data
@@ -94,9 +94,9 @@ TEST_BEGIN("reset")
     chain->insert(chain, (void *) 3);
 
     // reset back to origin
-    CHECK(!chain->orig(chain));
+    CHECK(!chain->origin(chain));
     chain->reset(chain);
-    CHECK(chain->orig(chain));
+    CHECK(chain->origin(chain));
     CHECK(chain->data(chain) != NULL);
     CHECK(chain->data(chain) == (void *) 1);
     CHECK(chain->length(chain) == 3);
@@ -113,23 +113,23 @@ TEST_BEGIN("seek (forward/rewind)")
 
     // go forward two links
     chain->spin(chain, 2);
-    CHECK(!chain->orig(chain));
+    CHECK(!chain->origin(chain));
     CHECK(chain->data(chain) == (void *) 3);
 
     // rewind one link
     chain->spin(chain, -1);
-    CHECK(!chain->orig(chain));
+    CHECK(!chain->origin(chain));
     CHECK(chain->data(chain) == (void *) 2);
 
     // going forward two links should be back at origin
     // because of circular property of chains
     chain->spin(chain, 2);
-    CHECK(chain->orig(chain));
+    CHECK(chain->origin(chain));
     CHECK(chain->data(chain) == (void *) 1);
 
     // rewind two and should be at index 2
     chain->spin(chain, -2);
-    CHECK(!chain->orig(chain));
+    CHECK(!chain->origin(chain));
     CHECK(chain->data(chain) == (void *) 2);
 
     chain->destroy(chain);
@@ -137,6 +137,10 @@ TEST_END
 
 TEST_BEGIN("remove")
     chain_t * chain = chain_create(NULL);
+
+    // Attempting to remove from empty chain
+    chain->remove(chain);
+
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
     chain->insert(chain, (void *) 3);
@@ -151,7 +155,7 @@ TEST_BEGIN("remove")
 
     // go forward 1, we should be at 3
     chain->spin(chain, 1);
-    CHECK(!chain->orig(chain));
+    CHECK(!chain->origin(chain));
     CHECK(chain->data(chain) == (void *) 3);
 
     chain->destroy(chain);
@@ -173,7 +177,7 @@ TEST_BEGIN("clear")
     chain->insert(chain, (void *) 4);
     chain->insert(chain, (void *) 5);
     chain->insert(chain, (void *) 6);
-    CHECK(!chain->orig(chain));
+    CHECK(!chain->origin(chain));
     CHECK(chain->data(chain) != NULL);
     CHECK(chain->data(chain) == (void *) 6);
     CHECK(chain->length(chain) == 3);
@@ -359,7 +363,7 @@ TEST_BEGIN("split")
     segment->destroy(segment);
 TEST_END
 
-TEST_BEGIN("splice")
+TEST_BEGIN("join")
     size_t i;
     chain_t * achain = chain_create(NULL);
     chain_t * bchain = chain_create(NULL);
@@ -368,6 +372,17 @@ TEST_BEGIN("splice")
     CHECK(achain->length(achain) == 0);
     CHECK(bchain->length(bchain) == 0);
 
+
+    // try some edge cases
+    //achain->insert(achain, (void *) 0xBEEF);
+    //achain = achain->join(achain, bchain);
+    //CHECK(achain->length(achain) == 1);
+
+
+    // clear both back to original state
+    achain->clear(achain);
+    bchain->clear(bchain);
+
     for (i = 1; i <= 4; i++)
     {
         achain->insert(achain, (void *) i);
@@ -375,6 +390,7 @@ TEST_BEGIN("splice")
         CHECK(achain->length(achain) == i);
         CHECK(achain->data(achain) != NULL);
         CHECK(achain->data(achain) == (void *) i);
+
         bchain->insert(bchain, (void *) (i + 4));
         CHECK(!bchain->empty(bchain));
         CHECK(bchain->length(bchain) == i);

@@ -66,14 +66,12 @@ chain_priv_t;
 //------------------------------------------------------------------------|
 static void * chain_data(chain_t * chain)
 {
-    chain_priv_t * priv = (chain_priv_t *) chain->priv;
-
-    if (NULL == priv->link)
+    if (chain->empty(chain))
     {
         return NULL;
     }
 
-    return priv->link->data;
+    return ((chain_priv_t *) chain->priv)->link->data;
 }
 
 //------------------------------------------------------------------------|
@@ -89,7 +87,7 @@ static inline bool chain_empty(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
-static inline bool chain_orig(chain_t * chain)
+static inline bool chain_origin(chain_t * chain)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     return (priv->orig == priv->link);    
@@ -101,11 +99,12 @@ static void chain_clear(chain_t * chain)
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
 
     // remove links until none left
-    while (NULL != priv->link)
+    while (!chain->empty(chain))
     {
         chain->remove(chain);
     }
 
+    // TODO: Likely this is redundant
     priv->orig = NULL;
     priv->length = 0;
 }
@@ -123,7 +122,7 @@ static void chain_insert(chain_t * chain, void * data)
     }
 
     // check if linking in the origin
-    if (NULL == priv->link)
+    if (chain->empty(chain))
     {
         priv->link = link;
         priv->orig = link;
@@ -151,13 +150,17 @@ static void chain_insert(chain_t * chain, void * data)
 //------------------------------------------------------------------------|
 static void chain_remove(chain_t * chain)
 {
-    link_t * link = NULL;
+    if (chain->empty(chain))
+    {
+        return;
+    }
+
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
 
     // free and zero link's data contents
-    if (priv->link->data)
+    if (NULL != priv->link->data)
     {
-        if (priv->data_destroy)
+        if (NULL != priv->data_destroy)
         {
             priv->data_destroy(priv->link->data);
         }
@@ -166,14 +169,15 @@ static void chain_remove(chain_t * chain)
     }
 
     // check if we're about to remove the origin link
-    // if so, redefine the new origin as the next link
-    if (priv->link == priv->orig)
+    // if so, designate the next link as the origin
+    if (chain->origin(chain))
     {
         priv->orig = priv->link->next;
     }
 
-    // remember previous link
-    link = priv->link->prev;
+    // remember previous link.  This will be the final
+    // chain position after link deletion
+    link_t * link = priv->link->prev;
 
     // unlink current link
     priv->link->prev->next = priv->link->next;
@@ -185,13 +189,13 @@ static void chain_remove(chain_t * chain)
     // make current link old previous link
     if (priv->length > 1)
     {
-    	priv->link = link;
+        priv->link = link;
     }
     else
     {
-    	// The origin link itself was just removed.
-    	priv->link = NULL;
-    	priv->orig = NULL;
+        // The origin link itself was just removed.
+        priv->link = NULL;
+        priv->orig = NULL;
     }
 
     // the chain is effectively one link shorter either way
@@ -208,13 +212,12 @@ static inline void chain_reset(chain_t * chain)
 //------------------------------------------------------------------------|
 static bool chain_spin(chain_t * chain, int64_t index)
 {
-    chain_priv_t * priv = (chain_priv_t *) chain->priv;
-
-    // Attempting to spin an empty chain?
-    if (NULL == priv->link)
+    if (chain->empty(chain))
     {
-    	return false;
+        return false;
     }
+
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
 
     while (index > 0)
     {
@@ -232,29 +235,35 @@ static bool chain_spin(chain_t * chain, int64_t index)
 }
 
 //------------------------------------------------------------------------|
-static void chain_trim(chain_t * chain)
+static size_t chain_trim(chain_t * chain)
 {
-    chain_priv_t * priv = (chain_priv_t *) chain->priv;
-
-    if (priv->length > 0)
+    if (chain->empty(chain))
     {
-        chain->reset(chain);
-
-        //while(chain->spin(chain, 1))
-        do
-        {
-            if (!priv->link->data)
-            {
-                chain->remove(chain);
-                chain->reset(chain);    // TODO: This can be a lot more efficient
-            }
-
-            // TODO: use bool return from spin
-            //chain->spin(chain, 1);
-        }
-        //while (priv->link != priv->orig);
-        while(chain->spin(chain, 1));
+        return 0;
     }
+
+    size_t trimmed = 0;
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+    chain->reset(chain);
+
+    do
+    {
+        if (NULL == priv->link->data)
+        {
+            chain->remove(chain);
+            trimmed++;
+        }
+        else
+        {
+            // it's more natural to spin backwards because
+            // of the way remove reverts to previous, and
+            // also may redesignate origin as next.
+            chain->spin(chain, -1);
+        }
+    }
+    while (!chain->origin(chain));
+
+    return trimmed;
 }
 
 //------------------------------------------------------------------------|
@@ -283,10 +292,8 @@ static void chain_sort(chain_t * chain, data_compare_f data_compare)
     do
     {
         data_ptrs[index++] = priv->link->data;
-        chain->spin(chain, 1);
-        // TODO: use bool return from spin
     }
-    while (priv->link != priv->orig);
+    while (chain->spin(chain, 1));
 
     // call quicksort on the array of data pointers
     qsort(data_ptrs, priv->length, sizeof(void *), data_compare);
@@ -325,11 +332,8 @@ static chain_t * chain_copy(chain_t * chain, data_copy_f data_copy)
         {
             data = data_copy ? data_copy(priv->link->data) : priv->link->data;
             chain->insert(copy, data);
-            chain->spin(chain, 1);
         }
-
-        // TODO: use bool return from spin
-        while (priv->link != priv->orig);
+        while (chain->spin(chain, 1));
     }
 
     return copy;
@@ -469,7 +473,7 @@ chain_t * chain_create(data_destroy_f data_destroy)
     chain->data = chain_data;
     chain->length = chain_length;
     chain->empty = chain_empty;
-    chain->orig = chain_orig;
+    chain->origin = chain_origin;
     chain->clear = chain_clear;
     chain->insert = chain_insert;
     chain->remove = chain_remove;
