@@ -464,6 +464,27 @@ void chain_destroy(void * chain_ptr)
 }
 
 //------------------------------------------------------------------------|
+static const chain_t chain_calls = {
+    &chain_create,
+    &chain_destroy,
+    &chain_data,
+    &chain_length,
+    &chain_empty,
+    &chain_origin,
+    &chain_clear,
+    &chain_insert,
+    &chain_remove,
+    &chain_reset,
+    &chain_spin,
+    &chain_trim,
+    &chain_sort,
+    &chain_copy,
+    &chain_split,
+    &chain_join,
+    NULL
+};
+
+//------------------------------------------------------------------------|
 chain_t * chain_create(data_destroy_f data_destroy)
 {
     // Allocate and initialize public interface
@@ -474,23 +495,8 @@ chain_t * chain_create(data_destroy_f data_destroy)
         return NULL;
     }
 
-    memset(chain, 0, sizeof(chain_t));
-    chain->create = chain_create;
-    chain->destroy = chain_destroy;
-    chain->data = chain_data;
-    chain->length = chain_length;
-    chain->empty = chain_empty;
-    chain->origin = chain_origin;
-    chain->clear = chain_clear;
-    chain->insert = chain_insert;
-    chain->remove = chain_remove;
-    chain->reset = chain_reset;
-    chain->spin = chain_spin;
-    chain->trim = chain_trim;
-    chain->sort = chain_sort;
-    chain->copy = chain_copy;
-    chain->split = chain_split;
-    chain->join = chain_join;
+    // bulk copy all function pointers and init opaque ptr
+    memcpy(chain, &chain_calls, sizeof(chain_t));
 
     // Allocate and initialize private implementation
     chain->priv = malloc(sizeof(chain_priv_t));
