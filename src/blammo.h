@@ -58,7 +58,9 @@ typedef enum
 blammo_t;
 
 //------------------------------------------------------------------------|
-int blammo(const char * func, const blammo_t type,
+void blammo_file(const char * filename);
+void blammo_level(blammo_t level);
+void blammo(const char * func, const blammo_t type,
             const char * format, ...);
 
 #endif // #ifdef BLAMMO_ENABLE

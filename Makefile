@@ -1,4 +1,4 @@
-PROJECT := raytl
+PROJECT := rayco
 SOURCES := $(notdir $(shell find . -follow -name '*.c'))
 SRCDIRS := $(sort $(dir $(shell find . -follow -name '*.c')))
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))

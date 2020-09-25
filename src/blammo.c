@@ -67,15 +67,21 @@ void blammo_file(const char * filename)
 }
 
 //------------------------------------------------------------------------|
-void blammo_level(blammo_t level)
+inline void blammo_level(blammo_t level)
 {
     blammo_data.level = level;
 }
 
 //------------------------------------------------------------------------|
-int blammo(const char * func, const blammo_t type,
-           const char * format, ...)
+void blammo(const char * func, const blammo_t type,
+            const char * format, ...)
 {
+    // If the message doesn't rise to the set level, then discard it
+    if (type < blammo_data.level)
+    {
+        return;
+    }
+
     char ts[48];
     va_list args;
 
@@ -86,7 +92,7 @@ int blammo(const char * func, const blammo_t type,
     vfprintf(stdout, format, args); 
     va_end(args);
 
-    return 0;
+    fprintf(stdout, "\n");
 }
 
 #endif
