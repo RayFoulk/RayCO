@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2019 by Raymond M. Foulk IV
+// Copyright (c) 2018-2020 by Raymond M. Foulk IV (rfoulk@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -37,15 +37,40 @@ static const char * blammo_t_str[] =
 };
 
 //------------------------------------------------------------------------|
-// get a log-friendly timestamp string for current time. This is NOT
+typedef struct
+{
+    // Pointer to the log file (if specified)
+    FILE * fileptr;
+
+    // The blammo log level
+    blammo_t level;
+}
+blammo_data_t;
+
+//------------------------------------------------------------------------|
+static blammo_data_t blammo_data = { NULL, ERROR };
+
+//------------------------------------------------------------------------|
+// get a log-friendly timestamp string for current time.  This is NOT
 // thread-safe or re-entrant safe
 static void timestamp (char * ts, size_t size)
 {
-  time_t currtime = time(NULL);
-  struct tm * tmp = localtime(&currtime);
-  strftime (ts, size, "%F %T", tmp);
+    time_t currtime = time(NULL);
+    struct tm * tmp = localtime(&currtime);
+    strftime (ts, size, "%F %T", tmp);
 }
 
+//------------------------------------------------------------------------|
+void blammo_file(const char * filename)
+{
+    // NOT IMPLEMENTED
+}
+
+//------------------------------------------------------------------------|
+void blammo_level(blammo_t level)
+{
+    blammo_data.level = level;
+}
 
 //------------------------------------------------------------------------|
 int blammo(const char * func, const blammo_t type,

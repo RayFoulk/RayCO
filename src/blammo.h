@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2019 by Raymond M. Foulk IV
+// Copyright (c) 2018-2020 by Raymond M. Foulk IV (rfoulk@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -24,14 +24,19 @@
 #pragma once
 
 //------------------------------------------------------------------------|
-// only really enable the BLAMMO() macro if the preprocessor directive
+// only really enable the BLAMMO*() macros if the preprocessor directive
 // BLAMMO_ENABLE is defined on the command line during build.  otherwise
-// BLAMMO() will be an empty macro.
+// BLAMMO*() will be a set of empty macros.
 #ifndef BLAMMO_ENABLE
-#include <stdio.h>
-#define BLAMMO(mt, fm, ...)    printf(fm, ## __VA_ARGS__)
+#define BLAMMO_FILE(path)
+#define BLAMMO_LEVEL(level)
+#define BLAMMO(msgt, fmt, ...)
+
 #else
-#define BLAMMO(mt, fm, ...)    blammo(__FUNCTION__, mt, fm, ## __VA_ARGS__)
+#define BLAMMO_FILE(path)       blammo_file(path)
+#define BLAMMO_LEVEL(level)     blammo_level(level)
+#define BLAMMO(msgt, fmt, ...)  blammo(__FUNCTION__, msgt, fmt, \
+                                       ## __VA_ARGS__)
 
 //------------------------------------------------------------------------|
 #include <stddef.h>
@@ -51,11 +56,6 @@ typedef enum
     ERROR   = 3
 }
 blammo_t;
-
-//typedef struct
-//{
-//}
-//blammo_data_t;
 
 //------------------------------------------------------------------------|
 int blammo(const char * func, const blammo_t type,
