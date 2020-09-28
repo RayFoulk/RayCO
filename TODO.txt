@@ -6,4 +6,9 @@
 X pass in link dtor function to delete and destroy, do not cache
 * refactor into pimpl private data pattern
 * fix chain_join
-- migrate over to sink project and refactor
+- app: migrate over to sink project and refactor
+- introduce bytes object as managed string / byte array
+- fix mem zero optimization problem (volatile?)
+- add license target to makefile to update all src
+- adjust makefile for so, a lib targets
+- migrate selected useful librmf objects
