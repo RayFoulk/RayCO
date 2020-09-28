@@ -52,10 +52,7 @@ typedef struct bytes_t
     // Effectively brings the bytes back to factory condition.
     void (*clear)(struct bytes_t * bytes);
 
-    void (*append)(struct bytes_t * bytes, void * data);
-
     void (*trunc)(struct bytes_t * bytes);
-
     void (*shrink)(struct bytes_t * bytes);
 
     bool (*format)(struct bytes_t * bytes, const char * format, ...);
@@ -63,10 +60,11 @@ typedef struct bytes_t
     size_t (*rtrim)(struct bytes_t * bytes);
     size_t (*ltrim)(struct bytes_t * bytes);
 
-    struct bytes_t * (*copy)(struct bytes_t * bytes, data_copy_f data_copy);
+    struct bytes_t * (*copy)(struct bytes_t * bytes);
 
     struct bytes_t * (*split)(struct bytes_t * bytes, size_t begin, size_t end);
 
+    void (*append)(struct bytes_t * bytes, void * data);
     bool (*join)(struct bytes_t * head, struct bytes_t * tail);
 
     // Private data
@@ -75,8 +73,8 @@ typedef struct bytes_t
 bytes_t;
 
 //------------------------------------------------------------------------|
-// Public factory function that creates a new bytes object
+// Public factory function that creates a new 'bytes' object
 bytes_t * bytes_create(const char * str, size_t size);
 
-// Public destructor function that destroys a bytes object
+// Public destructor function that destroys a 'bytes' object
 void bytes_destroy(void * bytes);
