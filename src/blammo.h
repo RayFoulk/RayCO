@@ -45,6 +45,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <types.h>
 #include <time.h>
 
 //------------------------------------------------------------------------|
@@ -55,12 +56,12 @@ typedef enum
     WARNING = 2,
     ERROR   = 3
 }
-blammo_t;
+blammo_msg_t;
 
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename);
-void blammo_level(blammo_t level);
-void blammo(const char * func, const blammo_t type,
+void blammo_level(blammo_msg_t level);
+void blammo(const char * func, const blammo_msg_t type,
             const char * format, ...);
 
 #endif // #ifdef BLAMMO_ENABLE

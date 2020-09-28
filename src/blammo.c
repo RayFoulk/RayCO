@@ -27,7 +27,7 @@
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
-static const char * blammo_t_str[] =
+static const char * blammo_msg_t_str[] =
 {
     "INFO",
     "DEBUG",
@@ -43,7 +43,7 @@ typedef struct
     FILE * fileptr;
 
     // The blammo log level
-    blammo_t level;
+    blammo_msg_t level;
 }
 blammo_data_t;
 
@@ -63,17 +63,21 @@ static void timestamp (char * ts, size_t size)
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename)
 {
-    // NOT IMPLEMENTED
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+
+	// TODO: touch the file for write, report error if unable
+	// set FILE * in singleton and use in blammo() if successful
+
 }
 
 //------------------------------------------------------------------------|
-inline void blammo_level(blammo_t level)
+inline void blammo_level(blammo_msg_t level)
 {
     blammo_data.level = level;
 }
 
 //------------------------------------------------------------------------|
-void blammo(const char * func, const blammo_t type,
+void blammo(const char * func, const blammo_msg_t type,
             const char * format, ...)
 {
     // If the message doesn't rise to the set level, then discard it
@@ -82,11 +86,13 @@ void blammo(const char * func, const blammo_t type,
         return;
     }
 
+	// TODO: Consider mutex here if this logger is to be thread-safe
+
     char ts[48];
     va_list args;
 
     timestamp(ts, 48);
-    fprintf(stdout, "%s %s ", ts, blammo_t_str[type]);
+    fprintf(stdout, "%s %s ", ts, blammo_msg_t_str[type]);
 
     va_start(args, format);
     vfprintf(stdout, format, args); 
