@@ -12,3 +12,4 @@ X pass in link dtor function to delete and destroy, do not cache
 - add license target to makefile to update all src
 - adjust makefile for so, a lib targets
 - migrate selected useful librmf objects
+- constify return values, pointers functions

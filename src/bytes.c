@@ -34,11 +34,11 @@
 // bytes private implementation data
 typedef struct
 {
-    // The raw data array
-    uint8_t * data;
-
     // The total number of bytes allocated
     size_t length;
+
+    // The raw data array
+    uint8_t * data;
 
     // TODO: Add tokenization data, parallel metadata, etc...
 }
@@ -73,12 +73,20 @@ static void bytes_clear(bytes_t * bytes)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
+    if (NULL != priv->data)
+    {
+        // TODO: Deal with compiler optimization problem
+        memset(priv->data, 0, priv->length);
+        free(priv->data);
+    }
+
+    memset(bytes->priv, 0, sizeof(bytes_priv_t));
 }
 
 //------------------------------------------------------------------------|
 static size_t bytes_trim(bytes_t * bytes)
 {
-
+    return 0;
 }
 
 //------------------------------------------------------------------------|
@@ -104,12 +112,24 @@ static bool bytes_join(bytes_t * head, bytes_t * tail)
 }
 
 //------------------------------------------------------------------------|
-// Not static because also exposed via the header, so that it can be
-// included as a payload in other bytess.
+// Public bytes destructor function
 void bytes_destroy(void * bytes_ptr)
 {
     bytes_t * bytes = (bytes_t *) bytes_ptr;
 
+    bytes->clear(bytes);
+ 
+    if (NULL != bytes->priv)
+    {
+        free(bytes->priv);
+    }
+
+    if (NULL != bytes)
+    {
+        // TODO: Deal with compiler optimization problem
+        memset(bytes, 0, sizeof(bytes_t));
+        free(bytes);
+    }
 }
 
 //------------------------------------------------------------------------|
@@ -159,7 +179,9 @@ bytes_t * bytes_create(const char * str, size_t size)
     }
 
     memset(bytes->priv, 0, sizeof(bytes_priv_t));
-    /*((bytes_priv_t *) bytes->priv)->data_destroy = data_destroy; */
+    bytes->resize(bytes, size);
+    bytes->format(bytes, str);
+    // TODO: Fail if not enough room for format?
 
     return bytes;
 }

@@ -48,11 +48,13 @@ typedef struct bytes_t
 
     bool (*fill)(struct bytes_t * bytes, const char c);
 
-    // Empties the bytes: Removes all links and destroys their data payloads.
     // Effectively brings the bytes back to factory condition.
     void (*clear)(struct bytes_t * bytes);
 
-    void (*trunc)(struct bytes_t * bytes);
+    void (*append)(struct bytes_t * bytes, void * data);
+
+    void (*resize)(struct bytes_t * bytes, size_t size);
+
     void (*shrink)(struct bytes_t * bytes);
 
     bool (*format)(struct bytes_t * bytes, const char * format, ...);
@@ -64,7 +66,6 @@ typedef struct bytes_t
 
     struct bytes_t * (*split)(struct bytes_t * bytes, size_t begin, size_t end);
 
-    void (*append)(struct bytes_t * bytes, void * data);
     bool (*join)(struct bytes_t * head, struct bytes_t * tail);
 
     // Private data
@@ -73,8 +74,8 @@ typedef struct bytes_t
 bytes_t;
 
 //------------------------------------------------------------------------|
-// Public factory function that creates a new 'bytes' object
+// Public factory function that creates a new bytes object
 bytes_t * bytes_create(const char * str, size_t size);
 
-// Public destructor function that destroys a 'bytes' object
+// Public destructor function that destroys a bytes object
 void bytes_destroy(void * bytes);
