@@ -34,38 +34,41 @@ typedef struct bytes_t
     // Factory function that creates a 'bytes' object.
     struct bytes_t * (*create)(const char * str, size_t size);
 
-    // bytes destructor function
+    // Public bytes destructor function
     void (*destroy)(void * bytes);
 
-    uint8_t * (*data)(struct bytes_t * bytes);
-    char * (*cstr)(struct bytes_t * bytes);
+    // Get the data as a byte array pointer
+    const uint8_t * (*data)(struct bytes_t * bytes);
+
+    // Get the data as a C string
+    const char * (*cstr)(struct bytes_t * bytes);
 
     // Get the bytes's current length
-    size_t (*length)(struct bytes_t * bytes);
+    size_t (*size)(struct bytes_t * bytes);
 
     // Returns true if the bytes is empty and false otherwise
     bool (*empty)(struct bytes_t * bytes);
 
-    bool (*fill)(struct bytes_t * bytes, const char c);
-
     // Effectively brings the bytes back to factory condition.
     void (*clear)(struct bytes_t * bytes);
 
-    void (*append)(struct bytes_t * bytes, void * data);
-
+    // Resize the buffer, keeping existing data intact
     void (*resize)(struct bytes_t * bytes, size_t size);
 
+    // TODO: Notional Functions
+    /*
+    bool (*fill)(struct bytes_t * bytes, const char c);
+    void (*append)(struct bytes_t * bytes, void * data);
     void (*shrink)(struct bytes_t * bytes);
-
     bool (*format)(struct bytes_t * bytes, const char * format, ...);
-
     size_t (*rtrim)(struct bytes_t * bytes);
     size_t (*ltrim)(struct bytes_t * bytes);
+    */
 
+    // TODO: Stubbed Functions
+    size_t (*trim)(struct bytes_t * bytes);
     struct bytes_t * (*copy)(struct bytes_t * bytes);
-
     struct bytes_t * (*split)(struct bytes_t * bytes, size_t begin, size_t end);
-
     bool (*join)(struct bytes_t * head, struct bytes_t * tail);
 
     // Private data

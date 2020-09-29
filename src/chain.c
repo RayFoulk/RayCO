@@ -115,7 +115,7 @@ static void chain_insert(chain_t * chain, void * data)
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     link_t * link = (link_t *) malloc(sizeof(link_t));
 
-    if (!link)
+    if (NULL == link)
     {
         BLAMMO(ERROR, "malloc(sizeof(link_t)) failed\n");
         return;
@@ -319,7 +319,7 @@ static chain_t * chain_copy(chain_t * chain, data_copy_f data_copy)
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     chain_t * copy = chain_create(priv->data_destroy);
 
-    if (!copy)
+    if (NULL == copy)
     {
         BLAMMO(ERROR, "chain_create() copy failed\n");
         return NULL;
@@ -346,7 +346,7 @@ static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     chain_t * seg = chain_create(priv->data_destroy);
 
-    if (!seg)
+    if (NULL == seg)
     {
         BLAMMO(ERROR, "chain_create() seg failed\n");
         return NULL;

@@ -35,7 +35,7 @@
 typedef struct
 {
     // The total number of bytes allocated
-    size_t length;
+    size_t size;
 
     // The raw data array
     uint8_t * data;
@@ -45,20 +45,21 @@ typedef struct
 bytes_priv_t;
 
 //------------------------------------------------------------------------|
-static void * bytes_data(bytes_t * bytes)
+static inline const uint8_t * bytes_data(bytes_t * bytes)
 {
-    if (bytes->empty(bytes))
-    {
-        return NULL;
-    }
-
-    return ((bytes_priv_t *) bytes->priv)->data;
+    return (const uint8_t *) ((bytes_priv_t *) bytes->priv)->data;
 }
 
 //------------------------------------------------------------------------|
-static inline size_t bytes_length(bytes_t * bytes)
+static inline const char * bytes_cstr(bytes_t * bytes)
 {
-    return ((bytes_priv_t *) bytes->priv)->length;
+    return (const char *) ((bytes_priv_t *) bytes->priv)->data;
+}
+
+//------------------------------------------------------------------------|
+static inline size_t bytes_size(bytes_t * bytes)
+{
+    return ((bytes_priv_t *) bytes->priv)->size;
 }
 
 //------------------------------------------------------------------------|
@@ -66,7 +67,6 @@ static inline bool bytes_empty(bytes_t * bytes)
 {
     return (NULL == ((bytes_priv_t *) bytes->priv)->data);
 }
-
 
 //------------------------------------------------------------------------|
 static void bytes_clear(bytes_t * bytes)
@@ -76,11 +76,43 @@ static void bytes_clear(bytes_t * bytes)
     if (NULL != priv->data)
     {
         // TODO: Deal with compiler optimization problem
-        memset(priv->data, 0, priv->length);
+        memset(priv->data, 0, priv->size);
         free(priv->data);
     }
 
     memset(bytes->priv, 0, sizeof(bytes_priv_t));
+}
+
+//------------------------------------------------------------------------|
+static void bytes_resize(bytes_t * bytes, size_t size)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    //size_t prev_length = priv->length;
+
+    // Don't do anything if size doesn't change
+    if (priv->size == size)
+    {
+        return;
+    }
+
+    // Use realloc to resize byte array
+    priv->data = (uint8_t *) realloc(priv->data, size + 1);
+    if (NULL == priv->data)
+    {
+        BLAMMO(ERROR, "malloc(%zu) failed\n", size + 1);
+        return;
+    }
+
+    // Zero out the new memory
+    if (size > priv->size)
+    {
+        memset(priv->data + priv->size, 0, size - priv->size);
+    }
+
+    // Update size and explicitely terminate buffer
+    priv->size = size;
+    priv->data[size] = 0;
+    return;
 }
 
 //------------------------------------------------------------------------|
@@ -112,7 +144,6 @@ static bool bytes_join(bytes_t * head, bytes_t * tail)
 }
 
 //------------------------------------------------------------------------|
-// Public bytes destructor function
 void bytes_destroy(void * bytes_ptr)
 {
     bytes_t * bytes = (bytes_t *) bytes_ptr;
