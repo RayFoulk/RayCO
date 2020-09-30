@@ -87,7 +87,6 @@ static void bytes_clear(bytes_t * bytes)
 static void bytes_resize(bytes_t * bytes, size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-    //size_t prev_length = priv->length;
 
     // Don't do anything if size doesn't change
     if (priv->size == size)
@@ -113,6 +112,44 @@ static void bytes_resize(bytes_t * bytes, size_t size)
     priv->size = size;
     priv->data[size] = 0;
     return;
+}
+
+//------------------------------------------------------------------------|
+static int bytes_format(bytes_t * bytes, const char * format, ...)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    int nchars = 0;
+    bool redo = false;
+    va_list args;
+
+    // First try should be successful if there is enough room
+    va_start (args, format);
+    nchars = vsnprintf((char *) priv->data, priv->size, format, args);
+    va_end (args);
+
+    // Return early if error occurred
+    if (nchars < 0)
+    {
+        BLAMMO(ERROR, "vsnprintf(%p, %zu, %s, ...) returned %d",
+            priv->data, priv->size, format, nchars);
+        return nchars;
+    }
+
+    // If vsnprintf returns larger than existing size, then another pass
+    // is necessary.  Either way, we'll resize to either shrink down or
+    // grow to fit.  If the two are the same then resize checks for that.
+    redo = (nchars > priv->size); 
+    bytes->resize(bytes, (size_t) nchars);
+
+    if (redo)
+    {
+        // Second pass will pick up the full formatted buffer
+        va_start (args, format);
+        nchars = vsnprintf((char *) priv->data, priv->size, format, args);
+        va_end (args);
+    }    
+
+    return nchars;
 }
 
 //------------------------------------------------------------------------|
@@ -164,27 +201,22 @@ void bytes_destroy(void * bytes_ptr)
 }
 
 //------------------------------------------------------------------------|
-/*
 static const bytes_t bytes_calls = {
     &bytes_create,
     &bytes_destroy,
     &bytes_data,
-    &bytes_length,
+    &bytes_cstr,
+    &bytes_size,
     &bytes_empty,
-    &bytes_origin,
     &bytes_clear,
-    &bytes_insert,
-    &bytes_remove,
-    &bytes_reset,
-    &bytes_spin,
+    &bytes_resize,
+    &bytes_format,
     &bytes_trim,
-    &bytes_sort,
     &bytes_copy,
     &bytes_split,
     &bytes_join,
     NULL
 };
-*/
 
 //------------------------------------------------------------------------|
 bytes_t * bytes_create(const char * str, size_t size)
@@ -198,7 +230,7 @@ bytes_t * bytes_create(const char * str, size_t size)
     }
 
     // bulk copy all function pointers and init opaque ptr
-    /* memcpy(bytes, &bytes_calls, sizeof(bytes_t)); */
+    memcpy(bytes, &bytes_calls, sizeof(bytes_t));
 
     // Allocate and initialize private implementation
     bytes->priv = malloc(sizeof(bytes_priv_t));
@@ -210,9 +242,10 @@ bytes_t * bytes_create(const char * str, size_t size)
     }
 
     memset(bytes->priv, 0, sizeof(bytes_priv_t));
-    bytes->resize(bytes, size);
     bytes->format(bytes, str);
+    bytes->resize(bytes, size);
     // TODO: Fail if not enough room for format?
+    // need to work out a better API here
 
     return bytes;
 }

@@ -55,12 +55,15 @@ typedef struct bytes_t
     // Resize the buffer, keeping existing data intact
     void (*resize)(struct bytes_t * bytes, size_t size);
 
+    // Printf-style string formatter
+    // TODO: define the sizing contract
+    int (*format)(struct bytes_t * bytes, const char * format, ...);
+
     // TODO: Notional Functions
     /*
     bool (*fill)(struct bytes_t * bytes, const char c);
     void (*append)(struct bytes_t * bytes, void * data);
     void (*shrink)(struct bytes_t * bytes);
-    bool (*format)(struct bytes_t * bytes, const char * format, ...);
     size_t (*rtrim)(struct bytes_t * bytes);
     size_t (*ltrim)(struct bytes_t * bytes);
     */
