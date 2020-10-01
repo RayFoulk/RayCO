@@ -65,8 +65,8 @@ void blammo_file(const char * filename)
 {
     BLAMMO(ERROR, "NOT IMPLEMENTED");
 
-	// TODO: touch the file for write, report error if unable
-	// set FILE * in singleton and use in blammo() if successful
+    // TODO: touch the file for write, report error if unable
+    // set FILE * in singleton and use in blammo() if successful
 
 }
 
@@ -86,7 +86,7 @@ void blammo(const char * func, const blammo_msg_t type,
         return;
     }
 
-	// TODO: Consider mutex here if this logger is to be thread-safe
+    // TODO: Consider mutex here if this logger is to be thread-safe
 
     char ts[48];
     va_list args;
