@@ -6,6 +6,9 @@
 X pass in link dtor function to delete and destroy, do not cache
 * refactor into pimpl private data pattern
 * fix chain_join
+- MUST migrate unit tests to a different framework
+    - still must be lightweight, supportable by embedded targets.
+    - must support multiple test*.c files, from one main is OK
 - app: migrate over to sink project and refactor
 - introduce bytes object as managed string / byte array
 - fix mem zero optimization problem (volatile?)
