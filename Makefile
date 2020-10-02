@@ -46,6 +46,7 @@ $(SHARED_LIB): $(PROJ_OBJS)
 test: CFLAGS += $(TEST_INCL) $(DEBUG_CFLAGS) -Wno-unused-label -fprofile-arcs -ftest-coverage
 test: $(TEST_BINS)
 	for testelf in test_*elf; do ./$$testelf; done
+	gcovr -r . --html-details -o coverage.html
 
 #test: LDFLAGS += -lgcov
 #$(LD) -o $@ $< $(AUX_OBJS) $(PROJ_OBJS) $(LDFLAGS)
@@ -59,5 +60,5 @@ notabs:
 
 .PHONY: clean
 clean:
-	rm -f core *.gcno *.gcda $(TEST_OBJS) $(TEST_BINS) $(AUX_OBJS) \
-	$(PROJ_OBJS) $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LINK)
+	rm -f core *.gcno *.gcda coverage*html $(TEST_OBJS) $(TEST_BINS) \
+        $(AUX_OBJS) $(PROJ_OBJS) $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LINK)
