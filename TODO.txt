@@ -6,13 +6,14 @@
 X pass in link dtor function to delete and destroy, do not cache
 * refactor into pimpl private data pattern
 * fix chain_join
-- MUST migrate unit tests to a different framework
-    - still must be lightweight, supportable by embedded targets.
-    - must support multiple test*.c files, from one main is OK
+* MUST migrate unit tests to a different framework
+    * still must be lightweight, supportable by embedded targets.
+    * must support multiple test*.c files, from one main is OK
 - app: migrate over to sink project and refactor
 - introduce bytes object as managed string / byte array
 - fix mem zero optimization problem (volatile?)
 - add license target to makefile to update all src
-- adjust makefile for so, a lib targets
+* adjust makefile for so, a lib targets
 - migrate selected useful librmf objects
 - constify return values, pointers functions
+- add install and uninstall phony targets

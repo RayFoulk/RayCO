@@ -26,7 +26,13 @@ BIN          := /usr/local/bin
 LIB          := /usr/local/lib
 CFLAGS       := $(PROJ_INCL) -Wall -pipe -std=c99 -fPIC
 DEBUG_CFLAGS := -O0 -g -D BLAMMO_ENABLE -fmax-errors=3
+ifeq ($(ANDROID_ROOT),)
 LDFLAGS      := -lc -pie
+COV_REPORT   := gcovr -r . --html-details -o coverage.html 
+else
+LDFLAGS      := -pie
+COV_REPORT   :=
+endif
 
 .PHONY: all
 all: CFLAGS += -O2 -fomit-frame-pointer
@@ -43,14 +49,16 @@ $(SHARED_LIB): $(PROJ_OBJS)
 	$(LD) $(LDFLAGS) -shared -soname,$(SHARED_LIB) -o $(SHARED_LIB) $(PROJ_OBJS)
 
 .PHONY: test
-test: CFLAGS += $(TEST_INCL) $(DEBUG_CFLAGS) -Wno-unused-label -fprofile-arcs -ftest-coverage
+test: CFLAGS += $(TEST_INCL) $(DEBUG_CFLAGS) -Wno-unused-label
+ifeq ($(ANDROID_ROOT),)
+test: CFLAGS += -fprofile-arcs -ftest-coverage
+#test: LDFLAGS += -lgcov --coverage
+endif
 test: $(TEST_BINS)
 	for testelf in test_*elf; do ./$$testelf; done
-	gcovr -r . --html-details -o coverage.html
+	$(COV_REPORT)
 
-#test: LDFLAGS += -lgcov
 #$(LD) -o $@ $< $(AUX_OBJS) $(PROJ_OBJS) $(LDFLAGS)
-
 test_%.elf : test_%.o $(AUX_OBJS) $(PROJ_OBJS)
 	$(CC) $(CFLAGS) -o $@ $< $(AUX_OBJS) $(PROJ_OBJS) $(LDFLAGS)
 

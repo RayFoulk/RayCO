@@ -21,8 +21,6 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-/* BROKEN - MIGRATE UNIT TESTS!!!
-
 #include "blammo.h"
 #include "bytes.h"
 #include "mut.h"
@@ -84,6 +82,4 @@ TEST_BEGIN("join")
 TEST_END
 
 TESTSUITE_END
-
-*/
 
