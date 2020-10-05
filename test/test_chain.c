@@ -32,7 +32,8 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO(INFO, "Testsuite Begin");
+    BLAMMO_LEVEL(INFO);
+    BLAMMO(INFO, "chain tests...");
 
     // because these aren't always used, some warning eaters:
     (void) fixture_reset;
