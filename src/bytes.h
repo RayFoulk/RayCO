@@ -56,8 +56,12 @@ typedef struct bytes_t
     void (*resize)(struct bytes_t * bytes, size_t size);
 
     // Printf-style string formatter
-    // TODO: define the sizing contract
     int (*format)(struct bytes_t * bytes, const char * format, ...);
+
+    // Assign a strncpy-style string
+    // TODO: how to handle whther the string needs to be un-escaped or not?
+    // TODO: manual escape/unescape calls for this?
+    void (*assign)(struct bytes_t * bytes, const char * str, size_t size);
 
     // TODO: Notional Functions
     /*
@@ -66,6 +70,7 @@ typedef struct bytes_t
     void (*shrink)(struct bytes_t * bytes);
     size_t (*rtrim)(struct bytes_t * bytes);
     size_t (*ltrim)(struct bytes_t * bytes);
+    const char * (*hexdump)(struct bytes_t * bytes)
     */
 
     // TODO: Stubbed Functions

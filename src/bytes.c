@@ -110,7 +110,7 @@ static void bytes_resize(bytes_t * bytes, size_t size)
         memset(priv->data + priv->size, 0, size - priv->size);
     }
 
-    // Update size and explicitely terminate buffer
+    // Update size and explicitly terminate buffer
     priv->size = size;
     priv->data[size] = 0;
     return;
@@ -123,6 +123,12 @@ static int bytes_format(bytes_t * bytes, const char * format, ...)
     int nchars = 0;
     bool redo = false;
     va_list args;
+
+    if (NULL == format)
+    {
+        BLAMMO(ERROR, "Format string is NULL");
+        return -1;
+    }
 
     // First try should be successful if there is enough room
     va_start (args, format);
@@ -152,6 +158,19 @@ static int bytes_format(bytes_t * bytes, const char * format, ...)
     }    
 
     return nchars;
+}
+
+//------------------------------------------------------------------------|
+static void bytes_assign(bytes_t * bytes, const char * str, size_t size)
+{
+	bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+	// TODO: Impose some reasonable size checks here?  get available free
+	// memory?  Return bool failure/success?
+	bytes->resize(bytes, size);
+
+	// buffer was already terminated in resize
+	memcpy(priv->data, str, size);
 }
 
 //------------------------------------------------------------------------|
@@ -213,6 +232,7 @@ static const bytes_t bytes_calls = {
     &bytes_clear,
     &bytes_resize,
     &bytes_format,
+    &bytes_assign,
     &bytes_trim,
     &bytes_copy,
     &bytes_split,
@@ -244,10 +264,11 @@ bytes_t * bytes_create(const char * str, size_t size)
     }
 
     memset(bytes->priv, 0, sizeof(bytes_priv_t));
-    bytes->format(bytes, str);
-    bytes->resize(bytes, size);
-    // TODO: Fail if not enough room for format?
-    // need to work out a better API here
+
+    if ((NULL != str) && (size > 0))
+    {
+        bytes->assign(bytes, str, size);
+    }
 
     return bytes;
 }

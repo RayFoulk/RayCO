@@ -36,19 +36,19 @@ TESTSUITE_BEGIN
     BLAMMO(INFO, "bytes tests...");
 
 TEST_BEGIN("create")
-    bytes_t * bytes = bytes_create("", 12);
+    bytes_t * bytes = bytes_create("hello", 12);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
     CHECK(!bytes->empty(bytes));
     CHECK(bytes->size(bytes) == 12);
     bytes->destroy(bytes);
 
-    //bytes = bytes_create(NULL, 0);
-    //CHECK(bytes != NULL);
-    //CHECK(bytes->priv != NULL);
-    //CHECK(bytes->empty(bytes));
-    //CHECK(bytes->size(bytes) == 0);
-    //bytes->destroy(bytes);
+    bytes = bytes_create(NULL, 0);
+    CHECK(bytes != NULL);
+    CHECK(bytes->priv != NULL);
+    CHECK(bytes->empty(bytes));
+    CHECK(bytes->size(bytes) == 0);
+    bytes->destroy(bytes);
 
 TEST_END
 
