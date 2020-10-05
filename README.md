@@ -12,9 +12,9 @@
 
 # Objects
 - **chain_t** A doubly-linked-list implementation using 'chain' and 'link' nomenclature
--- Handles arbitrary (homogeneous) payloads, using void * callbacks to handle payload operations
--- Automatic garbage collection of payloads.  Payloads may be managed or unmanaged
+  - Handles arbitrary (homogeneous) payloads, using void * callbacks to handle payload operations
+  - Automatic garbage collection of payloads.  Payloads may be managed or unmanaged
 - **bytes_t** Yet another managed string/byte array implementation
--- Nothing super fancy: Assumes ASCII, No UTF-8 support
--- Can be used either as an arbitrary byte array buffer or a null-terminated C string
--- Main focus is just on being usable without needing to declare static buffers: 80% rule in effect here
+  - Nothing super fancy: Assumes ASCII, No UTF-8 support
+  - Can be used either as an arbitrary byte array buffer or a null-terminated C string
+  - Main focus is just on being usable without needing to declare static buffers: 80% rule in effect here
