@@ -1,6 +1,10 @@
 .cproject
 .project
 *.o
+*.gcno
+*.gcda
+*.elf
+*.html
 *~
 raytl_debug
 raytl
