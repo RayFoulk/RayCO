@@ -52,7 +52,20 @@ TEST_BEGIN("create")
 
 TEST_END
 
-TEST_BEGIN("insert (heap primitive)")
+TEST_BEGIN("assign")
+    bytes_t * bytes = bytes_create(NULL, 0);
+	CHECK(bytes != NULL);
+	CHECK(bytes->priv != NULL);
+
+	// buffer is intentionally oversized
+	const char * astr = "qwertyuiop asdfghjkl";
+	const char * bstr = "qwertyuiop asdfghjkl";
+	bytes->assign(bytes, astr, 32);
+	CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
+	CHECK(bytes->size(bytes) == 32);
+
+	bytes->destroy(bytes);
+
 TEST_END
 
 TEST_BEGIN("insert (pointer value / static primitive)")

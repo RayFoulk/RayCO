@@ -63,6 +63,9 @@ typedef struct bytes_t
     // TODO: manual escape/unescape calls for this?
     void (*assign)(struct bytes_t * bytes, const char * str, size_t size);
 
+    // Append a strncat-style string
+    void (*append)(struct bytes_t * bytes, const char * str, size_t size);
+
     // TODO: Notional Functions
     /*
     bool (*fill)(struct bytes_t * bytes, const char c);

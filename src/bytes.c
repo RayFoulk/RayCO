@@ -174,6 +174,19 @@ static void bytes_assign(bytes_t * bytes, const char * str, size_t size)
 }
 
 //------------------------------------------------------------------------|
+static void bytes_append(bytes_t * bytes, const char * str, size_t size)
+{
+	bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+	// TODO: Impose some reasonable size checks here?  get available free
+	// memory?  Return bool failure/success?
+	bytes->resize(bytes, priv->size + size);
+
+	// buffer was already terminated in resize
+	memcpy(priv->data + priv->size, str, size);
+}
+
+//------------------------------------------------------------------------|
 static size_t bytes_trim(bytes_t * bytes)
 {
     return 0;
@@ -233,6 +246,7 @@ static const bytes_t bytes_calls = {
     &bytes_resize,
     &bytes_format,
     &bytes_assign,
+	&bytes_append,
     &bytes_trim,
     &bytes_copy,
     &bytes_split,
