@@ -24,7 +24,7 @@
 #include "blammo.h"
 #include "bytes.h"
 #include "mut.h"
-#include "fixture.h"
+//#include "fixture.h"
 
 #include <string.h>
 #include <limits.h>
@@ -32,20 +32,24 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO(INFO, "Testsuite Begin");
-
-    // because these aren't always used, some warning eaters:
-    (void) fixture_reset;
-    (void) fixture_report;
-    (void) fixture_payload;
+    BLAMMO_LEVEL(INFO);
+    BLAMMO(INFO, "bytes tests...");
 
 TEST_BEGIN("create")
     bytes_t * bytes = bytes_create("", 12);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
-    CHECK(bytes->empty(bytes));
-    CHECK(bytes->size(bytes) == 0);
+    CHECK(!bytes->empty(bytes));
+    CHECK(bytes->size(bytes) == 12);
     bytes->destroy(bytes);
+
+    //bytes = bytes_create(NULL, 0);
+    //CHECK(bytes != NULL);
+    //CHECK(bytes->priv != NULL);
+    //CHECK(bytes->empty(bytes));
+    //CHECK(bytes->size(bytes) == 0);
+    //bytes->destroy(bytes);
+
 TEST_END
 
 TEST_BEGIN("insert (heap primitive)")
