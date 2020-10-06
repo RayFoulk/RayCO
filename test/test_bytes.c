@@ -52,6 +52,25 @@ TEST_BEGIN("create")
 
 TEST_END
 
+TEST_BEGIN("append")
+	bytes_t * bytes = bytes_create("abc", 3);
+	bytes_t * suffix = bytes_create("defg", 4);
+
+	CHECK(bytes->size(bytes) == 3);
+	CHECK(suffix->size(suffix) == 4);
+
+	bytes->append(bytes, suffix->data(suffix), suffix->size(suffix));
+
+	CHECK(bytes->size(bytes) == 7);
+	CHECK(suffix->size(suffix) == 4);
+	//BLAMMO(INFO, "bytes->cstr() is %s", bytes->cstr(bytes));
+	CHECK(strcmp(bytes->cstr(bytes), "abcdefg") == 0);
+
+	bytes->destroy(bytes);
+	suffix->destroy(suffix);
+
+TEST_END
+
 TEST_BEGIN("assign")
     bytes_t * bytes = bytes_create(NULL, 0);
     CHECK(bytes != NULL);
@@ -72,13 +91,9 @@ TEST_BEGIN("assign")
     CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
     CHECK(bytes->size(bytes) == 20);
 
-
     CHECK(memcmp(bytes->data(bytes), data, 20) == 0);
     bytes->destroy(bytes);
 
-TEST_END
-
-TEST_BEGIN("append")
 TEST_END
 
 TEST_BEGIN("reset")

@@ -188,13 +188,14 @@ static void bytes_assign(bytes_t * bytes, const void * data, size_t size)
 static void bytes_append(bytes_t * bytes, const void * data, size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    size_t prev_size = priv->size;
 
     // TODO: Impose some reasonable size checks here?  get available free
     // memory?  Return bool failure/success?
     bytes->resize(bytes, priv->size + size);
 
     // buffer was already terminated in resize
-    memcpy(priv->data + priv->size, data, size);
+    memcpy(priv->data + prev_size, data, size);
 }
 
 //------------------------------------------------------------------------|
@@ -218,6 +219,7 @@ static bytes_t * bytes_split(bytes_t * bytes, size_t begin, size_t end)
 
     return seg;
 }
+
 //------------------------------------------------------------------------|
 static bool bytes_join(bytes_t * head, bytes_t * tail)
 {
@@ -225,10 +227,59 @@ static bool bytes_join(bytes_t * head, bytes_t * tail)
     return true;
 }
 
+//------------------------------------------------------------------------|
+// hexstr char buffer is expected to be minimum size 2
+static inline void hexdigit(char * hexstr, uint8_t byte)
+{
+	uint8_t nibble = byte >> 4;
+	hexstr[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
+    nibble = byte & 0x0F;
+    hexstr[1] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
+}
+
+//------------------------------------------------------------------------|
+// hexstr char buffer is expected to be minimum size 16
+static inline size_t hexaddr(char * hexaddr, size_t addr)
+{
+    // This routine is hard-coded to represent the address with a minimum
+	// of 4 hex digits.  values larger than that will add significant
+	// figures to the left, whereas values less that 0xFFFF will have
+	// leading zeroes
+
+	const size_t minbytes = 2;
+	size_t remain = sizeof(size_t);
+	size_t mask = (size_t) 0x00FF << ((remain * 8) - 8);
+	size_t posn = 0;
+
+	// Fast-forward to either where significant bits are, or
+	// else stop where we still have minimum bytes left.
+	while (((addr & mask) == 0) && (remain > minbytes))
+	{
+		addr <<= 8;
+		remain--;
+	}
+
+	// start converting address data into hex representation
+	while (remain > 0)
+	{
+		hexdigit(hexaddr + posn, (addr >> remain) & 0xFF);
+		posn += 2;
+		remain--;
+	}
+
+	// Add some spacing and terminate
+	hexaddr[posn] = ' ';
+	hexaddr[posn + 1] = ' ';
+	hexaddr[posn + 2] = '\0';
+
+	return posn + 2;
+}
+
 static const char * const bytes_hexdump(bytes_t * bytes)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
     uint8_t nibble = 0;
+    char hexoffs[18] = { 0x00 };
     char hexchar[4] = { 0x20, 0x20, 0x20, 0x00 };
     char ascii[17] = { 0x00 };
    	size_t i, j;
@@ -241,17 +292,22 @@ static const char * const bytes_hexdump(bytes_t * bytes)
     	priv->buffer = bytes_create("", 0); //6 + bytes->size(bytes) * 4);
     }
 
+    // Clear working buffer and iterate through all data bytes
     priv->buffer->clear(priv->buffer);
     for (i = 0; i < priv->size; i++)
     {
+    	// Address prefix
+    	if ((i % 16) == 0)
+    	{
+    		j = hexaddr(hexoffs, i);
+    		priv->buffer->append(priv->buffer, hexoffs, j);
+    	}
+
     	// Intentionally avoiding expensive realloc()/vsnprintf() here
-    	nibble = priv->data[i] >> 4;
-    	hexchar[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
-    	nibble = priv->data[i] & 0x0F;
-    	hexchar[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
+    	hexdigit(hexchar, priv->data[i]);
     	priv->buffer->append(priv->buffer, hexchar, 3);
 
-    	// intentionally avoiding isprint() here
+    	// Intentionally avoiding isprint() here
     	if ((priv->data[i] >= ' ') && (priv->data[i] <= '~'))
     	{
     		ascii[i % 16] = priv->data[i];
