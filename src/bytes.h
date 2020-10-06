@@ -58,18 +58,19 @@ typedef struct bytes_t
     // Printf-style string formatter
     int (*format)(struct bytes_t * bytes, const char * format, ...);
 
-    // Assign a strncpy-style string
+    // Assign data directly to buffer, replacing any existing data,
+    // and sizing the buffer as necessary.  strncpy equivalent.
     // TODO: how to handle whther the string needs to be un-escaped or not?
-    // TODO: manual escape/unescape calls for this?
-    void (*assign)(struct bytes_t * bytes, const char * str, size_t size);
+    // TODO: manual escape/unescape calls for this
+    void (*assign)(struct bytes_t * bytes, const void * data, size_t size);
 
-    // Append a strncat-style string
-    void (*append)(struct bytes_t * bytes, const char * str, size_t size);
+    // Append data to end of buffer, growing as necessary.
+    // strncat equivalent style arguments
+    void (*append)(struct bytes_t * bytes, const void * data, size_t size);
 
     // TODO: Notional Functions
     /*
     bool (*fill)(struct bytes_t * bytes, const char c);
-    void (*append)(struct bytes_t * bytes, void * data);
     void (*shrink)(struct bytes_t * bytes);
     size_t (*rtrim)(struct bytes_t * bytes);
     size_t (*ltrim)(struct bytes_t * bytes);
@@ -81,6 +82,9 @@ typedef struct bytes_t
     struct bytes_t * (*copy)(struct bytes_t * bytes);
     struct bytes_t * (*split)(struct bytes_t * bytes, size_t begin, size_t end);
     bool (*join)(struct bytes_t * head, struct bytes_t * tail);
+
+    // debug, serialization, etc... reorganize later
+    const char * const (*hexdump)(struct bytes_t * bytes);
 
     // Private data
     void * priv;

@@ -58,17 +58,23 @@ TEST_BEGIN("assign")
     CHECK(bytes->priv != NULL);
 
     // buffer is intentionally oversized
-    const char * astr = "qwertyuiop asdfghjkl";
-    const char * bstr = "qwertyuiop asdfghjkl";
-    bytes->assign(bytes, astr, 32);
-    CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
-    CHECK(bytes->size(bytes) == 32);
+    const char * astr = "one two three";
+    const char * bstr = "one two three";
+    const uint8_t data[] = { 'o', 'n', 'e', ' ',
+                             't', 'w', 'o', ' ',
+                             't', 'h', 'r', 'e',
+                             'e',  0,   0,   0,
+                              0,   0,   0,   0  };
 
+    bytes->assign(bytes, astr, 20);
+    CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
+    CHECK(bytes->size(bytes) == 20);
+    CHECK(memcmp(bytes->data(bytes), data, 20) == 0);
     bytes->destroy(bytes);
 
 TEST_END
 
-TEST_BEGIN("insert (pointer value / static primitive)")
+TEST_BEGIN("append")
 TEST_END
 
 TEST_BEGIN("reset")

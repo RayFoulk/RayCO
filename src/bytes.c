@@ -161,7 +161,7 @@ static int bytes_format(bytes_t * bytes, const char * format, ...)
 }
 
 //------------------------------------------------------------------------|
-static void bytes_assign(bytes_t * bytes, const char * str, size_t size)
+static void bytes_assign(bytes_t * bytes, const void * data, size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
@@ -170,11 +170,11 @@ static void bytes_assign(bytes_t * bytes, const char * str, size_t size)
     bytes->resize(bytes, size);
 
     // buffer was already terminated in resize
-    memcpy(priv->data, str, size);
+    memcpy(priv->data, data, size);
 }
 
 //------------------------------------------------------------------------|
-static void bytes_append(bytes_t * bytes, const char * str, size_t size)
+static void bytes_append(bytes_t * bytes, const void * data, size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
@@ -183,7 +183,7 @@ static void bytes_append(bytes_t * bytes, const char * str, size_t size)
     bytes->resize(bytes, priv->size + size);
 
     // buffer was already terminated in resize
-    memcpy(priv->data + priv->size, str, size);
+    memcpy(priv->data + priv->size, data, size);
 }
 
 //------------------------------------------------------------------------|
@@ -212,6 +212,11 @@ static bool bytes_join(bytes_t * head, bytes_t * tail)
 {
 
     return true;
+}
+
+static const char * const bytes_hexdump(bytes_t * bytes)
+{
+    return "";
 }
 
 //------------------------------------------------------------------------|
@@ -251,6 +256,7 @@ static const bytes_t bytes_calls = {
     &bytes_copy,
     &bytes_split,
     &bytes_join,
+    &bytes_hexdump,
     NULL
 };
 
