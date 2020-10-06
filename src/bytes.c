@@ -268,21 +268,19 @@ static inline size_t hexaddr(char * hexaddr, size_t addr)
     }
 
     // Add some spacing and terminate
-    hexaddr[posn] = ' ';
-    hexaddr[posn + 1] = ' ';
-    hexaddr[posn + 2] = '\0';
-
-    return posn + 2;
+    hexaddr[posn++] = ' ';
+    hexaddr[posn++] = ' ';
+    hexaddr[posn] = '\0';
+    return posn;
 }
 
 static const char * const bytes_hexdump(bytes_t * bytes)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-    uint8_t nibble = 0;
     char hexoffs[18] = { 0x00 };
     char hexchar[4] = { 0x20, 0x20, 0x20, 0x00 };
     char ascii[17] = { 0x00 };
-       size_t i, j;
+    size_t i, j;
 
     // Allocate a working buffer for the hexdump.  The size calculation
     // is an approximation here, and really only serves to ensure that
