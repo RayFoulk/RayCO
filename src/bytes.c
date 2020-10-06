@@ -42,7 +42,11 @@ typedef struct
     // The raw data array
     uint8_t * data;
 
-    // TODO: Add tokenization data, parallel metadata, etc...
+    // A report buffer used for hexdump, debugging, tokens? etc...
+    // This is only used for certain calls, but otherwise left NULL.
+    // it will be re-purposed as necessary and destroyed when the main
+    // object is destroyed.
+    bytes_t * buffer;
 }
 bytes_priv_t;
 
@@ -74,6 +78,13 @@ static inline bool bytes_empty(bytes_t * bytes)
 static void bytes_clear(bytes_t * bytes)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    // Also destroy the report/working buffer
+    if (NULL != priv->buffer)
+    {
+    	priv->buffer->destroy(priv->buffer);
+    	priv->buffer = NULL;
+    }
 
     if (NULL != priv->data)
     {
@@ -216,7 +227,69 @@ static bool bytes_join(bytes_t * head, bytes_t * tail)
 
 static const char * const bytes_hexdump(bytes_t * bytes)
 {
-    return "";
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    uint8_t nibble = 0;
+    char hexchar[4] = { 0x20, 0x20, 0x20, 0x00 };
+    char ascii[17] = { 0x00 };
+   	size_t i, j;
+
+    // Allocate a working buffer for the hexdump.  The size calculation
+    // is an approximation here, and really only serves to ensure that
+    // we can allocate enough contiguous memory early.  Consider
+    if (NULL == priv->buffer)
+    {
+    	priv->buffer = bytes_create("", 0); //6 + bytes->size(bytes) * 4);
+    }
+
+    priv->buffer->clear(priv->buffer);
+    for (i = 0; i < priv->size; i++)
+    {
+    	// Intentionally avoiding expensive realloc()/vsnprintf() here
+    	nibble = priv->data[i] >> 4;
+    	hexchar[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
+    	nibble = priv->data[i] & 0x0F;
+    	hexchar[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
+    	priv->buffer->append(priv->buffer, hexchar, 3);
+
+    	// intentionally avoiding isprint() here
+    	if ((priv->data[i] >= ' ') && (priv->data[i] <= '~'))
+    	{
+    		ascii[i % 16] = priv->data[i];
+    	}
+    	else
+    	{
+    		ascii[i % 16] = '.';
+    	}
+
+   		if ((i + 1) % 8 == 0 || i + 1 == priv->size)
+   		{
+   			priv->buffer->append(priv->buffer, " ", 1);
+   			if ((i + 1) % 16 == 0)
+   			{
+   				priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+   				priv->buffer->append(priv->buffer, "\n", 1);
+
+   			}
+   			else if (i + 1 == priv->size)
+   			{
+   				ascii[(i + 1) % 16] = '\0';
+   				if ((i + 1) % 16 <= 8)
+   				{
+   		   			priv->buffer->append(priv->buffer, " ", 1);
+   				}
+
+   				for (j = (i + 1) % 16; j < 16; j++)
+   				{
+   					priv->buffer->append(priv->buffer, "   ", 3);
+   				}
+
+   				priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+   				priv->buffer->append(priv->buffer, "\n", 1);
+    		}
+   		}
+   	}
+
+    return priv->buffer->cstr(priv->buffer);
 }
 
 //------------------------------------------------------------------------|
@@ -261,7 +334,7 @@ static const bytes_t bytes_calls = {
 };
 
 //------------------------------------------------------------------------|
-bytes_t * bytes_create(const char * str, size_t size)
+bytes_t * bytes_create(const void * data, size_t size)
 {
     // Allocate and initialize public interface
     bytes_t * bytes = (bytes_t *) malloc(sizeof(bytes_t));
@@ -285,9 +358,9 @@ bytes_t * bytes_create(const char * str, size_t size)
 
     memset(bytes->priv, 0, sizeof(bytes_priv_t));
 
-    if ((NULL != str) && (size > 0))
+    if ((NULL != data) && (size > 0))
     {
-        bytes->assign(bytes, str, size);
+        bytes->assign(bytes, data, size);
     }
 
     return bytes;

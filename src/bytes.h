@@ -32,7 +32,7 @@
 typedef struct bytes_t
 {
     // Factory function that creates a 'bytes' object.
-    struct bytes_t * (*create)(const char * str, size_t size);
+    struct bytes_t * (*create)(const void * data, size_t size);
 
     // Public bytes destructor function
     void (*destroy)(void * bytes);
@@ -93,7 +93,7 @@ bytes_t;
 
 //------------------------------------------------------------------------|
 // Public factory function that creates a new bytes object
-bytes_t * bytes_create(const char * str, size_t size);
+bytes_t * bytes_create(const void * data, size_t size);
 
 // Public destructor function that destroys a bytes object
 void bytes_destroy(void * bytes);

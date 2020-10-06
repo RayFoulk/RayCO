@@ -67,8 +67,12 @@ TEST_BEGIN("assign")
                               0,   0,   0,   0  };
 
     bytes->assign(bytes, astr, 20);
+    BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
+
     CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
     CHECK(bytes->size(bytes) == 20);
+
+
     CHECK(memcmp(bytes->data(bytes), data, 20) == 0);
     bytes->destroy(bytes);
 
