@@ -82,8 +82,8 @@ static void bytes_clear(bytes_t * bytes)
     // Also destroy the report/working buffer
     if (NULL != priv->buffer)
     {
-    	priv->buffer->destroy(priv->buffer);
-    	priv->buffer = NULL;
+        priv->buffer->destroy(priv->buffer);
+        priv->buffer = NULL;
     }
 
     if (NULL != priv->data)
@@ -231,8 +231,8 @@ static bool bytes_join(bytes_t * head, bytes_t * tail)
 // hexstr char buffer is expected to be minimum size 2
 static inline void hexdigit(char * hexstr, uint8_t byte)
 {
-	uint8_t nibble = byte >> 4;
-	hexstr[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
+    uint8_t nibble = byte >> 4;
+    hexstr[0] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
     nibble = byte & 0x0F;
     hexstr[1] = nibble < 0x0A ? nibble + 0x30 : nibble + 0x37;
 }
@@ -242,37 +242,37 @@ static inline void hexdigit(char * hexstr, uint8_t byte)
 static inline size_t hexaddr(char * hexaddr, size_t addr)
 {
     // This routine is hard-coded to represent the address with a minimum
-	// of 4 hex digits.  values larger than that will add significant
-	// figures to the left, whereas values less that 0xFFFF will have
-	// leading zeroes
+    // of 4 hex digits.  values larger than that will add significant
+    // figures to the left, whereas values less that 0xFFFF will have
+    // leading zeroes
 
-	const size_t minbytes = 2;
-	size_t remain = sizeof(size_t);
-	size_t mask = (size_t) 0x00FF << ((remain * 8) - 8);
-	size_t posn = 0;
+    const size_t minbytes = 2;
+    size_t remain = sizeof(size_t);
+    size_t mask = (size_t) 0x00FF << ((remain * 8) - 8);
+    size_t posn = 0;
 
-	// Fast-forward to either where significant bits are, or
-	// else stop where we still have minimum bytes left.
-	while (((addr & mask) == 0) && (remain > minbytes))
-	{
-		addr <<= 8;
-		remain--;
-	}
+    // Fast-forward to either where significant bits are, or
+    // else stop where we still have minimum bytes left.
+    while (((addr & mask) == 0) && (remain > minbytes))
+    {
+        addr <<= 8;
+        remain--;
+    }
 
-	// start converting address data into hex representation
-	while (remain > 0)
-	{
-		hexdigit(hexaddr + posn, (addr >> remain) & 0xFF);
-		posn += 2;
-		remain--;
-	}
+    // start converting address data into hex representation
+    while (remain > 0)
+    {
+        hexdigit(hexaddr + posn, (addr >> remain) & 0xFF);
+        posn += 2;
+        remain--;
+    }
 
-	// Add some spacing and terminate
-	hexaddr[posn] = ' ';
-	hexaddr[posn + 1] = ' ';
-	hexaddr[posn + 2] = '\0';
+    // Add some spacing and terminate
+    hexaddr[posn] = ' ';
+    hexaddr[posn + 1] = ' ';
+    hexaddr[posn + 2] = '\0';
 
-	return posn + 2;
+    return posn + 2;
 }
 
 static const char * const bytes_hexdump(bytes_t * bytes)
@@ -282,68 +282,68 @@ static const char * const bytes_hexdump(bytes_t * bytes)
     char hexoffs[18] = { 0x00 };
     char hexchar[4] = { 0x20, 0x20, 0x20, 0x00 };
     char ascii[17] = { 0x00 };
-   	size_t i, j;
+       size_t i, j;
 
     // Allocate a working buffer for the hexdump.  The size calculation
     // is an approximation here, and really only serves to ensure that
     // we can allocate enough contiguous memory early.  Consider
     if (NULL == priv->buffer)
     {
-    	priv->buffer = bytes_create("", 0); //6 + bytes->size(bytes) * 4);
+        priv->buffer = bytes_create("", 0); //6 + bytes->size(bytes) * 4);
     }
 
     // Clear working buffer and iterate through all data bytes
     priv->buffer->clear(priv->buffer);
     for (i = 0; i < priv->size; i++)
     {
-    	// Address prefix
-    	if ((i % 16) == 0)
-    	{
-    		j = hexaddr(hexoffs, i);
-    		priv->buffer->append(priv->buffer, hexoffs, j);
-    	}
+        // Address prefix
+        if ((i % 16) == 0)
+        {
+            j = hexaddr(hexoffs, i);
+            priv->buffer->append(priv->buffer, hexoffs, j);
+        }
 
-    	// Intentionally avoiding expensive realloc()/vsnprintf() here
-    	hexdigit(hexchar, priv->data[i]);
-    	priv->buffer->append(priv->buffer, hexchar, 3);
+        // Intentionally avoiding expensive realloc()/vsnprintf() here
+        hexdigit(hexchar, priv->data[i]);
+        priv->buffer->append(priv->buffer, hexchar, 3);
 
-    	// Intentionally avoiding isprint() here
-    	if ((priv->data[i] >= ' ') && (priv->data[i] <= '~'))
-    	{
-    		ascii[i % 16] = priv->data[i];
-    	}
-    	else
-    	{
-    		ascii[i % 16] = '.';
-    	}
+        // Intentionally avoiding isprint() here
+        if ((priv->data[i] >= ' ') && (priv->data[i] <= '~'))
+        {
+            ascii[i % 16] = priv->data[i];
+        }
+        else
+        {
+            ascii[i % 16] = '.';
+        }
 
-   		if ((i + 1) % 8 == 0 || i + 1 == priv->size)
-   		{
-   			priv->buffer->append(priv->buffer, " ", 1);
-   			if ((i + 1) % 16 == 0)
-   			{
-   				priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
-   				priv->buffer->append(priv->buffer, "\n", 1);
+           if ((i + 1) % 8 == 0 || i + 1 == priv->size)
+           {
+               priv->buffer->append(priv->buffer, " ", 1);
+               if ((i + 1) % 16 == 0)
+               {
+                   priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+                   priv->buffer->append(priv->buffer, "\n", 1);
 
-   			}
-   			else if (i + 1 == priv->size)
-   			{
-   				ascii[(i + 1) % 16] = '\0';
-   				if ((i + 1) % 16 <= 8)
-   				{
-   		   			priv->buffer->append(priv->buffer, " ", 1);
-   				}
+               }
+               else if (i + 1 == priv->size)
+               {
+                   ascii[(i + 1) % 16] = '\0';
+                   if ((i + 1) % 16 <= 8)
+                   {
+                          priv->buffer->append(priv->buffer, " ", 1);
+                   }
 
-   				for (j = (i + 1) % 16; j < 16; j++)
-   				{
-   					priv->buffer->append(priv->buffer, "   ", 3);
-   				}
+                   for (j = (i + 1) % 16; j < 16; j++)
+                   {
+                       priv->buffer->append(priv->buffer, "   ", 3);
+                   }
 
-   				priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
-   				priv->buffer->append(priv->buffer, "\n", 1);
-    		}
-   		}
-   	}
+                   priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+                   priv->buffer->append(priv->buffer, "\n", 1);
+            }
+           }
+       }
 
     return priv->buffer->cstr(priv->buffer);
 }
