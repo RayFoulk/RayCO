@@ -6,7 +6,7 @@
 - Integrated unit tests
 - All code will be written in Allman Style
   - https://en.wikipedia.org/wiki/Indentation_style#Allman_style
-  - Will use 'astyle style=allman' for formatting imported code
+  - Will use 'astyle --style=allman <file>' for formatting imported code
 
 # Goals
 - Fundamental design goal is to have as few dependencies and inter-dependencies as possible
