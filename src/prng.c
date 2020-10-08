@@ -122,5 +122,20 @@ uint64_t prng_next()
 //------------------------------------------------------------------------|
 void prng_fill(void * data, size_t size)
 {
+    uint8_t * byteptr = (uint8_t *) data;
+    uint64_t value = 0;
+    int nbytes = 8;
 
+    while (size > 0)
+    {
+        value = xoshiro256_next();
+        nbytes = 8;
+
+        while ((size > 0) && (nbytes > 0)) 
+        {
+            byteptr[--size] = (0xFF & value);
+            value >>= 8;
+            nbytes--;
+        }
+    }
 }

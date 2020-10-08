@@ -276,7 +276,7 @@ static inline size_t hexaddr(char * hexaddr, size_t addr)
     // start converting address data into hex representation
     while (remain > 0)
     {
-        hexdigit(hexaddr + posn, (addr >> remain) & 0xFF);
+        hexdigit(hexaddr + posn, (addr >> (remain * 8)) & 0xFF);
         posn += 2;
         remain--;
     }
