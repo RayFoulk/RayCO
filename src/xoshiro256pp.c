@@ -1,3 +1,6 @@
+// This file was originally named xoshiro256plusplus.c
+// from this source: http://prng.di.unimi.it/xoroshiro1024plusplus.c
+
 /*  Written in 2019 by David Blackman and Sebastiano Vigna (vigna@acm.org)
 
 To the extent possible under law, the author has dedicated all copyright
