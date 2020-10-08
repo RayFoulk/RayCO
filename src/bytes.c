@@ -128,10 +128,10 @@ static void bytes_resize(bytes_t * bytes, size_t size)
 }
 
 //------------------------------------------------------------------------|
-static int bytes_format(bytes_t * bytes, const char * format, ...)
+static ssize_t bytes_format(bytes_t * bytes, const char * format, ...)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-    int nchars = 0;
+    ssize_t nchars = 0;
     bool redo = false;
     va_list args;
 
@@ -196,6 +196,20 @@ static void bytes_append(bytes_t * bytes, const void * data, size_t size)
 
     // buffer was already terminated in resize
     memcpy(priv->data + prev_size, data, size);
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_read(struct bytes_t * bytes, void * data,
+                          size_t count, size_t offset)
+{
+    return -1;
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_write(struct bytes_t * bytes, const void * data,
+                           size_t count, size_t offset)
+{
+    return -1;
 }
 
 //------------------------------------------------------------------------|
@@ -379,6 +393,8 @@ static const bytes_t bytes_calls = {
     &bytes_format,
     &bytes_assign,
     &bytes_append,
+    &bytes_read,
+    &bytes_write,
     &bytes_trim,
     &bytes_copy,
     &bytes_split,
