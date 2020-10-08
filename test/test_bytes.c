@@ -123,5 +123,19 @@ TEST_END
 TEST_BEGIN("join")
 TEST_END
 
+TEST_BEGIN("hexdump")
+	bytes_t * bytes = bytes_create("", 37);
+	CHECK(bytes != NULL);
+	CHECK(bytes->priv != NULL);
+
+	int i;
+	for (i = 0; i < 37; i++)
+	{
+
+	}
+
+	bytes->destroy(bytes);
+TEST_END
+
 TESTSUITE_END
 

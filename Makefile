@@ -69,6 +69,5 @@ notabs:
 .PHONY: clean
 clean:
 	rm -f core *.gcno *.gcda coverage*html \
-        $(TEST_OBJS) $(TEST_BINS) \
-        $(AUX_OBJS) $(PROJ_OBJS) \
-        $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LINK)
+	$(TEST_OBJS) $(TEST_BINS) $(AUX_OBJS) \
+	$(PROJ_OBJS) $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LINK)

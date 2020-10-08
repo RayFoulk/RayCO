@@ -17,3 +17,5 @@ X pass in link dtor function to delete and destroy, do not cache
 - migrate selected useful librmf objects
 - constify return values, pointers functions
 - add install and uninstall phony targets
+- add PRNG library (for targets that don't have one already)
+    - xoshiro / xoroshiro generators and the PRNG shootout http://prng.di.unimi.it/

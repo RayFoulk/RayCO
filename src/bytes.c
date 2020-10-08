@@ -315,33 +315,33 @@ static const char * const bytes_hexdump(bytes_t * bytes)
             ascii[i % 16] = '.';
         }
 
-           if ((i + 1) % 8 == 0 || i + 1 == priv->size)
-           {
-               priv->buffer->append(priv->buffer, " ", 1);
-               if ((i + 1) % 16 == 0)
-               {
-                   priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
-                   priv->buffer->append(priv->buffer, "\n", 1);
+        if ((i + 1) % 8 == 0 || i + 1 == priv->size)
+        {
+            priv->buffer->append(priv->buffer, " ", 1);
+            if ((i + 1) % 16 == 0)
+            {
+                priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+                priv->buffer->append(priv->buffer, "\n", 1);
 
-               }
-               else if (i + 1 == priv->size)
-               {
-                   ascii[(i + 1) % 16] = '\0';
-                   if ((i + 1) % 16 <= 8)
-                   {
-                          priv->buffer->append(priv->buffer, " ", 1);
-                   }
-
-                   for (j = (i + 1) % 16; j < 16; j++)
-                   {
-                       priv->buffer->append(priv->buffer, "   ", 3);
-                   }
-
-                   priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
-                   priv->buffer->append(priv->buffer, "\n", 1);
             }
-           }
-       }
+            else if (i + 1 == priv->size)
+            {
+                ascii[(i + 1) % 16] = '\0';
+                if ((i + 1) % 16 <= 8)
+                {
+                    priv->buffer->append(priv->buffer, " ", 1);
+                }
+
+                for (j = (i + 1) % 16; j < 16; j++)
+                {
+                    priv->buffer->append(priv->buffer, "   ", 3);
+                }
+
+                priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+                priv->buffer->append(priv->buffer, "\n", 1);
+            }
+        }
+    }
 
     return priv->buffer->cstr(priv->buffer);
 }

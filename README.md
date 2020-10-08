@@ -1,9 +1,12 @@
 # RayCO
 - Ray's C Objects
 - A collection of C objects for general use in C/C++ projects
-- Written in C99 by choice for environments where C++ is not available or preferred.
+- Written in C99 by choice for environments where C++ is not available or not preferred.
 - Builds as both a shared object (.so) and static (.a) library
 - Integrated unit tests
+- All code will be written in Allman Style
+  - https://en.wikipedia.org/wiki/Indentation_style#Allman_style
+  - Will use 'astyle style=allman' for formatting imported code
 
 # Goals
 - Fundamental design goal is to have as few dependencies and inter-dependencies as possible
