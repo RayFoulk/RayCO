@@ -56,7 +56,7 @@ typedef struct bytes_t
     void (*resize)(struct bytes_t * bytes, size_t size);
 
     // Printf-style string formatter
-    int (*format)(struct bytes_t * bytes, const char * format, ...);
+    ssize_t (*format)(struct bytes_t * bytes, const char * format, ...);
 
     // Assign data directly to buffer, replacing any existing data,
     // and sizing the buffer as necessary.  strncpy equivalent.
@@ -67,6 +67,16 @@ typedef struct bytes_t
     // Append data to end of buffer, growing as necessary.
     // strncat equivalent style arguments
     void (*append)(struct bytes_t * bytes, const void * data, size_t size);
+
+    // Analogous to pread(), this will read arbitrary data from the string
+    // at an offset.  Return value is number of bytes read or negative
+    // if an error occurred.
+    ssize_t (*read)(struct bytes_t * bytes, void * data, size_t count, size_t offset);
+
+    // Analogous to pwrite(), this will write arbitrary data to the string
+    // at an offset.  Return value is number of bytes read or negative
+    // if an error occurred.  The size of the bytes object is unaltered.
+    ssize_t (*write)(struct bytes_t * bytes, const void * data, size_t count, size_t offset);
 
     // TODO: Notional Functions
     /*
