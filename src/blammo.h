@@ -35,10 +35,11 @@
 #else
 #define BLAMMO_FILE(path)       blammo_file(path)
 #define BLAMMO_LEVEL(level)     blammo_level(level)
-#define BLAMMO(msgt, fmt, ...)  blammo(__FUNCTION__, msgt, fmt, \
-                                       ## __VA_ARGS__)
+#define BLAMMO(msgt, fmt, ...)  blammo(__FILE__, __LINE__, __FUNCTION__, \
+                                       msgt, fmt, ## __VA_ARGS__)
 
 //------------------------------------------------------------------------|
+/*
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -46,6 +47,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <libgen.h>
+*/
 
 //------------------------------------------------------------------------|
 typedef enum
@@ -60,7 +63,7 @@ blammo_msg_t;
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename);
 void blammo_level(blammo_msg_t level);
-void blammo(const char * func, const blammo_msg_t type,
-            const char * format, ...);
+void blammo(const char * fpath, int line, const char * func,
+            const blammo_msg_t type, const char * format, ...);
 
 #endif // #ifdef BLAMMO_ENABLE

@@ -26,6 +26,19 @@
 //------------------------------------------------------------------------|
 #include "blammo.h"
 
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <time.h>
+#include <libgen.h>
+
+//#define _POSIX_C_SOURCE
+//#define _GNU_SOURCE
+#include <string.h>
+
 //------------------------------------------------------------------------|
 static const char * blammo_msg_t_str[] =
 {
@@ -40,7 +53,7 @@ static const char * blammo_msg_t_str[] =
 typedef struct
 {
     // Log file name (if specified AND can be written to)
-	char * filename;
+    char * filename;
 
     // The blammo log level
     blammo_msg_t level;
@@ -64,13 +77,13 @@ static inline void timestamp(char * ts, size_t size)
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename)
 {
-	FILE * file = fopen(filename, "a");
+    FILE * file = fopen(filename, "a");
 
     // set FILE * in singleton and use in blammo() if successful
     if (NULL == file)
-	{
-	    BLAMMO(ERROR, "fopen(%s) for write failed", filename);
-	    return;
+    {
+        BLAMMO(ERROR, "fopen(%s) for write failed", filename);
+        return;
     }
 
     // File path can be written to
@@ -87,10 +100,10 @@ inline void blammo_level(blammo_msg_t level)
 }
 
 //------------------------------------------------------------------------|
-void blammo(const char * func, const blammo_msg_t type,
-            const char * format, ...)
+void blammo(const char * fpath, int line, const char * func,
+            const blammo_msg_t type, const char * format, ...)
 {
-	// If the message doesn't rise to the set level, then discard it
+    // If the message doesn't rise to the set level, then discard it
     if (type < blammo_data.level)
     {
         return;
@@ -98,12 +111,20 @@ void blammo(const char * func, const blammo_msg_t type,
 
     // TODO: Consider mutex here if this logger is to be thread-safe
 
-    char ts[48];
     va_list args;
+    char ts[48];
+    char * fname = basename((char *) fpath);
+    char * bname = (char *) malloc(strlen(fname) + 1);
+    //char * dontcare = NULL;
+    char * tag = NULL;
+
     timestamp(ts, 48);
+    strcpy(bname, fname);
+    //tag = strtok_r(bname, ".", &dontcare);
+    tag = strtok(bname, ".");
 
     // Always log to stdout
-    fprintf(stdout, "%s %s ", ts, blammo_msg_t_str[type]);
+    fprintf(stdout, "%s %s %s:%d ", ts, blammo_msg_t_str[type], tag, line);
     va_start(args, format);
     vfprintf(stdout, format, args); 
     va_end(args);
@@ -112,20 +133,20 @@ void blammo(const char * func, const blammo_msg_t type,
     // Log to file if available
     if (NULL != blammo_data.filename)
     {
-    	FILE * file = fopen(blammo_data.filename, "a");
-    	if (NULL == file)
-    	{
-    		return;
-    	}
-
-        fprintf(file, "%s %s ", ts, blammo_msg_t_str[type]);
-        va_start(args, format);
-        vfprintf(file, format, args);
-        va_end(args);
-        fprintf(file, "\n");
-        fflush(file);
-        fclose(file);
+        FILE * file = fopen(blammo_data.filename, "a");
+        if (NULL != file)
+        {
+            fprintf(file, "%s %s %s:%d ", ts, blammo_msg_t_str[type], tag, line);
+            va_start(args, format);
+            vfprintf(file, format, args);
+            va_end(args);
+            fprintf(file, "\n");
+            fflush(file);
+            fclose(file);
+        }
     }
+
+    free(bname);
 }
 
 #endif
