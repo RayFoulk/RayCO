@@ -268,7 +268,7 @@ static inline size_t hexaddr(char * hexaddr, size_t addr)
     // else stop where we still have minimum bytes left.
     while (((addr & mask) == 0) && (remain > minbytes))
     {
-    	mask >>= 8;
+        mask >>= 8;
         remain--;
     }
 
