@@ -64,7 +64,7 @@ static inline void timestamp(char * ts, size_t size)
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename)
 {
-	FILE * file = fopen(filename, "wa");
+	FILE * file = fopen(filename, "a");
 
     // set FILE * in singleton and use in blammo() if successful
     if (NULL == file)
@@ -90,7 +90,7 @@ inline void blammo_level(blammo_msg_t level)
 void blammo(const char * func, const blammo_msg_t type,
             const char * format, ...)
 {
-    // If the message doesn't rise to the set level, then discard it
+	// If the message doesn't rise to the set level, then discard it
     if (type < blammo_data.level)
     {
         return;
@@ -112,7 +112,7 @@ void blammo(const char * func, const blammo_msg_t type,
     // Log to file if available
     if (NULL != blammo_data.filename)
     {
-    	FILE * file = fopen(blammo_data.filename, "wa");
+    	FILE * file = fopen(blammo_data.filename, "a");
     	if (NULL == file)
     	{
     		return;
