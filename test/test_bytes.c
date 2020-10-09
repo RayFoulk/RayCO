@@ -53,7 +53,6 @@ TEST_BEGIN("create")
 
 TEST_END
 
-/*
 TEST_BEGIN("append")
     bytes_t * bytes = bytes_create("abc", 3);
     bytes_t * suffix = bytes_create("defg", 4);
@@ -97,7 +96,6 @@ TEST_BEGIN("assign")
     bytes->destroy(bytes);
 
 TEST_END
-*/
 
 TEST_BEGIN("reset")
 TEST_END
@@ -131,7 +129,7 @@ TEST_BEGIN("hexdump")
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 
-    prng_seed(0x132435465768798AULL);
+    prng_seed(0xDEADBEEFCAFEBABEULL);
     prng_fill((uint8_t *)bytes->data(bytes), bytes->size(bytes));
     BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
 

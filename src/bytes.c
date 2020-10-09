@@ -252,14 +252,13 @@ static inline void hexdigit(char * hexstr, uint8_t byte)
 }
 
 //------------------------------------------------------------------------|
-// hexstr char buffer is expected to be minimum size 16
+// hexstr char buffer is expected to be minimum size 16.
+// This routine is hard-coded to represent the address with a minimum
+// of 4 hex digits (minbytes is 2).  Values larger than that will add
+// significant figures to the left, whereas values less that 0xFFFF will
+// have leading zeroes.
 static inline size_t hexaddr(char * hexaddr, size_t addr)
 {
-    // This routine is hard-coded to represent the address with a minimum
-    // of 4 hex digits.  values larger than that will add significant
-    // figures to the left, whereas values less that 0xFFFF will have
-    // leading zeroes
-
     const size_t minbytes = 2;
     size_t remain = sizeof(size_t);
     size_t mask = (size_t) 0x00FF << ((remain * 8) - 8);
@@ -269,14 +268,14 @@ static inline size_t hexaddr(char * hexaddr, size_t addr)
     // else stop where we still have minimum bytes left.
     while (((addr & mask) == 0) && (remain > minbytes))
     {
-        addr <<= 8;
+    	mask >>= 8;
         remain--;
     }
 
     // start converting address data into hex representation
     while (remain > 0)
     {
-        hexdigit(hexaddr + posn, (addr >> (remain * 8)) & 0xFF);
+        hexdigit(hexaddr + posn, (addr >> ((remain * 8) - 8)) & 0xFF);
         posn += 2;
         remain--;
     }
@@ -334,13 +333,13 @@ static const char * const bytes_hexdump(bytes_t * bytes)
             priv->buffer->append(priv->buffer, " ", 1);
             if ((i + 1) % 16 == 0)
             {
-                priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+                priv->buffer->append(priv->buffer, ascii, sizeof(ascii) - 1);
                 priv->buffer->append(priv->buffer, "\n", 1);
-
             }
             else if (i + 1 == priv->size)
             {
                 ascii[(i + 1) % 16] = '\0';
+
                 if ((i + 1) % 16 <= 8)
                 {
                     priv->buffer->append(priv->buffer, " ", 1);
@@ -351,7 +350,7 @@ static const char * const bytes_hexdump(bytes_t * bytes)
                     priv->buffer->append(priv->buffer, "   ", 3);
                 }
 
-                priv->buffer->append(priv->buffer, ascii, sizeof(ascii));
+                priv->buffer->append(priv->buffer, ascii, sizeof(ascii) - 1);
                 priv->buffer->append(priv->buffer, "\n", 1);
             }
         }
