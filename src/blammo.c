@@ -39,8 +39,8 @@ static const char * blammo_msg_t_str[] =
 //------------------------------------------------------------------------|
 typedef struct
 {
-    // Pointer to the log file (if specified)
-    FILE * fileptr;
+    // Log file name (if specified AND can be written to)
+	char * filename;
 
     // The blammo log level
     blammo_msg_t level;
@@ -48,12 +48,13 @@ typedef struct
 blammo_data_t;
 
 //------------------------------------------------------------------------|
+// static initialization of blammo singleton
 static blammo_data_t blammo_data = { NULL, ERROR };
 
 //------------------------------------------------------------------------|
 // get a log-friendly timestamp string for current time.  This is NOT
 // thread-safe or re-entrant safe
-static void timestamp (char * ts, size_t size)
+static inline void timestamp(char * ts, size_t size)
 {
     time_t currtime = time(NULL);
     struct tm * tmp = localtime(&currtime);
@@ -63,11 +64,20 @@ static void timestamp (char * ts, size_t size)
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+	FILE * file = fopen(filename, "wa");
 
-    // TODO: touch the file for write, report error if unable
     // set FILE * in singleton and use in blammo() if successful
+    if (NULL == file)
+	{
+	    BLAMMO(ERROR, "fopen(%s) for write failed", filename);
+	    return;
+    }
 
+    // File path can be written to
+    // WARNING: Because this is a pointer assignment, it relies on the
+    // string constant remaining active in scope throughout runtime.
+    blammo_data.filename = (char *) filename;
+    fclose(file);
 }
 
 //------------------------------------------------------------------------|
@@ -90,15 +100,32 @@ void blammo(const char * func, const blammo_msg_t type,
 
     char ts[48];
     va_list args;
-
     timestamp(ts, 48);
-    fprintf(stdout, "%s %s ", ts, blammo_msg_t_str[type]);
 
+    // Always log to stdout
+    fprintf(stdout, "%s %s ", ts, blammo_msg_t_str[type]);
     va_start(args, format);
     vfprintf(stdout, format, args); 
     va_end(args);
-
     fprintf(stdout, "\n");
+
+    // Log to file if available
+    if (NULL != blammo_data.filename)
+    {
+    	FILE * file = fopen(blammo_data.filename, "wa");
+    	if (NULL == file)
+    	{
+    		return;
+    	}
+
+        fprintf(file, "%s %s ", ts, blammo_msg_t_str[type]);
+        va_start(args, format);
+        vfprintf(file, format, args);
+        va_end(args);
+        fprintf(file, "\n");
+        fflush(file);
+        fclose(file);
+    }
 }
 
 #endif

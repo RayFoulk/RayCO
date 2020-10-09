@@ -25,7 +25,9 @@
 /*                                                                            */
 /* -------------------------------------------------------------------------- */
 
-
+// Modifications (also under MIT license) by:
+// Raymond M. Foulk IV (rfoulk@gmail.com), 2020
+#include "blammo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,14 +55,15 @@
     void __sig_handler(int sig)                                                \
     {                                                                          \
         __veredict__ = __V_FAILED__;                                           \
-        printf("Error: Test \"%s\" caused a Segmentation Fault!\n",            \
+        BLAMMO(ERROR, "Test \"%s\" caused a Segmentation Fault!",              \
             __current_test_name__);                                            \
-        printf("-- Testsuite FAILED, %d tests run --\n", __tests_run__);       \
+        BLAMMO(ERROR, "-- Testsuite FAILED, %d tests run --", __tests_run__);  \
         exit(1);                                                               \
     }                                                                          \
                                                                                \
     int main(void)                                                             \
     {                                                                          \
+        BLAMMO_LEVEL(INFO);                                                    \
         signal(SIGSEGV, __sig_handler);                                        \
 
 
@@ -69,13 +72,13 @@
     __testsuite_end__:                                                         \
         if(__veredict__ == __V_UNDEFINED__)                                    \
         {                                                                      \
-            printf("-- Testsuite PASSED, %d out of %d tests run --\n",         \
+            BLAMMO(INFO, "-- Testsuite PASSED, %d out of %d tests run --",     \
                 __tests_run__, __total_tests__);                               \
             return 0;                                                          \
         }                                                                      \
         else                                                                   \
         {                                                                      \
-            printf("-- Testsuite FAILED, %d out of %d tests run --\n",         \
+            BLAMMO(INFO, "-- Testsuite FAILED, %d out of %d tests run --",     \
                 __tests_run__, __total_tests__);                               \
             return 1;                                                          \
         }                                                                      \
@@ -111,7 +114,7 @@
 
 #define __ASSERTION_FAILED__                                                   \
         __veredict__ = __V_FAILED__;                                           \
-        printf("Error: Test \"%s\" failed at line %d\n",                       \
+        BLAMMO(ERROR, "Test \"%s\" failed at line %d",                         \
             __current_test_name__, __LINE__);                                  \
         goto __test_end__;
 

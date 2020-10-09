@@ -33,7 +33,13 @@ TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
     BLAMMO_LEVEL(INFO);
+    BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
+
+//TEST_BEGIN("crash")
+//	void * wrong = NULL;
+//	*((uint8_t *) wrong) = 9;
+//TEST_END
 
 TEST_BEGIN("create")
     bytes_t * bytes = bytes_create("hello", 12);
@@ -96,8 +102,6 @@ TEST_BEGIN("assign")
 
 TEST_END
 
-TEST_BEGIN("reset")
-TEST_END
 
 TEST_BEGIN("seek (forward/rewind)")
 TEST_END
