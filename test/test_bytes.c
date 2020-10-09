@@ -25,7 +25,6 @@
 #include "bytes.h"
 #include "prng.h"
 #include "mut.h"
-//#include "fixture.h"
 
 #include <string.h>
 #include <limits.h>
@@ -77,7 +76,6 @@ TEST_BEGIN("assign")
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 
-    // buffer is intentionally oversized
     const char * astr = "one two three";
     const char * bstr = "one two three";
     const uint8_t data[] = { 'o', 'n', 'e', ' ',
@@ -86,6 +84,7 @@ TEST_BEGIN("assign")
                              'e',  0,   0,   0,
                               0,   0,   0,   0  };
 
+    // buffer is intentionally oversized
     bytes->assign(bytes, astr, 20);
     BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
 
