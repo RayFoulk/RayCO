@@ -39,18 +39,6 @@
                                        msgt, fmt, ## __VA_ARGS__)
 
 //------------------------------------------------------------------------|
-/*
-#include <stddef.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-#include <time.h>
-#include <libgen.h>
-*/
-
-//------------------------------------------------------------------------|
 typedef enum
 {
     INFO    = 0,

@@ -77,9 +77,9 @@ static inline void timestamp(char * ts, size_t size)
 //------------------------------------------------------------------------|
 void blammo_file(const char * filename)
 {
-    FILE * file = fopen(filename, "a");
-
-    // set FILE * in singleton and use in blammo() if successful
+    // This just checks if the file path is able to be written to.
+	// If not, then we'll just not be logging to file!
+	FILE * file = fopen(filename, "a");
     if (NULL == file)
     {
         BLAMMO(ERROR, "fopen(%s) for write failed", filename);
@@ -89,6 +89,9 @@ void blammo_file(const char * filename)
     // File path can be written to
     // WARNING: Because this is a pointer assignment, it relies on the
     // string constant remaining active in scope throughout runtime.
+    // E.G. setting this from a parsed command-line argument is OK,
+    // but dynamically building a string in a function that returns will
+    // fail spectacularly.  TODO: Consider refactoring this later.
     blammo_data.filename = (char *) filename;
     fclose(file);
 }
