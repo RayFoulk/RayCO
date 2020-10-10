@@ -37,7 +37,7 @@
 
 //#define _POSIX_C_SOURCE
 //#define _GNU_SOURCE
-#include <string.h>
+//#include <string.h>
 
 //------------------------------------------------------------------------|
 static const char * blammo_msg_t_str[] =
@@ -57,21 +57,25 @@ typedef struct
 
     // The blammo log level
     blammo_msg_t level;
+
+    // Last known day of the year 0-365
+    int yday;
 }
 blammo_data_t;
 
 //------------------------------------------------------------------------|
 // static initialization of blammo singleton
-static blammo_data_t blammo_data = { NULL, ERROR };
+static blammo_data_t blammo_data = { NULL, ERROR, -1 };
 
 //------------------------------------------------------------------------|
-// get a log-friendly timestamp string for current time.  This is NOT
-// thread-safe or re-entrant safe
-static inline void timestamp(char * ts, size_t size)
+// get a log-friendly timestamp string for current time.  Also return the
+// day of the year.
+static inline int timestamp(char * ts, size_t size, const char * format)
 {
     time_t currtime = time(NULL);
     struct tm * tmp = localtime(&currtime);
-    strftime (ts, size, "%F %T", tmp);
+    strftime(ts, size, format, tmp);
+    return tmp->tm_yday;
 }
 
 //------------------------------------------------------------------------|
@@ -82,7 +86,7 @@ void blammo_file(const char * filename)
 	FILE * file = fopen(filename, "a");
     if (NULL == file)
     {
-        BLAMMO(ERROR, "fopen(%s) for write failed", filename);
+        BLAMMO(ERROR, "fopen(%s) for append failed", filename);
         return;
     }
 
@@ -115,19 +119,24 @@ void blammo(const char * fpath, int line, const char * func,
     // TODO: Consider mutex here if this logger is to be thread-safe
 
     va_list args;
-    char ts[48];
     char * fname = basename((char *) fpath);
-    char * bname = (char *) malloc(strlen(fname) + 1);
-    //char * dontcare = NULL;
-    char * tag = NULL;
+    char time[48];
+    int yday = timestamp(time, 48, "%T.%f");
 
-    timestamp(ts, 48);
-    strcpy(bname, fname);
-    //tag = strtok_r(bname, ".", &dontcare);
-    tag = strtok(bname, ".");
+    // TODO: Log date, day of week verbosely and recursively
+    // whenever the day changes.  Initialize to -1 or something
+    // invalid so it happens on first call also.  This will
+    // save horizontal space by allowing date to be exluded
+    // from every message
+    if (yday != blammo_data.yday)
+    {
+        char date[64];
+        blammo_data.yday = timestamp(date, 64, "%A %m/%d/%Y");
+        BLAMMO(INFO, "--- %s ---", date);
+    }
 
     // Always log to stdout
-    fprintf(stdout, "%s %s %s:%d ", ts, blammo_msg_t_str[type], tag, line);
+    fprintf(stdout, "%s %s %s:%d ", time, blammo_msg_t_str[type], fname, line);
     va_start(args, format);
     vfprintf(stdout, format, args); 
     va_end(args);
@@ -139,7 +148,7 @@ void blammo(const char * fpath, int line, const char * func,
         FILE * file = fopen(blammo_data.filename, "a");
         if (NULL != file)
         {
-            fprintf(file, "%s %s %s:%d ", ts, blammo_msg_t_str[type], tag, line);
+            fprintf(file, "%s %s %s:%d ", time, blammo_msg_t_str[type], fname, line);
             va_start(args, format);
             vfprintf(file, format, args);
             va_end(args);
@@ -148,8 +157,6 @@ void blammo(const char * fpath, int line, const char * func,
             fclose(file);
         }
     }
-
-    free(bname);
 }
 
 #endif
