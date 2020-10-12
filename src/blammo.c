@@ -70,11 +70,22 @@ static blammo_data_t blammo_data = { NULL, ERROR, -1 };
 //------------------------------------------------------------------------|
 // get a log-friendly timestamp string for current time.  Also return the
 // day of the year.
-static inline int timestamp(char * ts, size_t size, const char * format)
+static inline int timestamp(char * ts, size_t size, const char * format,
+                            bool append_ms)
 {
-    time_t currtime = time(NULL);
-    struct tm * tmp = localtime(&currtime);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    // consider using localtime_r() instead
+    struct tm * tmp = localtime(&tv.tv_sec);
     strftime(ts, size, format, tmp);
+
+    if (append_ms)
+    {
+        char msbuf[6];
+        snprintf(msbuf, 6, ".%03ld", tv.tv_usec / 1000);
+        strcat(ts, msbuf);
+    }
+
     return tmp->tm_yday;
 }
 
@@ -121,7 +132,7 @@ void blammo(const char * fpath, int line, const char * func,
     va_list args;
     char * fname = basename((char *) fpath);
     char time[48];
-    int yday = timestamp(time, 48, "%T.%f");
+    int yday = timestamp(time, 48, "%T", true);
 
     // TODO: Log date, day of week verbosely and recursively
     // whenever the day changes.  Initialize to -1 or something
@@ -131,7 +142,7 @@ void blammo(const char * fpath, int line, const char * func,
     if (yday != blammo_data.yday)
     {
         char date[64];
-        blammo_data.yday = timestamp(date, 64, "%A %m/%d/%Y");
+        blammo_data.yday = timestamp(date, 64, "%A %m/%d/%Y", false);
         BLAMMO(INFO, "--- %s ---", date);
     }
 
