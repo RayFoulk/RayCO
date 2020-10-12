@@ -26,6 +26,8 @@
 //------------------------------------------------------------------------|
 #include "blammo.h"
 
+#define _POSIX_C_SOURCE 1    // enable localtime_r()
+
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -33,11 +35,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
-#include <libgen.h>
-
-//#define _POSIX_C_SOURCE
-//#define _GNU_SOURCE
-//#include <string.h>
+#include <libgen.h>          // basename()
+#include <sys/time.h>        // gettimeofday()
 
 //------------------------------------------------------------------------|
 static const char * blammo_msg_t_str[] =
@@ -70,23 +69,23 @@ static blammo_data_t blammo_data = { NULL, ERROR, -1 };
 //------------------------------------------------------------------------|
 // get a log-friendly timestamp string for current time.  Also return the
 // day of the year.
-static inline int timestamp(char * ts, size_t size, const char * format,
+static inline int timestamp(char * tstr, size_t size, const char * format,
                             bool append_ms)
 {
     struct timeval tv;
+    struct tm time;
+
     gettimeofday(&tv, NULL);
-    // consider using localtime_r() instead
-    struct tm * tmp = localtime(&tv.tv_sec);
-    strftime(ts, size, format, tmp);
+    localtime_r(&tv.tv_sec, &time);
+    strftime(tstr, size, format, &time);
 
     if (append_ms)
     {
-        char msbuf[6];
-        snprintf(msbuf, 6, ".%03ld", tv.tv_usec / 1000);
-        strcat(ts, msbuf);
+    	size_t len = strlen(tstr);
+        snprintf(tstr + len, size - len, ".%03ld", tv.tv_usec / 1000);
     }
 
-    return tmp->tm_yday;
+    return time.tm_yday;
 }
 
 //------------------------------------------------------------------------|
@@ -134,11 +133,10 @@ void blammo(const char * fpath, int line, const char * func,
     char time[48];
     int yday = timestamp(time, 48, "%T", true);
 
-    // TODO: Log date, day of week verbosely and recursively
-    // whenever the day changes.  Initialize to -1 or something
-    // invalid so it happens on first call also.  This will
-    // save horizontal space by allowing date to be exluded
-    // from every message
+    // Log date and day of week verbosely and recursively whenever the day
+    // changes.  Initialized to -1 so it happens on first call also.  This
+    // saves horizontal space by allowing full date to be excluded from
+    // every single message.
     if (yday != blammo_data.yday)
     {
         char date[64];
