@@ -491,7 +491,7 @@ chain_t * chain_create(data_destroy_f data_destroy)
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
     {
-        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed\n");
+        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed");
         return NULL;
     }
 
@@ -502,7 +502,7 @@ chain_t * chain_create(data_destroy_f data_destroy)
     chain->priv = malloc(sizeof(chain_priv_t));
     if (!chain->priv)
     {
-        BLAMMO(ERROR, "malloc(sizeof(chain_priv_t)) failed\n");
+        BLAMMO(ERROR, "malloc(sizeof(chain_priv_t)) failed");
         free(chain);
         return NULL;
     }
