@@ -141,7 +141,7 @@ void blammo(const char * fpath, int line, const char * func,
     int error = pthread_mutex_lock(&blammo_data.lock);
     if (error != 0)
     {
-        fprintf(stderr, "%s, pthread_mutex_lock() returned %d\n", __FUNCTION__, error);
+        fprintf(stderr, "%s: pthread_mutex_lock() returned %d\n", __FUNCTION__, error);
         return;
     }
 
