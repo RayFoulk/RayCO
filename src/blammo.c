@@ -76,7 +76,6 @@ static blammo_data_t blammo_data = {
         PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 };
 
-
 //------------------------------------------------------------------------|
 // get a log-friendly timestamp string for current time.  Also return the
 // day of the year.
@@ -107,6 +106,7 @@ void blammo_file(const char * filename)
     FILE * file = fopen(filename, "a");
     if (NULL == file)
     {
+    	// TODO: fprintf(stderr if fopen fails
         BLAMMO(ERROR, "fopen(%s) for append failed", filename);
         return;
     }
@@ -172,6 +172,7 @@ void blammo(const char * fpath, int line, const char * func,
     if (NULL != blammo_data.filename)
     {
         FILE * file = fopen(blammo_data.filename, "a");
+        // TODO: fprintf(stderr if fopen fails
         if (NULL != file)
         {
             fprintf(file, "%s %s %s:%d ", time, blammo_msg_t_str[type], fname, line);
