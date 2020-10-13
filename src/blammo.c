@@ -24,8 +24,8 @@
 #ifdef BLAMMO_ENABLE
 
 //------------------------------------------------------------------------|
-#define _POSIX_C_SOURCE 1    	// enable localtime_r()
-#define _GNU_SOURCE		  		// PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define _POSIX_C_SOURCE 1        // enable localtime_r()
+#define _GNU_SOURCE              // PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 
 #include "blammo.h"
 
@@ -36,8 +36,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
-#include <libgen.h>          	// basename()
-#include <sys/time.h>        	// gettimeofday()
+#include <libgen.h>              // basename()
+#include <sys/time.h>            // gettimeofday()
 #include <pthread.h>
 
 //------------------------------------------------------------------------|
@@ -70,10 +70,10 @@ blammo_data_t;
 //------------------------------------------------------------------------|
 // static initialization of blammo singleton
 static blammo_data_t blammo_data = {
-		NULL,
-		ERROR,
-		-1,
-		PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+        NULL,
+        ERROR,
+        -1,
+        PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 };
 
 
@@ -92,7 +92,7 @@ static inline int timestamp(char * tstr, size_t size, const char * format,
 
     if (append_ms)
     {
-    	size_t len = strlen(tstr);
+        size_t len = strlen(tstr);
         snprintf(tstr + len, size - len, ".%03ld", tv.tv_usec / 1000);
     }
 
@@ -103,8 +103,8 @@ static inline int timestamp(char * tstr, size_t size, const char * format,
 void blammo_file(const char * filename)
 {
     // This just checks if the file path is able to be written to.
-	// If not, then we'll just not be logging to file!
-	FILE * file = fopen(filename, "a");
+    // If not, then we'll just not be logging to file!
+    FILE * file = fopen(filename, "a");
     if (NULL == file)
     {
         BLAMMO(ERROR, "fopen(%s) for append failed", filename);
@@ -141,8 +141,8 @@ void blammo(const char * fpath, int line, const char * func,
     int error = pthread_mutex_lock(&blammo_data.lock);
     if (error != 0)
     {
-    	fprintf(stderr, "%s, pthread_mutex_lock() returned %d\n", __FUNCTION__, error);
-    	return;
+        fprintf(stderr, "%s, pthread_mutex_lock() returned %d\n", __FUNCTION__, error);
+        return;
     }
 
     va_list args;
