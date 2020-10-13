@@ -24,9 +24,10 @@
 #ifdef BLAMMO_ENABLE
 
 //------------------------------------------------------------------------|
-#include "blammo.h"
+#define _POSIX_C_SOURCE 1    	// enable localtime_r()
+#define _GNU_SOURCE		  		// PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 
-#define _POSIX_C_SOURCE 1    // enable localtime_r()
+#include "blammo.h"
 
 #include <stddef.h>
 #include <stdarg.h>
@@ -35,8 +36,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
-#include <libgen.h>          // basename()
-#include <sys/time.h>        // gettimeofday()
+#include <libgen.h>          	// basename()
+#include <sys/time.h>        	// gettimeofday()
+#include <pthread.h>
 
 //------------------------------------------------------------------------|
 static const char * blammo_msg_t_str[] =
@@ -59,12 +61,21 @@ typedef struct
 
     // Last known day of the year 0-365
     int yday;
+
+    // Mutex for thread-safety
+    pthread_mutex_t lock;
 }
 blammo_data_t;
 
 //------------------------------------------------------------------------|
 // static initialization of blammo singleton
-static blammo_data_t blammo_data = { NULL, ERROR, -1 };
+static blammo_data_t blammo_data = {
+		NULL,
+		ERROR,
+		-1,
+		PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+};
+
 
 //------------------------------------------------------------------------|
 // get a log-friendly timestamp string for current time.  Also return the
@@ -126,7 +137,13 @@ void blammo(const char * fpath, int line, const char * func,
         return;
     }
 
-    // TODO: Consider mutex here if this logger is to be thread-safe
+    // Mutex here for multi-threaded applications
+    int error = pthread_mutex_lock(&blammo_data.lock);
+    if (error != 0)
+    {
+    	fprintf(stderr, "%s, pthread_mutex_lock() returned %d\n", __FUNCTION__, error);
+    	return;
+    }
 
     va_list args;
     char * fname = basename((char *) fpath);
@@ -166,6 +183,8 @@ void blammo(const char * fpath, int line, const char * func,
             fclose(file);
         }
     }
+
+    pthread_mutex_unlock(&blammo_data.lock);
 }
 
 #endif
