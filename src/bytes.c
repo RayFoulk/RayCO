@@ -181,7 +181,10 @@ static void bytes_assign(bytes_t * bytes, const void * data, size_t size)
     bytes->resize(bytes, size);
 
     // buffer was already terminated in resize
-    memcpy(priv->data, data, size);
+    if (NULL != data)
+    {
+        memcpy(priv->data, data, size);
+    }
 }
 
 //------------------------------------------------------------------------|
@@ -426,11 +429,6 @@ bytes_t * bytes_create(const void * data, size_t size)
     }
 
     memset(bytes->priv, 0, sizeof(bytes_priv_t));
-
-    if ((NULL != data) && (size > 0))
-    {
-        bytes->assign(bytes, data, size);
-    }
-
+    bytes->assign(bytes, data, size);
     return bytes;
 }

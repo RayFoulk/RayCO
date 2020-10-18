@@ -42,11 +42,11 @@ TESTSUITE_BEGIN
 //TEST_END
 
 TEST_BEGIN("create")
-    bytes_t * bytes = bytes_create("hello", 12);
+    bytes_t * bytes = bytes_create("hello", 5);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
     CHECK(!bytes->empty(bytes));
-    CHECK(bytes->size(bytes) == 12);
+    CHECK(bytes->size(bytes) == 5);
     bytes->destroy(bytes);
 
     bytes = bytes_create(NULL, 0);
@@ -56,6 +56,12 @@ TEST_BEGIN("create")
     CHECK(bytes->size(bytes) == 0);
     bytes->destroy(bytes);
 
+    bytes = bytes_create(NULL, 64);
+    CHECK(bytes != NULL);
+    CHECK(bytes->priv != NULL);
+    CHECK(!bytes->empty(bytes));
+    CHECK(bytes->size(bytes) == 64);
+    bytes->destroy(bytes);
 TEST_END
 
 TEST_BEGIN("append")
@@ -91,7 +97,13 @@ TEST_BEGIN("assign")
                               0,   0,   0,   0  };
 
     // buffer is intentionally oversized
-    bytes->assign(bytes, astr, 20);
+    // TODO: Turns out this does exactly what one
+    // should expect.  Problem is it gets the missing 6
+    // bytes from an overrun of the data segment!
+    // Would need to have a separate assign_str method
+    //bytes->assign(bytes, astr, 20);
+    bytes->assign(bytes, astr, 13);
+    bytes->resize(bytes, 20);
     BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
 
     CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
