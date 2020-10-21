@@ -36,11 +36,6 @@ TESTSUITE_BEGIN
     BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
 
-//TEST_BEGIN("crash")
-//    void * wrong = NULL;
-//    *((uint8_t *) wrong) = 9;
-//TEST_END
-
 TEST_BEGIN("create")
     bytes_t * bytes = bytes_create("hello", 5);
     CHECK(bytes != NULL);
@@ -62,6 +57,29 @@ TEST_BEGIN("create")
     CHECK(!bytes->empty(bytes));
     CHECK(bytes->size(bytes) == 64);
     bytes->destroy(bytes);
+TEST_END
+
+TEST_BEGIN("destroy")
+    // Would need to mock malloc/free for this.
+    // Maybe by LD_PRELOAD voodoo TBD later.
+    // Alternatively use valgrind on tests.
+    // For the time being, just trust me :) 
+TEST_END
+
+TEST_BEGIN("data")
+    const uint8_t stuff[] = {
+        0xDE, 0xAD, 0xBE, 0xEF,
+        0xCA, 0xFE, 0xBA, 0xBE,
+    };
+
+    bytes_t * bytes = bytes_create(stuff, sizeof(stuff));
+    CHECK(bytes != NULL);
+    CHECK(memcmp(bytes->data(bytes), stuff, sizeof(stuff)) == 0);
+    CHECK(bytes->size(bytes) == sizeof(stuff));
+    bytes->destroy(bytes);
+TEST_END
+
+TEST_BEGIN("cstr")
 TEST_END
 
 TEST_BEGIN("append")
@@ -127,8 +145,6 @@ TEST_END
 TEST_BEGIN("trim")
 TEST_END
 
-TEST_BEGIN("destroy")
-TEST_END
 
 TEST_BEGIN("copy")
 TEST_END
