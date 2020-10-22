@@ -36,7 +36,7 @@ TESTSUITE_BEGIN
     BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
 
-TEST_BEGIN("create")
+TEST_BEGIN("create/size")
     bytes_t * bytes = bytes_create("hello", 5);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
@@ -80,7 +80,20 @@ TEST_BEGIN("data")
 TEST_END
 
 TEST_BEGIN("cstr")
+    const char * str = "The quick brown fox jumped over the lazy dog.";
+
+    bytes_t * bytes = bytes_create(str, strlen(str));
+    CHECK(bytes != NULL);
+    CHECK(strncmp(bytes->cstr(bytes), str, strlen(str)) == 0);
+    CHECK(bytes->size(bytes) == strlen(str));
+    bytes->destroy(bytes);
+
 TEST_END
+
+TEST_BEGIN("empty/clear")
+
+TEST_END
+
 
 TEST_BEGIN("append")
     bytes_t * bytes = bytes_create("abc", 3);
