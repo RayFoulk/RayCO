@@ -36,7 +36,7 @@ TESTSUITE_BEGIN
     BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
 
-TEST_BEGIN("create/size")
+TEST_BEGIN("create/size/empty")
     bytes_t * bytes = bytes_create("hello", 5);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
@@ -62,8 +62,8 @@ TEST_END
 TEST_BEGIN("destroy")
     // Would need to mock malloc/free for this.
     // Maybe by LD_PRELOAD voodoo TBD later.
+    // or else use some kind of MALLOC macro.
     // Alternatively use valgrind on tests.
-    // For the time being, just trust me :) 
 TEST_END
 
 TEST_BEGIN("data")
@@ -81,17 +81,28 @@ TEST_END
 
 TEST_BEGIN("cstr")
     const char * str = "The quick brown fox jumped over the lazy dog.";
-
     bytes_t * bytes = bytes_create(str, strlen(str));
     CHECK(bytes != NULL);
     CHECK(strncmp(bytes->cstr(bytes), str, strlen(str)) == 0);
     CHECK(bytes->size(bytes) == strlen(str));
     bytes->destroy(bytes);
-
 TEST_END
 
 TEST_BEGIN("empty/clear")
+    const char * str = "The quick brown fox jumped over the lazy dog.";
+    size_t len = strlen(str);
+    bytes_t * bytes = bytes_create(str, len);
+    CHECK(bytes != NULL);
+    CHECK(bytes->size(bytes) == len);
+    CHECK(!bytes->empty(bytes));
+    bytes->clear(bytes);
+    CHECK(bytes != NULL);
+    CHECK(bytes->size(bytes) == 0);
+    CHECK(bytes->empty(bytes));
+    bytes->destroy(bytes);
+TEST_END
 
+TEST_BEGIN("resize/size")
 TEST_END
 
 
@@ -144,7 +155,6 @@ TEST_BEGIN("assign")
     bytes->destroy(bytes);
 
 TEST_END
-
 
 TEST_BEGIN("seek (forward/rewind)")
 TEST_END
