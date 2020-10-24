@@ -103,26 +103,30 @@ TEST_BEGIN("empty/clear")
 TEST_END
 
 TEST_BEGIN("resize/size")
+    const char * str = "The quick brown fox jumped over the lazy dog.";
+    size_t len = strlen(str);
+    bytes_t * bytes = bytes_create(str, len);
+    CHECK(bytes->size(bytes) == len);
+
+    bytes->resize(bytes, len * 2);
+    CHECK(bytes->size(bytes) == len * 2);
+    CHECK(strncmp(bytes->cstr(bytes), str, strlen(str)) == 0);
+
+    bytes->resize(bytes, len / 2);
+    CHECK(bytes->size(bytes) == len / 2);
+    CHECK(strncmp(bytes->cstr(bytes), str, strlen(str) / 2) == 0);
+    bytes->destroy(bytes);
 TEST_END
 
+TEST_BEGIN("format")
+    bytes_t * bytes = bytes_create(NULL, 0);
+    CHECK(bytes != NULL);
+    CHECK(bytes->priv != NULL);
 
-TEST_BEGIN("append")
-    bytes_t * bytes = bytes_create("abc", 3);
-    bytes_t * suffix = bytes_create("defg", 4);
-
-    CHECK(bytes->size(bytes) == 3);
-    CHECK(suffix->size(suffix) == 4);
-
-    bytes->append(bytes, suffix->data(suffix), suffix->size(suffix));
-
-    CHECK(bytes->size(bytes) == 7);
-    CHECK(suffix->size(suffix) == 4);
-    //BLAMMO(INFO, "bytes->cstr() is %s", bytes->cstr(bytes));
-    CHECK(strcmp(bytes->cstr(bytes), "abcdefg") == 0);
+    // TODO: Test some common types,
+    // but no float/double!
 
     bytes->destroy(bytes);
-    suffix->destroy(suffix);
-
 TEST_END
 
 TEST_BEGIN("assign")
@@ -153,21 +157,33 @@ TEST_BEGIN("assign")
 
     CHECK(memcmp(bytes->data(bytes), data, 20) == 0);
     bytes->destroy(bytes);
+TEST_END
+
+TEST_BEGIN("append")
+    bytes_t * bytes = bytes_create("abc", 3);
+    bytes_t * suffix = bytes_create("defg", 4);
+    CHECK(bytes->size(bytes) == 3);
+    CHECK(suffix->size(suffix) == 4);
+
+    bytes->append(bytes, suffix->data(suffix), suffix->size(suffix));
+    CHECK(bytes->size(bytes) == 7);
+    CHECK(suffix->size(suffix) == 4);
+    //BLAMMO(INFO, "bytes->cstr() is %s", bytes->cstr(bytes));
+    CHECK(strcmp(bytes->cstr(bytes), "abcdefg") == 0);
+
+    bytes->destroy(bytes);
+    suffix->destroy(suffix);
 
 TEST_END
 
-TEST_BEGIN("seek (forward/rewind)")
+TEST_BEGIN("read")
 TEST_END
 
-TEST_BEGIN("remove")
-TEST_END
-
-TEST_BEGIN("clear")
+TEST_BEGIN("write")
 TEST_END
 
 TEST_BEGIN("trim")
 TEST_END
-
 
 TEST_BEGIN("copy")
 TEST_END
@@ -179,7 +195,7 @@ TEST_BEGIN("join")
 TEST_END
 
 TEST_BEGIN("hexdump")
-    bytes_t * bytes = bytes_create("", 37);
+    bytes_t * bytes = bytes_create(NULL, 37);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 
