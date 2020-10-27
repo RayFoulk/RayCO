@@ -177,6 +177,17 @@ TEST_BEGIN("append")
 TEST_END
 
 TEST_BEGIN("read")
+    const char * str = "abc123";
+    size_t len = strlen(str);
+    char buffer[8] = { 0x00 };
+    bytes_t * bytes = bytes_create(str, len);
+    bytes->read(bytes, buffer, 1, 3);
+
+    BLAMMO(INFO, "buffer: %s\n", buffer);
+    CHECK(strcmp(buffer, "1") == 0);
+
+    // TODO: more cases, overlapping
+    bytes->destroy(bytes);
 TEST_END
 
 TEST_BEGIN("write")
@@ -201,7 +212,7 @@ TEST_BEGIN("hexdump")
 
     prng_seed(0xDEADBEEFCAFEBABEULL);
     prng_fill((uint8_t *)bytes->data(bytes), bytes->size(bytes));
-    BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
+    //BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
 
     bytes->destroy(bytes);
 TEST_END
