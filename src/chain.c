@@ -64,6 +64,59 @@ typedef struct
 chain_priv_t;
 
 //------------------------------------------------------------------------|
+static chain_t * chain_create(data_destroy_f data_destroy)
+{
+    // Allocate and initialize public interface
+    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
+    if (!chain)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed");
+        return NULL;
+    }
+
+    // bulk copy all function pointers and init opaque ptr
+    memcpy(chain, &chain_pub, sizeof(chain_t));
+
+    // Allocate and initialize private implementation
+    chain->priv = malloc(sizeof(chain_priv_t));
+    if (!chain->priv)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(chain_priv_t)) failed");
+        free(chain);
+        return NULL;
+    }
+
+    memset(chain->priv, 0, sizeof(chain_priv_t));
+    ((chain_priv_t *) chain->priv)->data_destroy = data_destroy;
+
+    return chain;
+}
+
+//------------------------------------------------------------------------|
+static void chain_destroy(void * chain_ptr)
+{
+    chain_t * chain = (chain_t *) chain_ptr;
+
+    // guard against accidental double-destroy or early-destroy
+    if (!chain || !chain->priv)
+    {
+        BLAMMO(WARNING, "attempt to early or double-destroy\n");
+        return;
+    }
+
+    // remove all links and destroy their data
+    chain->clear(chain);
+
+    // zero out and destroy the private data
+    memset(chain->priv, 0, sizeof(chain_priv_t));
+    free(chain->priv);
+
+    // zero out and destroy the public interface
+    memset(chain, 0, sizeof(chain_t));
+    free(chain);
+}
+
+//------------------------------------------------------------------------|
 static void * chain_data(chain_t * chain)
 {
     if (chain->empty(chain))
@@ -438,33 +491,7 @@ static bool chain_join(chain_t * head, chain_t * tail)
 }
 
 //------------------------------------------------------------------------|
-// Not static because also exposed via the header, so that it can be
-// included as a payload in other chains.
-void chain_destroy(void * chain_ptr)
-{
-    chain_t * chain = (chain_t *) chain_ptr;
-
-    // guard against accidental double-destroy or early-destroy
-    if (!chain || !chain->priv)
-    {
-        BLAMMO(WARNING, "attempt to early or double-destroy\n");
-        return;
-    }
-
-    // remove all links and destroy their data
-    chain->clear(chain);
-
-    // zero out and destroy the private data
-    memset(chain->priv, 0, sizeof(chain_priv_t));
-    free(chain->priv);
-
-    // zero out and destroy the public interface
-    memset(chain, 0, sizeof(chain_t));
-    free(chain);
-}
-
-//------------------------------------------------------------------------|
-static const chain_t chain_calls = {
+const chain_t chain_pub = {
     &chain_create,
     &chain_destroy,
     &chain_data,
@@ -484,31 +511,3 @@ static const chain_t chain_calls = {
     NULL
 };
 
-//------------------------------------------------------------------------|
-chain_t * chain_create(data_destroy_f data_destroy)
-{
-    // Allocate and initialize public interface
-    chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
-    if (!chain)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed");
-        return NULL;
-    }
-
-    // bulk copy all function pointers and init opaque ptr
-    memcpy(chain, &chain_calls, sizeof(chain_t));
-
-    // Allocate and initialize private implementation
-    chain->priv = malloc(sizeof(chain_priv_t));
-    if (!chain->priv)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(chain_priv_t)) failed");
-        free(chain);
-        return NULL;
-    }
-
-    memset(chain->priv, 0, sizeof(chain_priv_t));
-    ((chain_priv_t *) chain->priv)->data_destroy = data_destroy;
-
-    return chain;
-}

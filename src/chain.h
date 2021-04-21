@@ -126,9 +126,5 @@ typedef struct chain_t
 }
 chain_t;
 
-//------------------------------------------------------------------------|
-// Public factory function that creates a new chain
-chain_t * chain_create(data_destroy_f data_destroy);
-
-// Public destructor function that destroys a chain
-void chain_destroy(void * chain);
+// Public chain interface
+const chain_t chain_pub;
