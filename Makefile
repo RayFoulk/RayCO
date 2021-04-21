@@ -46,7 +46,8 @@ $(STATIC_LIB): $(PROJ_OBJS)
 	$(AR) rcs $(STATIC_LIB) $(PROJ_OBJS)
 
 $(SHARED_LIB): $(PROJ_OBJS)
-	$(LD) $(LDFLAGS) -shared -soname,$(SHARED_LIB) -o $(SHARED_LIB) $(PROJ_OBJS)
+	#$(LD) $(LDFLAGS) -shared -soname,$(SHARED_LIB) -o $(SHARED_LIB) $(PROJ_OBJS)
+	$(LD) $(LDFLAGS) -shared -o $(SHARED_LIB) $(PROJ_OBJS)
 
 .PHONY: test
 test: CFLAGS += $(TEST_INCL) $(DEBUG_CFLAGS) -Wno-unused-label
