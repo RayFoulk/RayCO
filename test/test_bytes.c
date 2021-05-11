@@ -37,21 +37,21 @@ TESTSUITE_BEGIN
     BLAMMO(INFO, "bytes tests...");
 
 TEST_BEGIN("create/size/empty")
-    bytes_t * bytes = bytes_create("hello", 5);
+    bytes_t * bytes = bytes_pub.create("hello", 5);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
     CHECK(!bytes->empty(bytes));
     CHECK(bytes->size(bytes) == 5);
     bytes->destroy(bytes);
 
-    bytes = bytes_create(NULL, 0);
+    bytes = bytes_pub.create(NULL, 0);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
     CHECK(bytes->empty(bytes));
     CHECK(bytes->size(bytes) == 0);
     bytes->destroy(bytes);
 
-    bytes = bytes_create(NULL, 64);
+    bytes = bytes_pub.create(NULL, 64);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
     CHECK(!bytes->empty(bytes));
@@ -72,7 +72,7 @@ TEST_BEGIN("data")
         0xCA, 0xFE, 0xBA, 0xBE,
     };
 
-    bytes_t * bytes = bytes_create(stuff, sizeof(stuff));
+    bytes_t * bytes = bytes_pub.create(stuff, sizeof(stuff));
     CHECK(bytes != NULL);
     CHECK(memcmp(bytes->data(bytes), stuff, sizeof(stuff)) == 0);
     CHECK(bytes->size(bytes) == sizeof(stuff));
@@ -81,7 +81,7 @@ TEST_END
 
 TEST_BEGIN("cstr")
     const char * str = "The quick brown fox jumped over the lazy dog.";
-    bytes_t * bytes = bytes_create(str, strlen(str));
+    bytes_t * bytes = bytes_pub.create(str, strlen(str));
     CHECK(bytes != NULL);
     CHECK(strncmp(bytes->cstr(bytes), str, strlen(str)) == 0);
     CHECK(bytes->size(bytes) == strlen(str));
@@ -91,7 +91,7 @@ TEST_END
 TEST_BEGIN("empty/clear")
     const char * str = "The quick brown fox jumped over the lazy dog.";
     size_t len = strlen(str);
-    bytes_t * bytes = bytes_create(str, len);
+    bytes_t * bytes = bytes_pub.create(str, len);
     CHECK(bytes != NULL);
     CHECK(bytes->size(bytes) == len);
     CHECK(!bytes->empty(bytes));
@@ -105,7 +105,7 @@ TEST_END
 TEST_BEGIN("resize/size")
     const char * str = "The quick brown fox jumped over the lazy dog.";
     size_t len = strlen(str);
-    bytes_t * bytes = bytes_create(str, len);
+    bytes_t * bytes = bytes_pub.create(str, len);
     CHECK(bytes->size(bytes) == len);
 
     bytes->resize(bytes, len * 2);
@@ -119,7 +119,7 @@ TEST_BEGIN("resize/size")
 TEST_END
 
 TEST_BEGIN("format")
-    bytes_t * bytes = bytes_create(NULL, 0);
+    bytes_t * bytes = bytes_pub.create(NULL, 0);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 
@@ -130,7 +130,7 @@ TEST_BEGIN("format")
 TEST_END
 
 TEST_BEGIN("assign")
-    bytes_t * bytes = bytes_create(NULL, 0);
+    bytes_t * bytes = bytes_pub.create(NULL, 0);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 
@@ -160,8 +160,8 @@ TEST_BEGIN("assign")
 TEST_END
 
 TEST_BEGIN("append")
-    bytes_t * bytes = bytes_create("abc", 3);
-    bytes_t * suffix = bytes_create("defg", 4);
+    bytes_t * bytes = bytes_pub.create("abc", 3);
+    bytes_t * suffix = bytes_pub.create("defg", 4);
     CHECK(bytes->size(bytes) == 3);
     CHECK(suffix->size(suffix) == 4);
 
@@ -180,7 +180,7 @@ TEST_BEGIN("read")
     const char * str = "abc123";
     size_t len = strlen(str);
     char buffer[8] = { 0x00 };
-    bytes_t * bytes = bytes_create(str, len);
+    bytes_t * bytes = bytes_pub.create(str, len);
     bytes->read(bytes, buffer, 1, 3);
 
     BLAMMO(INFO, "buffer: %s\n", buffer);
@@ -206,7 +206,7 @@ TEST_BEGIN("join")
 TEST_END
 
 TEST_BEGIN("hexdump")
-    bytes_t * bytes = bytes_create(NULL, 37);
+    bytes_t * bytes = bytes_pub.create(NULL, 37);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 

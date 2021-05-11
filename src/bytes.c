@@ -51,6 +51,54 @@ typedef struct
 bytes_priv_t;
 
 //------------------------------------------------------------------------|
+bytes_t * bytes_create(const void * data, size_t size)
+{
+    // Allocate and initialize public interface
+    bytes_t * bytes = (bytes_t *) malloc(sizeof(bytes_t));
+    if (!bytes)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(bytes_t)) failed\n");
+        return NULL;
+    }
+
+    // bulk copy all function pointers and init opaque ptr
+    memcpy(bytes, &bytes_pub, sizeof(bytes_t));
+
+    // Allocate and initialize private implementation
+    bytes->priv = malloc(sizeof(bytes_priv_t));
+    if (!bytes->priv)
+    {
+        BLAMMO(ERROR, "malloc(sizeof(bytes_priv_t)) failed\n");
+        free(bytes);
+        return NULL;
+    }
+
+    memset(bytes->priv, 0, sizeof(bytes_priv_t));
+    bytes->assign(bytes, data, size);
+    return bytes;
+}
+
+//------------------------------------------------------------------------|
+void bytes_destroy(void * bytes_ptr)
+{
+    bytes_t * bytes = (bytes_t *) bytes_ptr;
+
+    bytes->clear(bytes);
+
+    if (NULL != bytes->priv)
+    {
+        free(bytes->priv);
+    }
+
+    if (NULL != bytes)
+    {
+        // TODO: Deal with compiler optimization problem
+        memset(bytes, 0, sizeof(bytes_t));
+        free(bytes);
+    }
+}
+
+//------------------------------------------------------------------------|
 static inline const uint8_t * bytes_data(bytes_t * bytes)
 {
     return (const uint8_t *) ((bytes_priv_t *) bytes->priv)->data;
@@ -363,27 +411,7 @@ static const char * const bytes_hexdump(bytes_t * bytes)
 }
 
 //------------------------------------------------------------------------|
-void bytes_destroy(void * bytes_ptr)
-{
-    bytes_t * bytes = (bytes_t *) bytes_ptr;
-
-    bytes->clear(bytes);
- 
-    if (NULL != bytes->priv)
-    {
-        free(bytes->priv);
-    }
-
-    if (NULL != bytes)
-    {
-        // TODO: Deal with compiler optimization problem
-        memset(bytes, 0, sizeof(bytes_t));
-        free(bytes);
-    }
-}
-
-//------------------------------------------------------------------------|
-static const bytes_t bytes_calls = {
+const bytes_t bytes_pub = {
     &bytes_create,
     &bytes_destroy,
     &bytes_data,
@@ -404,31 +432,3 @@ static const bytes_t bytes_calls = {
     &bytes_hexdump,
     NULL
 };
-
-//------------------------------------------------------------------------|
-bytes_t * bytes_create(const void * data, size_t size)
-{
-    // Allocate and initialize public interface
-    bytes_t * bytes = (bytes_t *) malloc(sizeof(bytes_t));
-    if (!bytes)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(bytes_t)) failed\n");
-        return NULL;
-    }
-
-    // bulk copy all function pointers and init opaque ptr
-    memcpy(bytes, &bytes_calls, sizeof(bytes_t));
-
-    // Allocate and initialize private implementation
-    bytes->priv = malloc(sizeof(bytes_priv_t));
-    if (!bytes->priv)
-    {
-        BLAMMO(ERROR, "malloc(sizeof(bytes_priv_t)) failed\n");
-        free(bytes);
-        return NULL;
-    }
-
-    memset(bytes->priv, 0, sizeof(bytes_priv_t));
-    bytes->assign(bytes, data, size);
-    return bytes;
-}

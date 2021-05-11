@@ -103,8 +103,5 @@ typedef struct bytes_t
 bytes_t;
 
 //------------------------------------------------------------------------|
-// Public factory function that creates a new bytes object
-bytes_t * bytes_create(const void * data, size_t size);
-
-// Public destructor function that destroys a bytes object
-void bytes_destroy(void * bytes);
+// Public 'bytes' interface
+const bytes_t bytes_pub;

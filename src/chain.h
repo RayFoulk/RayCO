@@ -126,5 +126,6 @@ typedef struct chain_t
 }
 chain_t;
 
+//------------------------------------------------------------------------|
 // Public chain interface
 const chain_t chain_pub;
