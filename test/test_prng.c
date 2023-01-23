@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2020 by Raymond M. Foulk IV (rfoulk@gmail.com)
+// Copyright (c) 2023 by Raymond M. Foulk IV (rfoulk@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -21,18 +21,24 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-// PRNG: Provide a library interface to the xoshiro / xoroshiro 256 ++
-// generator found at http://prng.di.unimi.it/
+#include "blammo.h"
+#include "prng.h"
+#include "mut.h"
 
-#pragma once
+#include <string.h>
+#include <limits.h>
 
-#include <stddef.h>
-#include <stdint.h>
-#include <ctype.h>
+TESTSUITE_BEGIN
 
-//------------------------------------------------------------------------|
-void prng_seed(uint64_t seed);
-uint64_t prng_next();
-void prng_fill(void * data, size_t size);
-void prng_alpha(char * buffer, size_t length);
+    // Simple test of the blammo logger
+    BLAMMO_LEVEL(INFO);
+    BLAMMO_FILE("test_prng.log");
+    BLAMMO(INFO, "PRNG tests...");
+
+TEST_BEGIN("test distribution")
+    BLAMMO(INFO, "%s", __FUNCTION__);
+
+TEST_END
+
+TESTSUITE_END
 

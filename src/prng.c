@@ -139,3 +139,19 @@ void prng_fill(void * data, size_t size)
         }
     }
 }
+
+//------------------------------------------------------------------------|
+void prng_alpha(char * buffer, size_t length)
+{
+    // Restrict random chars to those which can easily be conventient
+    // file names and printable ascii bytes only, no special characters.
+    prng_fill(buffer, length);
+    while (length > 0)
+    {
+        if (!isalpha(buffer[--length]))
+        {
+            buffer[length] = 'A' + ((unsigned char) buffer[length] % 26);
+        }
+    }
+}
+
