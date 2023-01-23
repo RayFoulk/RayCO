@@ -104,4 +104,4 @@ bytes_t;
 
 //------------------------------------------------------------------------|
 // Public 'bytes' interface
-const bytes_t bytes_pub;
+extern const bytes_t bytes_pub;

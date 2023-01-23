@@ -43,10 +43,12 @@
 //------------------------------------------------------------------------|
 static const char * blammo_msg_t_str[] =
 {
-    "INFO",
+    "VERBOSE",
     "DEBUG",
+    "INFO",
     "WARNING",
     "ERROR",
+    "FATAL",
     NULL
 };
 

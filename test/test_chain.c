@@ -42,7 +42,7 @@ TESTSUITE_BEGIN
     (void) fixture_payload;
 
 TEST_BEGIN("create")
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     CHECK(chain != NULL);
     CHECK(chain->priv != NULL);
     CHECK(chain->empty(chain));
@@ -53,7 +53,7 @@ TEST_END
 
 TEST_BEGIN("insert (heap primitive)")
     int i;
-    chain_t * chain = chain_create(free);
+    chain_t * chain = chain_pub.create(free);
     CHECK(chain != NULL);
     CHECK(chain->priv != NULL);
     CHECK(chain->length(chain) == 0);
@@ -86,7 +86,7 @@ TEST_END
 
 TEST_BEGIN("insert (pointer value / static primitive)")
     size_t i;
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     CHECK(chain != NULL);
     CHECK(chain->length(chain) == 0);
 
@@ -116,7 +116,7 @@ TEST_BEGIN("insert (pointer value / static primitive)")
 TEST_END
 
 TEST_BEGIN("reset")
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
     chain->insert(chain, (void *) 3);
@@ -133,7 +133,7 @@ TEST_BEGIN("reset")
 TEST_END
 
 TEST_BEGIN("seek (forward/rewind)")
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
     chain->insert(chain, (void *) 3);
@@ -164,7 +164,7 @@ TEST_BEGIN("seek (forward/rewind)")
 TEST_END
 
 TEST_BEGIN("remove")
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
 
     // Attempting to remove from empty chain
     chain->remove(chain);
@@ -190,7 +190,7 @@ TEST_BEGIN("remove")
 TEST_END
 
 TEST_BEGIN("clear")
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
     chain->insert(chain, (void *) 3);
@@ -214,7 +214,7 @@ TEST_BEGIN("clear")
 TEST_END
 
 TEST_BEGIN("trim")
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     CHECK(chain != NULL);
     CHECK(chain->length(chain) == 0);
 
@@ -248,7 +248,7 @@ TEST_BEGIN("sort")
     int i = 0;
     const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
     const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
-    chain_t * chain = chain_create(payload_destroy);
+    chain_t * chain = chain_pub.create(payload_destroy);
 
     fixture_reset();
     //fixture_report();
@@ -277,7 +277,7 @@ TEST_END
 TEST_BEGIN("destroy")
     int i = 0;
     payload_t * p = NULL;
-    chain_t * chain = chain_create(payload_destroy);
+    chain_t * chain = chain_pub.create(payload_destroy);
 
     fixture_reset();
 
@@ -303,7 +303,7 @@ TEST_END
 TEST_BEGIN("copy")
     int i = 0;
     payload_t * p = NULL;
-    chain_t * chain = chain_create(payload_destroy);
+    chain_t * chain = chain_pub.create(payload_destroy);
 
     fixture_reset();
 
@@ -353,7 +353,7 @@ TEST_END
 
 TEST_BEGIN("split")
     size_t i;
-    chain_t * chain = chain_create(NULL);
+    chain_t * chain = chain_pub.create(NULL);
     CHECK(chain != NULL);
     CHECK(chain->length(chain) == 0);
 
@@ -393,8 +393,8 @@ TEST_END
 
 TEST_BEGIN("join")
     size_t i;
-    chain_t * achain = chain_create(NULL);
-    chain_t * bchain = chain_create(NULL);
+    chain_t * achain = chain_pub.create(NULL);
+    chain_t * bchain = chain_pub.create(NULL);
     CHECK(achain != NULL);
     CHECK(bchain != NULL);
     CHECK(achain->length(achain) == 0);

@@ -41,10 +41,31 @@
 //------------------------------------------------------------------------|
 typedef enum
 {
-    INFO    = 0,
-    DEBUG   = 1,
-    WARNING = 2,
-    ERROR   = 3
+    // The most verbose & spammy messages, normally these would be kept
+    // hidden (e.g. function entry/exit, checkpoints, etc.)
+    VERBOSE = 0,
+
+    // Debugging messages for troubleshooting & introspection (e.g.
+    // hexdumps, object state reports, etc.)
+    DEBUG   = 2,
+
+    // Helpful informative messages.  These are things that the user would
+    // normally want to see, and don't indicate a problem.
+    INFO    = 1,
+
+    // Warnings indicate that something unusual or unlikely happened, but
+    // the program can continue normally.  There might be something the
+    // user can do about them at the system or configuration level.
+    WARNING = 3,
+
+    // Errors indicate something went wrong.  It may be possible for the
+    // program to continue or recover, possibly in a limited fashion.
+    ERROR   = 4,
+
+    // Fatal errors are when something is terribly wrong and the program
+    // should exit immediately.  Examples may include malloc() failure,
+    // stack corruption, or filesystem i/o failure.
+    FATAL   = 5,
 }
 blammo_msg_t;
 

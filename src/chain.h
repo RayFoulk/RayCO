@@ -128,4 +128,4 @@ chain_t;
 
 //------------------------------------------------------------------------|
 // Public chain interface
-const chain_t chain_pub;
+extern const chain_t chain_pub;
