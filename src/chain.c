@@ -70,7 +70,7 @@ static chain_t * chain_create(data_destroy_f data_destroy)
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
     if (!chain)
     {
-        BLAMMO(ERROR, "malloc(sizeof(chain_t)) failed");
+        BLAMMO(FATAL, "malloc(sizeof(chain_t)) failed");
         return NULL;
     }
 
@@ -81,7 +81,7 @@ static chain_t * chain_create(data_destroy_f data_destroy)
     chain->priv = malloc(sizeof(chain_priv_t));
     if (!chain->priv)
     {
-        BLAMMO(ERROR, "malloc(sizeof(chain_priv_t)) failed");
+        BLAMMO(FATAL, "malloc(sizeof(chain_priv_t)) failed");
         free(chain);
         return NULL;
     }
@@ -170,7 +170,7 @@ static void chain_insert(chain_t * chain, void * data)
 
     if (NULL == link)
     {
-        BLAMMO(ERROR, "malloc(sizeof(link_t)) failed\n");
+        BLAMMO(FATAL, "malloc(sizeof(link_t)) failed\n");
         return;
     }
 
@@ -335,7 +335,7 @@ static void chain_sort(chain_t * chain, data_compare_f data_compare)
     void ** data_ptrs = (void **) malloc(sizeof(void *) * priv->length);
     if (!data_ptrs)
     {
-        BLAMMO(ERROR, "malloc(sizeof(void *) * %zu) failed\n", priv->length);
+        BLAMMO(FATAL, "malloc(sizeof(void *) * %zu) failed\n", priv->length);
         return;
     }
 

@@ -57,7 +57,7 @@ bytes_t * bytes_create(const void * data, size_t size)
     bytes_t * bytes = (bytes_t *) malloc(sizeof(bytes_t));
     if (!bytes)
     {
-        BLAMMO(ERROR, "malloc(sizeof(bytes_t)) failed\n");
+        BLAMMO(FATAL, "malloc(sizeof(bytes_t)) failed\n");
         return NULL;
     }
 
@@ -68,7 +68,7 @@ bytes_t * bytes_create(const void * data, size_t size)
     bytes->priv = malloc(sizeof(bytes_priv_t));
     if (!bytes->priv)
     {
-        BLAMMO(ERROR, "malloc(sizeof(bytes_priv_t)) failed\n");
+        BLAMMO(FATAL, "malloc(sizeof(bytes_priv_t)) failed\n");
         free(bytes);
         return NULL;
     }
@@ -159,7 +159,7 @@ static void bytes_resize(bytes_t * bytes, size_t size)
     priv->data = (uint8_t *) realloc(priv->data, size + 1);
     if (NULL == priv->data)
     {
-        BLAMMO(ERROR, "malloc(%zu) failed\n", size + 1);
+        BLAMMO(FATAL, "malloc(%zu) failed\n", size + 1);
         return;
     }
 

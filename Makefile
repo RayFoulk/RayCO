@@ -24,7 +24,8 @@ LD           := ld
 CC           := gcc
 BIN          := /usr/local/bin
 LIB          := /usr/local/lib
-CFLAGS       := $(PROJ_INCL) -Wall -pipe -std=c99 -fPIC
+#CFLAGS       := $(PROJ_INCL) -Wall -pipe -std=c99 -fPIC -D_POSIX_C_SOURCE
+CFLAGS       := $(PROJ_INCL) -Wall -pipe -fPIC
 DEBUG_CFLAGS := -O0 -g -D BLAMMO_ENABLE -fmax-errors=3
 ifeq ($(ANDROID_ROOT),)
 LDFLAGS      := -lc -pie
