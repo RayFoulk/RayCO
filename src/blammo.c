@@ -164,7 +164,14 @@ void blammo(const char * fpath, int line, const char * func,
     }
 
     // Always log to stdout
-    fprintf(stdout, "%s %s %s:%d ", time, blammo_msg_t_str[type], fname, line);
+    fprintf(stdout,
+            "%s %s %s:%d %s() ",
+            time,
+            blammo_msg_t_str[type],
+            fname,
+            line,
+            func);
+
     va_start(args, format);
     vfprintf(stdout, format, args); 
     va_end(args);
