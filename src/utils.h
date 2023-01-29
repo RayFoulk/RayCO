@@ -20,3 +20,15 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
+
+//-----------------------------------------------------------------------------+
+#pragma once
+
+//-----------------------------------------------------------------------------+
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+//-----------------------------------------------------------------------------+
+void hexdump(const void * buf, size_t len, size_t addr);
+bool splitstr(char ** tokens, char * str, const char * delim);

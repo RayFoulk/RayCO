@@ -20,3 +20,47 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
+
+#include "blammo.h"
+#include "utils.h"
+#include "prng.h"
+#include "mut.h"
+
+#include <string.h>
+#include <limits.h>
+
+TESTSUITE_BEGIN
+
+    // Simple test of the blammo logger
+    BLAMMO_LEVEL(INFO);
+    BLAMMO_FILE("test_utils.log");
+    BLAMMO(INFO, "utils tests...");
+
+TEST_BEGIN("test hexdump")
+    uint8_t data[64] = { 0 };
+
+    prng_seed(999);
+    prng_fill(data, 64);
+    hexdump(data, 64, 0);
+
+TEST_END
+
+TEST_BEGIN("test splitstr")
+    char * str = "mary had a  little\tlamb";
+    const int max_tokens = 5;
+    char * tokens[max_tokens];
+    int i = 0;
+
+    CHECK(splitstr(tokens, str, " \t"));
+
+    // TODO: replace with individual checks
+    for (i = 0; i < max_tokens; i++)
+    {
+        BLAMMO(DEBUG, "token[%d] is %s", i, tokens[i]);
+    }
+
+
+TEST_END
+
+TESTSUITE_END
+
