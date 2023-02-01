@@ -31,4 +31,10 @@
 
 //-----------------------------------------------------------------------------+
 void hexdump(const void * buf, size_t len, size_t addr);
-bool splitstr(char ** tokens, char * str, const char * delim);
+
+// Pass in caller-managed pointer array and its size.  THe string to be
+// tokenized MUST be mutable otherwise this will segfault.  Use strdup()
+// beforehand if you have to.  Uses strtok_r() internally.  Returns the
+// number of tokens and populates the 'tokens' array with pointers.
+size_t splitstr(char ** tokens, size_t max_tokens,
+                char * str, const char * delim);

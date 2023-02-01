@@ -28,6 +28,7 @@
 
 #include <string.h>
 #include <limits.h>
+#include <stdbool.h>
 
 TESTSUITE_BEGIN
 
@@ -42,23 +43,31 @@ TEST_BEGIN("test hexdump")
     prng_seed(999);
     prng_fill(data, 64);
     hexdump(data, 64, 0);
+    CHECK(true);
 
 TEST_END
 
 TEST_BEGIN("test splitstr")
-    char * str = "mary had a  little\tlamb";
+
+    // The string to be parsed MUST be mutable
+    // and even just declaring 'char *' causes the
+    // compiler to put it in read-only constants
+    const char * const_str = "mary had\t\ta  little\tlamb   ";
     const int max_tokens = 5;
     char * tokens[max_tokens];
-    int i = 0;
+    size_t i = 0;
+    char * str = strdup(const_str);
 
-    CHECK(splitstr(tokens, str, " \t"));
+    i = splitstr(tokens, max_tokens, str, " \t");
 
-    // TODO: replace with individual checks
-    for (i = 0; i < max_tokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d] is %s", i, tokens[i]);
-    }
+    CHECK(i == 5);
+    CHECK(strcmp(tokens[0], "mary") == 0)
+    CHECK(strcmp(tokens[1], "had") == 0)
+    CHECK(strcmp(tokens[2], "a") == 0)
+    CHECK(strcmp(tokens[3], "little") == 0)
+    CHECK(strcmp(tokens[4], "lamb") == 0)
 
+    free(str);
 
 TEST_END
 

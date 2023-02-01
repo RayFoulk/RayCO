@@ -23,6 +23,7 @@
 
 //-----------------------------------------------------------------------------+
 #include <stdio.h>
+#include <string.h>
 
 #include "utils.h"
 #include "blammo.h"
@@ -87,9 +88,19 @@ void hexdump(const void * buf, size_t len, size_t addr)
     }
 }
 
-bool splitstr(char ** tokens, char * str, const char * delim)
+size_t splitstr(char ** tokens, size_t max_tokens,
+                char * str, const char * delim)
 {
-    size_t max_tokens = sizeof(*tokens) / sizeof(char *);
-    BLAMMO(DEBUG, "max_tokens: %ul", max_tokens);
-    return true;
+    size_t i = 0;
+    char * saveptr = NULL;
+    char * ptr = strtok_r (str, delim, &saveptr);
+
+    while ((ptr != NULL) && (i < max_tokens))
+    {
+        BLAMMO(DEBUG, "ptr: %s", ptr);
+        tokens[i++] = ptr;
+        ptr = strtok_r (NULL, delim, &saveptr);
+    }
+
+    return i;
 }
