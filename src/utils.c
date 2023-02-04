@@ -91,16 +91,70 @@ void hexdump(const void * buf, size_t len, size_t addr)
 size_t splitstr(char ** tokens, size_t max_tokens,
                 char * str, const char * delim)
 {
-    size_t i = 0;
+    size_t ntok = 0;
     char * saveptr = NULL;
     char * ptr = strtok_r (str, delim, &saveptr);
 
-    while ((ptr != NULL) && (i < max_tokens))
+    while ((ptr != NULL) && (ntok < max_tokens))
     {
         BLAMMO(DEBUG, "ptr: %s", ptr);
-        tokens[i++] = ptr;
+        tokens[ntok++] = ptr;
         ptr = strtok_r (NULL, delim, &saveptr);
     }
 
-    return i;
+    return ntok;
+}
+
+// Very simple helper function to identify delimiters
+static bool isdelim(const char c, const char * delim)
+{
+    char * d = NULL;
+
+    for (d = (char *) delim; *d != 0; d++)
+    {
+        if (c == *d)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+size_t markstr(char ** markers, size_t max_markers,
+               const char * str, const char * delim)
+{
+    size_t nmark = 0;
+    bool within_delim = true;
+    char * ptr = (char *) str;
+
+    while ((*ptr != 0) && (nmark < max_markers))
+    {
+        if (isdelim(*ptr, delim))
+        {
+            if (!within_delim)
+            {
+                // transition to whitespace at the end of a token
+                BLAMMO(DEBUG, "end of token at \'%s\'", ptr);
+            }
+
+            within_delim = true;
+        }
+        else
+        {
+            if (within_delim)
+            {
+                // transition to token at the end of whitespace
+                BLAMMO(DEBUG, "beginning of token at \'%s\'", ptr);
+                markers[nmark++] = ptr;
+            }
+
+            within_delim = false;
+        }
+
+        ptr++;
+    }
+
+    BLAMMO(DEBUG, "number of markers: %u", nmark);
+    return nmark;
 }

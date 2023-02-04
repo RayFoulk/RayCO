@@ -71,5 +71,40 @@ TEST_BEGIN("test splitstr")
 
 TEST_END
 
+TEST_BEGIN("test markstr")
+
+    const char * const_str = "mary had\t\ta  little\tlamb   ";
+    const int max_markers = 5;
+    char * markers[max_markers];
+    size_t nmark = 0;
+
+    nmark = markstr(markers, max_markers, const_str, " \t");
+    CHECK(nmark == 5);
+    CHECK(strncmp(markers[0], "mary", 4) == 0)
+    CHECK(strncmp(markers[1], "had", 3) == 0)
+    CHECK(strncmp(markers[2], "a", 1) == 0)
+    CHECK(strncmp(markers[3], "little", 6) == 0)
+    CHECK(strncmp(markers[4], "lamb", 4) == 0)
+
+
+    memset(markers, 0, sizeof(markers));
+    const char * another = " mary had a \t  little lamb";
+
+    nmark = markstr(markers, max_markers, another, " \t");
+    CHECK(nmark == 5);
+    CHECK(strncmp(markers[0], "mary", 4) == 0)
+    CHECK(strncmp(markers[1], "had", 3) == 0)
+    CHECK(strncmp(markers[2], "a", 1) == 0)
+    CHECK(strncmp(markers[3], "little", 6) == 0)
+    CHECK(strncmp(markers[4], "lamb", 4) == 0)
+
+    memset(markers, 0, sizeof(markers));
+    const char * yet_another = " <crash> <happy>";
+
+    nmark = markstr(markers, max_markers, yet_another, " ");
+    CHECK(nmark == 2);
+
+TEST_END
+
 TESTSUITE_END
 
