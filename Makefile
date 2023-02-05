@@ -9,7 +9,7 @@ VPATH     := $(PROJ_DIRS)
 TEST_SRCS := $(notdir $(shell find ./test -follow -name 'test_*.c'))
 TEST_DIRS := $(sort $(dir $(shell find ./test -follow -name 'test_*.c')))
 TEST_OBJS := $(patsubst %.c,%.o,$(TEST_SRCS))
-TEST_BINS := $(patsubst %.c,%.elf,$(TEST_SRCS))
+TEST_BINS := $(patsubst %.c,%.mut,$(TEST_SRCS))
 TEST_INCL := $(patsubst %,-I%,$(TEST_DIRS))
 AUX_SRCS := $(notdir $(shell find ./test -follow -name '*.c' -not -name 'test*'))
 AUX_OBJS := $(patsubst %.c,%.o,$(AUX_SRCS))
@@ -57,11 +57,11 @@ test: CFLAGS += -fprofile-arcs -ftest-coverage
 #test: LDFLAGS += -lgcov --coverage
 endif
 test: $(TEST_BINS)
-	for testelf in test_*elf; do ./$$testelf; done
+	for testmut in test_*mut; do ./$$testmut; done
 	$(COV_REPORT)
 
 #$(LD) -o $@ $< $(AUX_OBJS) $(PROJ_OBJS) $(LDFLAGS)
-test_%.elf : test_%.o $(AUX_OBJS) $(PROJ_OBJS)
+test_%.mut : test_%.o $(AUX_OBJS) $(PROJ_OBJS)
 	$(CC) $(CFLAGS) -o $@ $< $(AUX_OBJS) $(PROJ_OBJS) $(LDFLAGS)
 
 .PHONY: notabs

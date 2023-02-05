@@ -91,6 +91,12 @@ void hexdump(const void * buf, size_t len, size_t addr)
 size_t splitstr(char ** tokens, size_t max_tokens,
                 char * str, const char * delim)
 {
+    if (!str || !tokens)
+    {
+        BLAMMO(WARNING, "str: %p  tokens: %p", str, tokens);
+        return 0;
+    }
+
     size_t ntok = 0;
     char * saveptr = NULL;
     char * ptr = strtok_r (str, delim, &saveptr);
@@ -124,6 +130,12 @@ static bool isdelim(const char c, const char * delim)
 size_t markstr(char ** markers, size_t max_markers,
                const char * str, const char * delim)
 {
+    if (!str || !markers)
+    {
+        BLAMMO(WARNING, "str: %p  markers: %p", str, markers);
+        return 0;
+    }
+
     size_t nmark = 0;
     bool within_delim = true;
     char * ptr = (char *) str;
@@ -135,7 +147,7 @@ size_t markstr(char ** markers, size_t max_markers,
             if (!within_delim)
             {
                 // transition to whitespace at the end of a token
-                BLAMMO(DEBUG, "end of token at \'%s\'", ptr);
+                BLAMMO(VERBOSE, "end of token at \'%s\'", ptr);
             }
 
             within_delim = true;
@@ -145,7 +157,7 @@ size_t markstr(char ** markers, size_t max_markers,
             if (within_delim)
             {
                 // transition to token at the end of whitespace
-                BLAMMO(DEBUG, "beginning of token at \'%s\'", ptr);
+                BLAMMO(VERBOSE, "beginning of token at \'%s\'", ptr);
                 markers[nmark++] = ptr;
             }
 
@@ -155,6 +167,6 @@ size_t markstr(char ** markers, size_t max_markers,
         ptr++;
     }
 
-    BLAMMO(DEBUG, "number of markers: %u", nmark);
+    BLAMMO(VERBOSE, "number of markers: %u", nmark);
     return nmark;
 }
