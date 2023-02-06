@@ -132,7 +132,7 @@ size_t markstr(char ** markers, size_t max_markers,
 {
     if (!str || !markers)
     {
-        BLAMMO(WARNING, "str: %p  markers: %p", str, markers);
+        BLAMMO(WARNING, "str: %p  markers: %p\r", str, markers);
         return 0;
     }
 
