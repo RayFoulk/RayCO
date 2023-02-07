@@ -36,8 +36,8 @@ void hexdump(const void * buf, size_t len, size_t addr);
 // tokenized MUST be mutable otherwise this will segfault.  Use strdup()
 // beforehand if you have to.  Uses strtok_r() internally.  Returns the
 // number of tokens and populates the 'tokens' array with pointers.
-size_t splitstr(char ** tokens, size_t max_tokens,
-                char * str, const char * delim);
+int splitstr(char ** tokens, size_t max_tokens,
+             char * str, const char * delim);
 
 // Like splitstr only do NOT alter original string.  This is useful for
 // counting would-be tokens, and for marking where they begin.  Note that
@@ -45,7 +45,7 @@ size_t splitstr(char ** tokens, size_t max_tokens,
 // One of the use cases prevents us from simply using strdup() followed by
 // splitstr(), because then the pointers would be to the copy rather than
 // the original unaltered string.
-size_t markstr(char ** markers, size_t max_markers,
-               const char * str, const char * delim);
+int markstr(char ** markers, size_t max_markers,
+            const char * str, const char * delim);
 
 

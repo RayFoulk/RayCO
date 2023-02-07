@@ -88,8 +88,8 @@ void hexdump(const void * buf, size_t len, size_t addr)
     }
 }
 
-size_t splitstr(char ** tokens, size_t max_tokens,
-                char * str, const char * delim)
+int splitstr(char ** tokens, size_t max_tokens,
+             char * str, const char * delim)
 {
     if (!str || !tokens)
     {
@@ -127,8 +127,8 @@ static bool isdelim(const char c, const char * delim)
     return false;
 }
 
-size_t markstr(char ** markers, size_t max_markers,
-               const char * str, const char * delim)
+int markstr(char ** markers, size_t max_markers,
+            const char * str, const char * delim)
 {
     if (!str || !markers)
     {

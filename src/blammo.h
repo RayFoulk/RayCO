@@ -47,11 +47,11 @@ typedef enum
 
     // Debugging messages for troubleshooting & introspection (e.g.
     // hexdumps, object state reports, etc.)
-    DEBUG   = 2,
+    DEBUG   = 1,
 
     // Helpful informative messages.  These are things that the user would
     // normally want to see, and don't indicate a problem.
-    INFO    = 1,
+    INFO    = 2,
 
     // Warnings indicate that something unusual or unlikely happened, but
     // the program can continue normally.  There might be something the
