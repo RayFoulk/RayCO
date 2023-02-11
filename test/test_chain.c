@@ -274,6 +274,10 @@ TEST_BEGIN("sort")
     chain->destroy(chain);
 TEST_END
 
+TEST_BEGIN("find")
+    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+TEST_END
+
 TEST_BEGIN("destroy")
     int i = 0;
     payload_t * p = NULL;

@@ -10,6 +10,13 @@ OBJDIR   := ./obj
 # TODO: Figure out directory detection
 #LINENOISE_DIR = ./ext/linenoise
 
+#ifneq ("$(wildcard $(PATH_TO_FILE))", "")
+#	FILE_EXISTS := 1
+#else
+#	FILE_EXISTS := 0
+#endif
+
+
 # Gather Project Sources and Folders
 SOURCES := $(notdir $(shell find ./src -follow -name '*.c'))
 FOLDERS := $(sort $(dir $(shell find ./src -follow -name '*.c')))

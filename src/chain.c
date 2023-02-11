@@ -349,6 +349,7 @@ static void chain_sort(chain_t * chain, data_compare_f data_compare)
     while (chain->spin(chain, 1));
 
     // call quicksort on the array of data pointers
+    // FIXME: Switch to qsort_r() if available
     qsort(data_ptrs, priv->length, sizeof(void *), data_compare);
 
     // now directly re-arrange all of the data pointers
@@ -363,6 +364,27 @@ static void chain_sort(chain_t * chain, data_compare_f data_compare)
 
     free(data_ptrs);
     data_ptrs = NULL;
+}
+
+//------------------------------------------------------------------------|
+void * chain_find(chain_t * chain, void * data, data_compare_f data_compare)
+{
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+    size_t index = 0;
+
+    // iterate through all links
+    chain->reset(chain);
+    for (index = 0; index < priv->length; index++)
+    {
+        if (!data_compare(data, priv->link->data))
+        {
+            return priv->link->data;
+        }
+
+        chain->spin(chain, 1);
+    }
+
+    return NULL;
 }
 
 //------------------------------------------------------------------------|
@@ -505,6 +527,7 @@ const chain_t chain_pub = {
     &chain_spin,
     &chain_trim,
     &chain_sort,
+    &chain_find,
     &chain_copy,
     &chain_split,
     &chain_join,

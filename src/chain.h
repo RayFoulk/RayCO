@@ -105,6 +105,12 @@ typedef struct chain_t
     // data payload pointers for optimum performance.
     void (*sort)(struct chain_t * chain, data_compare_f data_compare);
 
+    // search through all links and return the first one that matches
+    // the given reference link (may or may not be part of the chain)
+    // according to the criterion applied by the comparison function.
+    // returns NULL if no matching link is found in the chain
+    void * (*find)(struct chain_t * chain, void * data, data_compare_f data_compare);
+
     // Makes a full deep copy of the given chain.  The data_copy function
     // (if not NULL) is called for each link data payload.
     struct chain_t * (*copy)(struct chain_t * chain, data_copy_f data_copy);
