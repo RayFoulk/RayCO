@@ -23,17 +23,12 @@
 
 #pragma once
 
+#include "shellcmd.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-//------------------------------------------------------------------------|
-// Command handler function signature
-typedef void * (*cmd_handler_f) (void * object,
-                                 void * context,
-                                 int argc,
-                                 char ** args);
 
 //------------------------------------------------------------------------|
 typedef struct shell_t
@@ -43,18 +38,8 @@ typedef struct shell_t
     // Shell destructor function
     void (*destroy)(void * shell);
 
-    // Register a command
-    void * (*register_cmd)(struct shell_t * shell,
-                           void * context,
-                           cmd_handler_f handler,
-                           const char * keyword,
-                           const char * arghints,
-                           const char * description);
-
-    // Unregister a command
-    void * (*unregister_cmd)(struct shell_t * shell,
-                             void * context,
-                             const char * keyword);
+    // Get access to the command registry interface
+    shellcmd_t * (*commands)(struct shell_t * shell);
 
     // Main interactive prompt loop
     int (*loop)(struct shell_t * shell);

@@ -100,7 +100,7 @@ static void chain_destroy(void * chain_ptr)
     // guard against accidental double-destroy or early-destroy
     if (!chain || !chain->priv)
     {
-        BLAMMO(WARNING, "attempt to early or double-destroy\n");
+        BLAMMO(WARNING, "attempt to early or double-destroy");
         return;
     }
 

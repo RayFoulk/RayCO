@@ -6,24 +6,20 @@ SHARED_LINK := $(PROJECT).so
 SRCDIR   := ./src
 OBJDIR   := ./obj
 
-# External Library Dependencies
-# TODO: Figure out directory detection
-#LINENOISE_DIR = ./ext/linenoise
-
-#ifneq ("$(wildcard $(PATH_TO_FILE))", "")
-#	FILE_EXISTS := 1
-#else
-#	FILE_EXISTS := 0
-#endif
-
-
-# Gather Project Sources and Folders
+# Gather project sources and folders, start cflags early
 SOURCES := $(notdir $(shell find ./src -follow -name '*.c'))
 FOLDERS := $(sort $(dir $(shell find ./src -follow -name '*.c')))
+CFLAGS  := -Wall -pipe -fPIC
 
-# Add In External Source-Based Submodules
-#SOURCES += $(LINENOISE_DIR)/linenoise.c
-#FOLDERS += $(LINENOISE_DIR)
+# Linenoise is an optional third-party submodule
+# If found, the shell object will have tab-completion and argument hints
+LINENOISE_DIR = ./ext/linenoise
+LINENOISE_FILE = $(LINENOISE_DIR)/linenoise.c
+ifneq ("$(wildcard $(LINENOISE_FILE))", "")
+	CFLAGS  += -D LINENOISE_ENABLE
+	SOURCES += $(LINENOISE_DIR)/linenoise.c
+	FOLDERS += $(LINENOISE_DIR)
+endif
 
 # Create object paths and compiler include arguments
 OBJECTS  := $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(SOURCES)))
@@ -46,16 +42,16 @@ LD           := ld
 CC           := gcc
 BIN          := /usr/local/bin
 LIB          := /usr/local/lib
-CFLAGS       := $(INCLUDE) -Wall -pipe -fPIC
+CFLAGS       += $(INCLUDE)
 DEBUG_CFLAGS := -O0 -g -D BLAMMO_ENABLE -fmax-errors=3
 
 # Platform Conditional Linker Flags
 ifeq ($(ANDROID_ROOT),)
-LDFLAGS      := -lc -pie
-COV_REPORT   := gcovr -r . --html-details -o coverage.html 
+	LDFLAGS      := -lc -pie
+	COV_REPORT   := gcovr -r . --html-details -o coverage.html 
 else
-LDFLAGS      := -pie
-COV_REPORT   :=
+	LDFLAGS      := -pie
+	COV_REPORT   :=
 endif
 
 # Debug Info
@@ -63,6 +59,7 @@ $(info $$INCLUDE is [${INCLUDE}])
 $(info $$SOURCES is [${SOURCES}])
 $(info $$FOLDERS is [${FOLDERS}])
 $(info $$OBJECTS is [${OBJECTS}])
+$(info $$CFLAGS is [${CFLAGS}])
 
 # Make Targets
 .PHONY: all
@@ -77,9 +74,9 @@ debug: $(STATIC_LIB) $(SHARED_LIB)
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# Pattern match rule for support library sources
-#$(OBJDIR)/%.o: $(LINENOISE_DIR)/%.c
-#	$(CC) $(CFLAGS) -c -o $@ $<
+# Pattern match rule(s) for third party submodule sources
+$(OBJDIR)/%.o: $(LINENOISE_DIR)/%.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(STATIC_LIB): $(OBJECTS)
 	$(AR) rcs $(STATIC_LIB) $(OBJECTS)

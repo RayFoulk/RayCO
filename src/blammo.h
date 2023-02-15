@@ -31,12 +31,14 @@
 #define BLAMMO_FILE(path)
 #define BLAMMO_LEVEL(level)
 #define BLAMMO(msgt, fmt, ...)
+#define BLAMMO_DECLARE(x)
 
 #else
 #define BLAMMO_FILE(path)       blammo_file(path)
 #define BLAMMO_LEVEL(level)     blammo_level(level)
 #define BLAMMO(msgt, fmt, ...)  blammo(__FILE__, __LINE__, __FUNCTION__, \
                                        msgt, fmt, ## __VA_ARGS__)
+#define BLAMMO_DECLARE(x)       x;
 
 //------------------------------------------------------------------------|
 typedef enum
