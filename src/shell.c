@@ -21,15 +21,21 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stddef.h>
+#include <errno.h>
+
 #include "shell.h"
 #include "shellcmd.h"
 #include "chain.h"
 #include "blammo.h"
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-#include <stddef.h>
+#ifdef LINENOISE_ENABLE
+#include "linenoise.h"
+#endif
 
 //------------------------------------------------------------------------|
 // shell private implementation data
@@ -41,6 +47,10 @@ typedef struct
     // FIXME: Eventually make this more dynamic
     // maybe use bytes_t?  remember size?
     char * prompt;
+
+    // command line delimiters are pretty universal.  if ever there
+    // is a need this can become a factory option.
+    char * delim;
 
     // master list of top-level context commands
     shellcmd_t * cmds;
@@ -115,6 +125,41 @@ static void * builtin_handler_quit(void * object, void * context,
 }
 
 //------------------------------------------------------------------------|
+#ifdef LINENOISE_ENABLE
+// Linenoise-only callback function for tab completion
+static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
+{
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+}
+
+// Linenoise-only callback for argument hints
+static char * linenoise_hints(const char * buf, int * color, int * bold)
+{
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    return NULL;
+}
+
+#else
+// Mock linenoise function wraps getline
+static char * linenoise(const char * prompt)
+{
+    fprintf(stdout, "%s", prompt);
+
+    char * line = NULL;
+    size_t nalloc = 0;
+    ssize_t nchars = getline(&line, &nalloc, stdin);
+    if (nchars < 0)
+    {
+        BLAMMO(ERROR, "getline() failed with errno %d", errno);
+        free(line);
+        return NULL;
+    }
+
+    return line;
+}
+#endif
+
+//------------------------------------------------------------------------|
 static shell_t * shell_create(const char * prompt)
 {
     // Allocate and initialize public interface
@@ -142,6 +187,7 @@ static shell_t * shell_create(const char * prompt)
 
     // Initialize prompt string
     priv->prompt = (char *) prompt;
+    priv->delim = " \t\n";
 
     // Create the top-level list of commands
     priv->cmds = shellcmd_pub.create(NULL, NULL, NULL, NULL);
@@ -188,6 +234,19 @@ static shell_t * shell_create(const char * prompt)
                     NULL,
                     "exit the shell command handling loop"));
 
+
+#ifdef LINENOISE_ENABLE
+    // Set the completion callback, for when <tab> is pressed
+    linenoiseSetCompletionCallback(linenoise_completion);
+
+    // Set the hints callback for when arguments are needed
+    linenoiseSetHintsCallback(linenoise_hints);
+
+    // Load command history from file.
+    //linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
+
+#endif
+
     return shell;
 }
 
@@ -231,11 +290,16 @@ static inline shellcmd_t * shell_commands(shell_t * shell)
 static int shell_loop(shell_t * shell)
 {
     shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    char * line = NULL;
 
     while (!priv->quit)
     {
         // TODO: Use either linenoise or getline
         // interpret command and execute handler
+        line = linenoise(priv->prompt);
+        BLAMMO(DEBUG, "line: %s", line);
+        free(line);
+
     }
 
     return 0;
