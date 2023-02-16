@@ -23,23 +23,29 @@
 
 #pragma once
 
-#include "shellcmd.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "shellcmd.h"
+
+//------------------------------------------------------------------------|
+// Maximum number of individual arguments
+#define SHELL_MAX_ARGS        32
+
 //------------------------------------------------------------------------|
 typedef struct shell_t
 {
-    struct shell_t * (*create)(const char * prompt);
+    struct shell_t * (*create)(const char * prompt,
+                               const char * delim,
+                               const char * comment);
 
     // Shell destructor function
     void (*destroy)(void * shell);
 
     // Get access to the command registry interface
-    shellcmd_t * (*commands)(struct shell_t * shell);
+    //shellcmd_t * (*commands)(struct shell_t * shell);
 
     // Main interactive prompt loop
     int (*loop)(struct shell_t * shell);

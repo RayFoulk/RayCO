@@ -21,14 +21,14 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-#include "shellcmd.h"
-#include "chain.h"
-#include "blammo.h"
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
+
+#include "shellcmd.h"
+#include "chain.h"
+#include "blammo.h"
 
 //------------------------------------------------------------------------|
 // Container for a command
@@ -44,6 +44,12 @@ typedef struct
 
     // command handler function taking arguments are returning int
     shellcmd_handler_f handler;
+
+    // A generic 'context' pointer.  This part will vary according
+    // to the specific use case of the command being handled.
+    // This is simply carried here and passed to the handler.
+    // It may be NULL if the handler doesn't use it.
+    void * context;
 
     // Note that this container does NOT own the memory for the command
     // keyword, argument hints, or description.  This is assumed to be
@@ -64,6 +70,7 @@ shellcmd_priv_t;
 
 //------------------------------------------------------------------------|
 static shellcmd_t * shellcmd_create(shellcmd_handler_f handler,
+                                    void * context,
                                     const char * keyword,
                                     const char * arghints,
                                     const char * description)
@@ -99,6 +106,7 @@ static shellcmd_t * shellcmd_create(shellcmd_handler_f handler,
 
     // Initialize most members
     priv->handler = handler;
+    priv->context = context;
     priv->keyword = (char *) keyword;
     priv->arghints = (char *) arghints;
     priv->description = (char *) description;
@@ -179,6 +187,18 @@ static shellcmd_t * shellcmd_find_by_keyword(shellcmd_t * shellcmd,
 }
 
 //------------------------------------------------------------------------|
+static inline void * shellcmd_exec(shellcmd_t * shellcmd,
+                                   int argc,
+                                   char ** args)
+{
+    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+
+    return priv->handler ?
+           priv->handler(shellcmd, priv->context, argc, args) :
+           NULL;
+}
+
+//------------------------------------------------------------------------|
 bool shellcmd_register_cmd(shellcmd_t * parent,
                            shellcmd_t * child)
 {
@@ -252,8 +272,8 @@ bool shellcmd_unregister_cmd(shellcmd_t * parent,
 const shellcmd_t shellcmd_pub = {
     &shellcmd_create,
     &shellcmd_destroy,
-    //&shellcmd_keyword_compare,
     &shellcmd_find_by_keyword,
+    &shellcmd_exec,
     &shellcmd_register_cmd,
     &shellcmd_unregister_cmd,
     NULL

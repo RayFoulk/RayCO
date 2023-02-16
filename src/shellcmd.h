@@ -30,7 +30,7 @@
 
 //------------------------------------------------------------------------|
 // Command handler function signature.
-typedef void * (*shellcmd_handler_f) (void * shell,
+typedef void * (*shellcmd_handler_f) (void * shellcmd,
                                       void * context,
                                       int argc,
                                       char ** args);
@@ -40,6 +40,7 @@ typedef struct shellcmd_t
 {
     // Shell command factory function
     struct shellcmd_t * (*create)(shellcmd_handler_f handler,
+                                  void * context,
                                   const char * keyword,
                                   const char * arghints,
                                   const char * description);
@@ -47,15 +48,12 @@ typedef struct shellcmd_t
     // Shell command destructor function
     void (*destroy)(void * shellcmd);
 
-    // callback function for searching through registered commands
-    // Signature must match what is used with qsort()
-    // TODO: Make this private if possible later
-    //int (*keyword_compare)(const void * shellcmd1,
-    //                       const void * shellcmd2);
-
     // Find a registered command by keyword
     struct shellcmd_t * (*find_by_keyword)(struct shellcmd_t * shellcmd,
                                            const char * keyword);
+
+    // Execute the command's handler function with args
+    void * (*exec)(struct shellcmd_t * shellcmd, int argc, char ** args);
 
     // Register a sub-command within the context of this command.
     // If this is serving as the root-level command, then this

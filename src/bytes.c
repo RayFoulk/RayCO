@@ -21,9 +21,6 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-#include "bytes.h"
-#include "blammo.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -31,6 +28,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
+
+#include "bytes.h"
+#include "blammo.h"
 
 //------------------------------------------------------------------------|
 // bytes private implementation data
@@ -253,6 +253,9 @@ static void bytes_append(bytes_t * bytes, const void * data, size_t size)
 static ssize_t bytes_read(struct bytes_t * bytes, void * data,
                           size_t count, size_t offset)
 {
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    // range check offset
+    // use memcpy
     return -1;
 }
 
@@ -260,18 +263,23 @@ static ssize_t bytes_read(struct bytes_t * bytes, void * data,
 static ssize_t bytes_write(struct bytes_t * bytes, const void * data,
                            size_t count, size_t offset)
 {
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    // range check offset
+    // use memcpy
     return -1;
 }
 
 //------------------------------------------------------------------------|
 static size_t bytes_trim(bytes_t * bytes)
 {
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
     return 0;
 }
 
 //------------------------------------------------------------------------|
 static bytes_t * bytes_copy(bytes_t * bytes)
 {
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
     bytes_t * copy = NULL;
 
     return copy;
@@ -280,6 +288,7 @@ static bytes_t * bytes_copy(bytes_t * bytes)
 //------------------------------------------------------------------------|
 static bytes_t * bytes_split(bytes_t * bytes, size_t begin, size_t end)
 {
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
     bytes_t * seg = NULL;
 
     return seg;
@@ -288,6 +297,7 @@ static bytes_t * bytes_split(bytes_t * bytes, size_t begin, size_t end)
 //------------------------------------------------------------------------|
 static bool bytes_join(bytes_t * head, bytes_t * tail)
 {
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
 
     return true;
 }
