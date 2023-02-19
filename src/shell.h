@@ -32,7 +32,10 @@
 
 //------------------------------------------------------------------------|
 // Maximum number of individual arguments
-#define SHELL_MAX_ARGS        32
+#define SHELL_MAX_ARGS          32
+
+// Maximum recursion depth to avoid stack smashing
+#define SHELL_MAX_RECURS        64
 
 //------------------------------------------------------------------------|
 typedef struct shell_t
@@ -44,8 +47,13 @@ typedef struct shell_t
     // Shell destructor function
     void (*destroy)(void * shell);
 
-    // Get access to the command registry interface
-    //shellcmd_t * (*commands)(struct shell_t * shell);
+    // Get access to the command registry interface.
+    // This is necessary for third-party command registration!
+    shellcmd_t * (*commands)(struct shell_t * shell);
+
+    // Handle a raw line of input, calling whatever
+    // handler functions are necessary.
+    int (*dispatch)(struct shell_t * shell, char * line);
 
     // Main interactive prompt loop
     int (*loop)(struct shell_t * shell);

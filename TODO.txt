@@ -19,3 +19,9 @@ X pass in link dtor function to delete and destroy, do not cache
 - add install and uninstall phony targets
 - add PRNG library (for targets that don't have one already)
     - xoshiro / xoroshiro generators and the PRNG shootout http://prng.di.unimi.it/
+
+----------------------------
+- re-evaluate / manage all of the above tasks
+- consider returning int instead of void * for shellcmd handlers
+- consider other builtin commands: print, (dereference object???)
+

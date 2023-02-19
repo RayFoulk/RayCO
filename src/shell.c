@@ -53,6 +53,9 @@ typedef struct
     // set true to break out of main loop
     bool quit;
 
+    // Recursion depth for when executing scripts/procedures
+    size_t depth;
+
     // FIXME: Eventually make this more dynamic
     // maybe use bytes_t?  remember size?
     char * prompt;
@@ -72,16 +75,16 @@ shell_priv_t;
 
 //------------------------------------------------------------------------|
 // Built-In command handler functions
-static void * builtin_handler_log(void * shellcmd,
-                                  void * context,
-                                  int argc,
-                                  char ** args)
+static int builtin_handler_log(void * shellcmd,
+                               void * context,
+                               int argc,
+                               char ** args)
 {
     // Everyone needs a log.  You're gonna love it, log.
     if (argc < 2)
     {
         BLAMMO(ERROR, "Not enough arguments for log command");
-        return NULL;
+        return -1;
     }
 
     // Find and execute subcommand
@@ -90,102 +93,137 @@ static void * builtin_handler_log(void * shellcmd,
     if (!cmd)
     {
         BLAMMO(WARNING, "Sub-command %s not found", args[1]);
-        return NULL;
+        return -2;
     }
 
     return cmd->exec(cmd, --argc, &args[1]);
 }
 
-static void * builtin_handler_log_level(void * shellcmd,
-                                        void * context,
-                                        int argc,
-                                        char ** args)
+static int builtin_handler_log_level(void * shellcmd,
+                                     void * context,
+                                     int argc,
+                                     char ** args)
 {
     // Everyone needs a log.  You're gonna love it, log.
     if (argc < 2)
     {
         BLAMMO(ERROR, "Expected a numeric argument for level");
-        return NULL;
+        return -1;
     }
 
     size_t level = strtoul(args[1], NULL, 0);
     BLAMMO(INFO, "Setting log level to %u", level);
     BLAMMO_LEVEL(level);
 
-    return NULL;
+    return 0;
 }
 
-static void * builtin_handler_log_file(void * shellcmd,
-                                       void * context,
-                                       int argc,
-                                       char ** args)
+static int builtin_handler_log_file(void * shellcmd,
+                                    void * context,
+                                    int argc,
+                                    char ** args)
 {
     // Everyone needs a log.  You're gonna love it, log.
     if (argc < 2)
     {
         BLAMMO(ERROR, "Expected a file path argument");
-        return NULL;
+        return -1;
     }
 
     BLAMMO(INFO, "Setting log file path to %s", args[1]);
     BLAMMO_FILE(args[1]);
 
-    return NULL;
+    return 0;
 }
 
-static void * builtin_handler_help(void * shellcmd,
-                                   void * context,
-                                   int argc,
-                                   char ** args)
+static int builtin_handler_source(void * shellcmd,
+                                  void * context,
+                                  int argc,
+                                  char ** args)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    BLAMMO(VERBOSE, "");
 
-    // The ubiquitous 'help' command is always there.
-    // FIXME: this is probably broken for non-root contexts
+    shell_t * shell = (shell_t *) context;
 
-//    shell_t * shellptr = (shell_t *) shell;
-//    shell_priv_t * priv = (shell_priv_t *) shellptr->priv;
-//    shellcmd_t * cmd = NULL;
-
-    /*  NEED RECURSIVE GET_HELP FROM ALL SUBCMDS
-    priv->cmds->reset(priv->cmds);
-    priv->cmds->spin(priv->cmds, 1);
-    while (!priv->cmds->origin(priv->cmds))
+    if (argc < 2)
     {
-        cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
-        (void) cmd;
-
-        // FIXME: Console output versus blammo output
-        BLAMMO(INFO, "%s  %s  %s", cmd->keyword,
-                                   cmd->arghints,
-                                   cmd->description);
-
-        priv->cmds->spin(priv->cmds, 1);
+        BLAMMO(ERROR, "Expected a file path argument");
+        return -1;
     }
-    */
 
-    return NULL;
+    FILE * source = fopen(args[1], "r");
+    if (!source)
+    {
+        BLAMMO(ERROR, "Could not open %s for reading", args[1]);
+        return -2;
+    }
+
+    // Similar to shell->loop() but getting input from FILE
+    // It is a design choice to not reuse/repurpose the
+    // get_command_line() macro here: That implies echoing
+    // both the prompt and the commands read to stdout, and
+    // that is not something I want happening.
+    char * line = NULL;
+    size_t nalloc = 0;
+    ssize_t nchars = 0;
+    int result = 0;
+
+    while (!feof(source))
+    {
+        nchars = getline(&line, &nalloc, source);
+        if (nchars < 0)
+        {
+            // Can happen normally when at last line just before EOF
+            BLAMMO(WARNING, "getline(%s) failed with errno %d strerror %s",
+                            args[1], errno, strerror(errno));
+            fclose(source);
+            free(line);
+            return 0;
+        }
+
+        result = shell->dispatch(shell, line);
+        BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
+
+        free(line);
+        line = NULL;
+    }
+
+    fclose(source);
+    return 0;
 }
 
-static void * builtin_handler_script(void * shellcmd,
-                                     void * context,
-                                     int argc,
-                                     char ** args)
+static int builtin_handler_help(void * shellcmd,
+                                void * context,
+                                int argc,
+                                char ** args)
 {
-    // FIXME: Implement me
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    shellcmd_t * cmd = (shellcmd_t *) shellcmd;
 
+    char * helptext = NULL;
+    size_t size = 0;
+    int result = cmd->help(cmd, &helptext, &size);
+
+    BLAMMO(INFO, "size: %u text: %s", size, helptext);
+
+    if (helptext)
+    {
+        free(helptext);
+        helptext = NULL;
+        size = 0;
+    }
+
+    return result;
 }
 
-static void * builtin_handler_quit(void * shellcmd,
-                                   void * context,
-                                   int argc,
-                                   char ** args)
+static int builtin_handler_quit(void * shellcmd,
+                                void * context,
+                                int argc,
+                                char ** args)
 {
     shell_t * shell = (shell_t *) context;
     shell_priv_t * priv = (shell_priv_t *) shell->priv;
     priv->quit = true;
-    return NULL;
+    return 0;
 }
 
 //------------------------------------------------------------------------|
@@ -209,8 +247,8 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
 
 #else
 
-// Function signature matches linenoise function,
-// but wraps around getline() library function
+// wrap getline, and use for interactive if there is no linenoise
+// submodule.  This is always used for scripts, however.
 static char * get_command_line(const char * prompt)
 {
     fprintf(stdout, "%s", prompt);
@@ -220,7 +258,8 @@ static char * get_command_line(const char * prompt)
     ssize_t nchars = getline(&line, &nalloc, stdin);
     if (nchars < 0)
     {
-        BLAMMO(ERROR, "getline() failed with errno %d", errno);
+        BLAMMO(ERROR, "getline() failed with errno %d strerror %s",
+                      errno, strerror(errno));
         free(line);
         return NULL;
     }
@@ -276,7 +315,7 @@ static shell_t * shell_create(const char * prompt,
             builtin_handler_log,
             NULL,
             "log",
-            "level|file <...>",
+            " level|file <...>",
             "change blammo logger options");
 
     priv->cmds->register_cmd(priv->cmds, log);
@@ -286,7 +325,7 @@ static shell_t * shell_create(const char * prompt,
                 builtin_handler_log_level,
                 NULL,
                 "level",
-                "<0..5>",
+                " <0..5>",
                 "change the blammo log message level (0=VERBOSE, 5=FATAL)"));
 
     log->register_cmd(log,
@@ -294,8 +333,16 @@ static shell_t * shell_create(const char * prompt,
                 builtin_handler_log_file,
                 NULL,
                 "file",
-                "<path>",
+                " <path>",
                 "change the blammo log file path"));
+
+    priv->cmds->register_cmd(priv->cmds,
+            priv->cmds->create(
+                    builtin_handler_source,
+                    shell,
+                    "source",
+                    " <path>",
+                    "load and run a command script"));
 
     priv->cmds->register_cmd(priv->cmds,
             priv->cmds->create(
@@ -362,17 +409,27 @@ static void shell_destroy(void * shell_ptr)
 }
 
 //------------------------------------------------------------------------|
-//static inline shellcmd_t * shell_commands(shell_t * shell)
-//{
-//    shell_priv_t * priv = (shell_priv_t *) shell->priv;
-//    return priv->cmds;
-//}
-
-//------------------------------------------------------------------------|
-static int shell_loop(shell_t * shell)
+static inline shellcmd_t * shell_commands(shell_t * shell)
 {
     shell_priv_t * priv = (shell_priv_t *) shell->priv;
-    char * line = NULL;
+    return priv->cmds;
+}
+
+//------------------------------------------------------------------------|
+int shell_dispatch(shell_t * shell, char * line)
+{
+    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    BLAMMO(VERBOSE, "priv: %p depth: %u line: %s",
+                    priv, priv->depth, line);
+
+    // Keep track of recursion depth here
+    priv->depth++;
+    if (priv->depth > SHELL_MAX_RECURS)
+    {
+        BLAMMO(ERROR, "Maximum recursion depth %u reached",
+                      SHELL_MAX_RECURS);
+        return -1;
+    }
 
     // For splitting command line into args[]
     char * args[SHELL_MAX_ARGS];
@@ -381,7 +438,54 @@ static int shell_loop(shell_t * shell)
 
     // For getting a handle on the command to be executed
     shellcmd_t * cmd = NULL;
-    void * result = NULL;
+    int result = 0;
+
+    // Clear and split the line into args[]
+    memset(args, 0, sizeof(args));
+    argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
+
+    // Specifically ignore comments by searching through
+    // the list and simply reducing the effective arg count
+    // where comment string is identified
+    for (words = 0; words < argc; words++)
+    {
+        if (!strncmp(args[words], priv->comment, strlen(priv->comment)))
+        {
+            BLAMMO(VERBOSE, "Found comment %s at arg %u",
+                            priv->comment, words);
+            break;
+        }
+    }
+    argc = words;
+
+    // Ignore empty input
+    if (argc == 0)
+    {
+        BLAMMO(VERBOSE, "Ignoring empty line");
+        priv->depth--;
+        return 0;
+    }
+
+    // Try to find the command being invoked
+    cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
+    if (!cmd)
+    {
+        BLAMMO(WARNING, "Command %s not found", args[0]);
+        priv->depth--;
+        return -1;
+    }
+
+    result = (int) (ssize_t) cmd->exec(cmd, argc, args);
+    priv->depth--;
+    return result;
+}
+
+//------------------------------------------------------------------------|
+static int shell_loop(shell_t * shell)
+{
+    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    char * line = NULL;
+    int result = 0;
 
     while (!priv->quit)
     {
@@ -389,55 +493,22 @@ static int shell_loop(shell_t * shell)
         line = get_command_line(priv->prompt);
         BLAMMO(DEBUG, "line: %s", line);
 
-        // Clear and split the line into args[]
-        memset(args, 0, sizeof(args));
-        argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
-
-        // Specifically ignore comments by searching through
-        // the list and simply reducing the effective arg count
-        // where comment string is identified
-        for (words = 0; words < argc; words++)
-        {
-            if (!strncmp(args[words], priv->comment, strlen(priv->comment)))
-            {
-                BLAMMO(VERBOSE, "Found comment %s at arg %u",
-                                priv->comment, words);
-                break;
-            }
-        }
-        argc = words;
-
-        // Ignore empty input
-        if (argc == 0)
-        {
-            BLAMMO(VERBOSE, "Ignoring empty line");
-            continue;
-        }
-
-        // Try to find the command being invoked
-        cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
-        if (!cmd)
-        {
-            BLAMMO(WARNING, "Command %s not found", args[0]);
-        }
-        else
-        {
-            result = cmd->exec(cmd, argc, args);
-            BLAMMO(INFO, "Result of exec(%s) is %p", args[0], result);
-        }
+        result = shell->dispatch(shell, line);
+        BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 
         free(line);
+        line = NULL;
     }
 
     return 0;
 }
 
-
 //------------------------------------------------------------------------|
 const shell_t shell_pub = {
     &shell_create,
     &shell_destroy,
-    //&shell_commands,
+    &shell_commands,
+    &shell_dispatch,
     &shell_loop,
     NULL
 };

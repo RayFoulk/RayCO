@@ -30,10 +30,10 @@
 
 //------------------------------------------------------------------------|
 // Command handler function signature.
-typedef void * (*shellcmd_handler_f) (void * shellcmd,
-                                      void * context,
-                                      int argc,
-                                      char ** args);
+typedef int (*shellcmd_handler_f) (void * shellcmd,
+                                   void * context,
+                                   int argc,
+                                   char ** args);
 
 //------------------------------------------------------------------------|
 typedef struct shellcmd_t
@@ -53,7 +53,13 @@ typedef struct shellcmd_t
                                            const char * keyword);
 
     // Execute the command's handler function with args
-    void * (*exec)(struct shellcmd_t * shellcmd, int argc, char ** args);
+    int (*exec)(struct shellcmd_t * shellcmd,
+                int argc,
+                char ** args);
+
+    int (*help)(struct shellcmd_t * shellcmd,
+                char ** helptext,
+                size_t * size);
 
     // Register a sub-command within the context of this command.
     // If this is serving as the root-level command, then this

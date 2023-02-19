@@ -187,15 +187,48 @@ static shellcmd_t * shellcmd_find_by_keyword(shellcmd_t * shellcmd,
 }
 
 //------------------------------------------------------------------------|
-static inline void * shellcmd_exec(shellcmd_t * shellcmd,
-                                   int argc,
-                                   char ** args)
+static inline int shellcmd_exec(shellcmd_t * shellcmd,
+                                int argc,
+                                char ** args)
 {
     shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
 
     return priv->handler ?
            priv->handler(shellcmd, priv->context, argc, args) :
-           NULL;
+           0;
+}
+
+//------------------------------------------------------------------------|
+static int shellcmd_help(shellcmd_t * shellcmd,
+                         char ** helptext,
+                         size_t * size)
+{
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+
+
+    //    shell_t * shellptr = (shell_t *) shell;
+    //    shell_priv_t * priv = (shell_priv_t *) shellptr->priv;
+    //    shellcmd_t * cmd = NULL;
+
+        /*  NEED RECURSIVE GET_HELP FROM ALL SUBCMDS
+        priv->cmds->reset(priv->cmds);
+        priv->cmds->spin(priv->cmds, 1);
+        while (!priv->cmds->origin(priv->cmds))
+        {
+            cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
+            (void) cmd;
+
+            // FIXME: Console output versus blammo output
+            BLAMMO(INFO, "%s  %s  %s", cmd->keyword,
+                                       cmd->arghints,
+                                       cmd->description);
+
+            priv->cmds->spin(priv->cmds, 1);
+        }
+        */
+
+
+    return 0;
 }
 
 //------------------------------------------------------------------------|
@@ -274,6 +307,7 @@ const shellcmd_t shellcmd_pub = {
     &shellcmd_destroy,
     &shellcmd_find_by_keyword,
     &shellcmd_exec,
+    &shellcmd_help,
     &shellcmd_register_cmd,
     &shellcmd_unregister_cmd,
     NULL
