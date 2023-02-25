@@ -43,7 +43,6 @@
 // pattern on the shell object.  It's not likely to have multiple
 // simultaneous shell objects per process so it's probably not a big deal.
 static void * singleton_shell_ptr = NULL;
-static void * shellcmd_tree_ptr = NULL;
 
 #endif
 
@@ -271,31 +270,11 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     shell_t * shell = (shell_t *) singleton_shell_ptr;
     shell_priv_t * priv = (shell_priv_t *) shell->priv;
 
-    // Prepare to do a recursive dive into the hints function.
-    // Initialize the shellcmd tree pointer.  This must always
-    // point to a shellcmd_t instance within the command tree.
-    if (!shellcmd_tree_ptr)
-    {
-        shellcmd_tree_ptr = (void *) priv->cmds;
-    }
-
-    // cache the hints to be returned because we'll always have to
-    // manage global pointers recursively.
-    char * arghints = NULL;
-
-
-    // Get a handle on the specific command for which to get hints
-    shellcmd_t * cmd = NULL;
-
-    ////
-
     // Do full split on mock command line in order to preemptively
     // distinguish which specific command is about to be invoked so that
     // proper hints can be given.  Otherwise this cannot
     // distinguish between 'create' and 'created' for example.
     char * line = strdup(buf);
-
-    // For splitting command line into args[]
     char * args[SHELL_MAX_ARGS];
     size_t argc = 0;
 
@@ -309,8 +288,6 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     if (argc == 0)
     {
         free(line);
-        line = NULL;
-        shellcmd_tree_ptr = NULL;
         return NULL;
     }
 
@@ -323,37 +300,32 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     int hintc = 0;
     int hint_index = 0;
 
+    // Hint strategy: match as many keywords as possible, traversing a single
+    // path down the sub-command tree.  When we no longer have a matching
+    // keyword, then display the hints for the last known matching command.
+    // This should fail and return NULL right out of the gate if the first
+    // keyord does not match.
+    shellcmd_t * parent = priv->cmds;
+    shellcmd_t * cmd = NULL;
+    int i = 0;
 
-    // Try to find the command being invoked
-    cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
-    if (!cmd)
+    for (i = 0; i < argc; i++)
     {
-        BLAMMO(WARNING, "Command %s not found", args[0]);
-        arghints = (char *) priv->cmds->arghints(priv->cmds);
+        // Try to find each nested command by keyword
+        cmd = priv->cmds->find_by_keyword(parent, args[i]);
+        if (!cmd)
+        {
+            BLAMMO(DEBUG, "Command %s not found", args[i]);
+            free(line);
+            return (char *) parent->arghints(parent);
+        }
 
-        free(line);
-        line = NULL;
-        shellcmd_tree_ptr = NULL;
-        return arghints;
+        BLAMMO(DEBUG, "Command %s found!", args[i]);
+        parent = cmd;
     }
 
-    // STRATEGY:
-    // IF COMMAND IS FOUND, THEN ADJUST BUF PTR TO ARGS[1]
-    // AND RECURSIVELY CALL linenoise_hints() ON THAT.
-    // AT THE DEPTH WHERE A MATCH IS NOT FOUND, IT IS EITHER
-    // BECAUSE THE ARGUMENT IS NOT A KEYWORD BUT A VALUE,
-    // OR ELSE NO FURTHER MATCHING ARGUMENT IS EXPECTED.
-    // RETURN THE HINT __AT THAT LEVEL___
-    shellcmd_tree_ptr = cmd;
-    arghints = linenoise_hints(NULL, color, bold);
-
-
-
-
     free(line);
-    line = NULL;
-    shellcmd_tree_ptr = NULL;
-    return arghints;
+    return NULL;
 }
 
 // Redirect get_command_line to linenoise
