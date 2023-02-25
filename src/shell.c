@@ -37,13 +37,14 @@
 #ifdef LINENOISE_ENABLE
 #include "linenoise.h"
 
-// This is really kind of terrible, forcing a singleton-ish pattern
-// on the shell object.  Conceivably, you could have multiple simultaneous
-// shell instances operating over different pipes, but in practice you can
-// only have one (per tty, anyway) that operates on stdin/stdout.
-// linenoise itself would have to be modified to support contexts passed
-// into the callbacks in order to avoid this.
-static shellcmd_t * shellcmdptr = NULL;
+// Kind of distasteful, but short of drastically modifying linenoise
+// itself, this appears to be the cost of getting nested tab completion
+// and argument hints via that submodule.  This forces a singleton-ish
+// pattern on the shell object.  It's not likely to have multiple
+// simultaneous shell objects per process so it's probably not a big deal.
+static void * singleton_shell_ptr = NULL;
+static void * shellcmd_tree_ptr = NULL;
+
 #endif
 
 //------------------------------------------------------------------------|
@@ -111,7 +112,7 @@ static int builtin_handler_log_level(void * shellcmd,
         return -1;
     }
 
-    size_t level = strtoul(args[1], NULL, 0);
+    BLAMMO_DECLARE(size_t level = strtoul(args[1], NULL, 0));
     BLAMMO(INFO, "Setting log level to %u", level);
     BLAMMO_LEVEL(level);
 
@@ -184,6 +185,9 @@ static int builtin_handler_source(void * shellcmd,
         result = shell->dispatch(shell, line);
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 
+        // TODO possibly store result in priv, or else report on console
+        (void) result;
+
         free(line);
         line = NULL;
     }
@@ -227,6 +231,29 @@ static int builtin_handler_quit(void * shellcmd,
 }
 
 //------------------------------------------------------------------------|
+// Small private helper function to strip comments
+static int shell_ignore_comments(shell_t * shell, int argc, char ** args)
+{
+    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    size_t words = 0;
+
+    // Specifically ignore comments by searching through
+    // the list and simply reducing the effective arg count
+    // where comment string is identified
+    for (words = 0; words < argc; words++)
+    {
+        if (!strncmp(args[words], priv->comment, strlen(priv->comment)))
+        {
+            BLAMMO(VERBOSE, "Found comment %s at arg %u",
+                            priv->comment, words);
+            break;
+        }
+    }
+
+    return words;
+}
+
+//------------------------------------------------------------------------|
 #ifdef LINENOISE_ENABLE
 
 // Linenoise-only callback function for tab completion
@@ -238,8 +265,95 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
 // Linenoise-only callback for argument hints
 static char * linenoise_hints(const char * buf, int * color, int * bold)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    return NULL;
+    BLAMMO(DEBUG, "buf: \'%s\'", buf);
+
+    // Always get a handle on the singleton shell
+    shell_t * shell = (shell_t *) singleton_shell_ptr;
+    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+
+    // Prepare to do a recursive dive into the hints function.
+    // Initialize the shellcmd tree pointer.  This must always
+    // point to a shellcmd_t instance within the command tree.
+    if (!shellcmd_tree_ptr)
+    {
+        shellcmd_tree_ptr = (void *) priv->cmds;
+    }
+
+    // cache the hints to be returned because we'll always have to
+    // manage global pointers recursively.
+    char * arghints = NULL;
+
+
+    // Get a handle on the specific command for which to get hints
+    shellcmd_t * cmd = NULL;
+
+    ////
+
+    // Do full split on mock command line in order to preemptively
+    // distinguish which specific command is about to be invoked so that
+    // proper hints can be given.  Otherwise this cannot
+    // distinguish between 'create' and 'created' for example.
+    char * line = strdup(buf);
+
+    // For splitting command line into args[]
+    char * args[SHELL_MAX_ARGS];
+    size_t argc = 0;
+
+    // Clear and split the line into args[]
+    memset(args, 0, sizeof(args));
+    argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
+    argc = shell_ignore_comments(shell, argc, args);
+    BLAMMO(DEBUG, "argc: %u\r", argc);
+
+    // Ignore empty input
+    if (argc == 0)
+    {
+        free(line);
+        line = NULL;
+        shellcmd_tree_ptr = NULL;
+        return NULL;
+    }
+
+    // https://stackoverflow.com/questions/13078926/is-there-a-way-to-count-tokens-in-c
+    // A more lightweight approach would be to count tokens without
+    // modifying the original string.  This might, however, not allow us
+    // to strcmp() as easily.  The purpose is to determine which args
+    // have been fulfilled and to only show hints for unfulfilled args.
+    char * hints[SHELL_MAX_ARGS] = { NULL };
+    int hintc = 0;
+    int hint_index = 0;
+
+
+    // Try to find the command being invoked
+    cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
+    if (!cmd)
+    {
+        BLAMMO(WARNING, "Command %s not found", args[0]);
+        arghints = (char *) priv->cmds->arghints(priv->cmds);
+
+        free(line);
+        line = NULL;
+        shellcmd_tree_ptr = NULL;
+        return arghints;
+    }
+
+    // STRATEGY:
+    // IF COMMAND IS FOUND, THEN ADJUST BUF PTR TO ARGS[1]
+    // AND RECURSIVELY CALL linenoise_hints() ON THAT.
+    // AT THE DEPTH WHERE A MATCH IS NOT FOUND, IT IS EITHER
+    // BECAUSE THE ARGUMENT IS NOT A KEYWORD BUT A VALUE,
+    // OR ELSE NO FURTHER MATCHING ARGUMENT IS EXPECTED.
+    // RETURN THE HINT __AT THAT LEVEL___
+    shellcmd_tree_ptr = cmd;
+    arghints = linenoise_hints(NULL, color, bold);
+
+
+
+
+    free(line);
+    line = NULL;
+    shellcmd_tree_ptr = NULL;
+    return arghints;
 }
 
 // Redirect get_command_line to linenoise
@@ -371,9 +485,10 @@ static shell_t * shell_create(const char * prompt,
     // Load command history from file.
     //linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
 
-    // Set global pointer to shell commands.  This will break if
-    // ever multiple shells are created.
-    shellcmdptr = priv->cmds;
+    // Set global pointer to shell object.  WARNING: This will break if
+    // multiple shells are created, resulting in hints/completion for the
+    // wrong object!
+    singleton_shell_ptr = (void *) shell;
 #endif
 
     return shell;
@@ -406,6 +521,11 @@ static void shell_destroy(void * shell_ptr)
     // zero out and destroy the public interface
     memset(shell, 0, sizeof(shell_t));
     free(shell);
+
+#ifdef LINENOISE_ENABLE
+    singleton_shell_ptr = NULL;
+#endif
+
 }
 
 //------------------------------------------------------------------------|
@@ -416,7 +536,7 @@ static inline shellcmd_t * shell_commands(shell_t * shell)
 }
 
 //------------------------------------------------------------------------|
-int shell_dispatch(shell_t * shell, char * line)
+static int shell_dispatch(shell_t * shell, char * line)
 {
     shell_priv_t * priv = (shell_priv_t *) shell->priv;
     BLAMMO(VERBOSE, "priv: %p depth: %u line: %s",
@@ -431,32 +551,18 @@ int shell_dispatch(shell_t * shell, char * line)
         return -1;
     }
 
-    // For splitting command line into args[]
-    char * args[SHELL_MAX_ARGS];
-    size_t argc = 0;
-    size_t words = 0;
-
     // For getting a handle on the command to be executed
     shellcmd_t * cmd = NULL;
     int result = 0;
 
+    // For splitting command line into args[]
+    char * args[SHELL_MAX_ARGS];
+    size_t argc = 0;
+
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
     argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
-
-    // Specifically ignore comments by searching through
-    // the list and simply reducing the effective arg count
-    // where comment string is identified
-    for (words = 0; words < argc; words++)
-    {
-        if (!strncmp(args[words], priv->comment, strlen(priv->comment)))
-        {
-            BLAMMO(VERBOSE, "Found comment %s at arg %u",
-                            priv->comment, words);
-            break;
-        }
-    }
-    argc = words;
+    argc = shell_ignore_comments(shell, argc, args);
 
     // Ignore empty input
     if (argc == 0)
@@ -495,6 +601,9 @@ static int shell_loop(shell_t * shell)
 
         result = shell->dispatch(shell, line);
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
+
+        // TODO possibly store result in priv, or else report on console
+        (void) result;
 
         free(line);
         line = NULL;

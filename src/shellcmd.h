@@ -57,6 +57,10 @@ typedef struct shellcmd_t
                 int argc,
                 char ** args);
 
+    // Get argument hints for _this_ command
+    const char * (*arghints)(struct shellcmd_t * shellcmd);
+
+    // Recursively get full help text for _this_ and all sub-commands
     int (*help)(struct shellcmd_t * shellcmd,
                 char ** helptext,
                 size_t * size);
