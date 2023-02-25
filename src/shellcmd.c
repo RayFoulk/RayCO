@@ -199,6 +199,13 @@ static inline int shellcmd_exec(shellcmd_t * shellcmd,
 }
 
 //------------------------------------------------------------------------|
+static inline const char * shellcmd_arghints(shellcmd_t * shellcmd)
+{
+    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    return priv->arghints;
+}
+
+//------------------------------------------------------------------------|
 static int shellcmd_help(shellcmd_t * shellcmd,
                          char ** helptext,
                          size_t * size)
@@ -307,6 +314,7 @@ const shellcmd_t shellcmd_pub = {
     &shellcmd_destroy,
     &shellcmd_find_by_keyword,
     &shellcmd_exec,
+    &shellcmd_arghints,
     &shellcmd_help,
     &shellcmd_register_cmd,
     &shellcmd_unregister_cmd,
