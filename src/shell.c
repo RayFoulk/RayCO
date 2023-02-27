@@ -258,7 +258,13 @@ static int shell_ignore_comments(shell_t * shell, int argc, char ** args)
 // Linenoise-only callback function for tab completion
 static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    BLAMMO(DEBUG, "buf: \'%s\'", buf);
+
+    // Always get a handle on the singleton shell
+    shell_t * shell = (shell_t *) singleton_shell_ptr;
+    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+
+
 }
 
 // Linenoise-only callback for argument hints
@@ -291,15 +297,6 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
         return NULL;
     }
 
-    // https://stackoverflow.com/questions/13078926/is-there-a-way-to-count-tokens-in-c
-    // A more lightweight approach would be to count tokens without
-    // modifying the original string.  This might, however, not allow us
-    // to strcmp() as easily.  The purpose is to determine which args
-    // have been fulfilled and to only show hints for unfulfilled args.
-    char * hints[SHELL_MAX_ARGS] = { NULL };
-    int hintc = 0;
-    int hint_index = 0;
-
     // Hint strategy: match as many keywords as possible, traversing a single
     // path down the sub-command tree.  When we no longer have a matching
     // keyword, then display the hints for the last known matching command.
@@ -307,25 +304,67 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     // keyord does not match.
     shellcmd_t * parent = priv->cmds;
     shellcmd_t * cmd = NULL;
-    int i = 0;
+    int nest = 0;
 
-    for (i = 0; i < argc; i++)
+    for (nest = 0; nest < argc; nest++)
     {
         // Try to find each nested command by keyword
-        cmd = priv->cmds->find_by_keyword(parent, args[i]);
+        cmd = priv->cmds->find_by_keyword(parent, args[nest]);
         if (!cmd)
         {
-            BLAMMO(DEBUG, "Command %s not found", args[i]);
-            free(line);
-            return (char *) parent->arghints(parent);
+            BLAMMO(DEBUG, "Command %s not found", args[nest]);
+            break;
         }
 
-        BLAMMO(DEBUG, "Command %s found!", args[i]);
+        BLAMMO(DEBUG, "Command %s found!", args[nest]);
         parent = cmd;
     }
 
+    // No longer referencing args, OK to free underlying line
     free(line);
-    return NULL;
+
+    // Return early before processing hints if there are none
+    if (!parent->arghints(parent))
+    {
+        BLAMMO(DEBUG, "No arg hints to provide");
+        return NULL;
+    }
+
+    // https://stackoverflow.com/questions/13078926/is-there-a-way-to-count-tokens-in-c
+    // Count tokens without modifying the original string, rather than
+    // allocating another buffer.   The purpose is to determine which args
+    // have been fulfilled and to only show hints for unfulfilled args.
+    char * hints[SHELL_MAX_ARGS] = { NULL };
+    int hintc = 0;
+    int hindex = 0;
+
+    memset(hints, 0, sizeof(hints));
+    hintc = markstr(hints, SHELL_MAX_ARGS, parent->arghints(parent), priv->delim);
+    BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d\r",
+            parent->arghints(parent), hintc, argc, nest);
+
+    // Only show hints for expected arguments that have not already been
+    // fulfilled.  Number of hints is relative to the nested sub-command
+    // and not absolute to the base command.  Also, the User may provide
+    // extra arguments which will likely just be ignored by whatever
+    // handler function consumes them.  The Number of hints to show is a
+    // function of number of hints _available_ (hintc), number of args
+    // provided (argc), and the nest level.
+    hindex = argc - nest;
+
+    BLAMMO(DEBUG, "Uncoerced index is %d", hindex);
+    if (hindex < 0 || hindex >= hintc)
+    {
+        BLAMMO(DEBUG, "Invalid hint index");
+        return NULL;
+    }
+
+    // TODO: Make these constants or defines
+    *color = 35;
+    *bold = 0;
+
+    // Backup one character assuming there is a leading space
+    return hints[hindex] - 1;
 }
 
 // Redirect get_command_line to linenoise
@@ -401,7 +440,7 @@ static shell_t * shell_create(const char * prompt,
             builtin_handler_log,
             NULL,
             "log",
-            " level|file <...>",
+            " [level|file] <...>",
             "change blammo logger options");
 
     priv->cmds->register_cmd(priv->cmds, log);
