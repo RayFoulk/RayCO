@@ -264,7 +264,101 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
     shell_t * shell = (shell_t *) singleton_shell_ptr;
     shell_priv_t * priv = (shell_priv_t *) shell->priv;
 
+    // Do full split on mock command line so that we can match
+    // fully qualified keywords up to and including incomplete
+    // commands that need tab-completion added.  The original
+    // buffer cannot be altered or it will break line editing.
+    char * line = strdup(buf);
+    char * args[SHELL_MAX_ARGS];
+    size_t argc = 0;
 
+    // Clear and split the line into args[]
+    memset(args, 0, sizeof(args));
+    argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
+    argc = shell_ignore_comments(shell, argc, args);
+    BLAMMO(DEBUG, "argc: %u", argc);
+
+    // Ignore empty input
+    if (argc == 0)
+    {
+        free(line);
+        return;
+    }
+
+    // Strategy: the final unmatched command is the one that
+    // may require tab completion.  Match known command keywords
+    // as far as possible before making suggestions on incomplete
+    // arguments/keywords
+    shellcmd_t * parent = priv->cmds;
+    shellcmd_t * cmd = NULL;
+    int nest = 0;
+
+    for (nest = 0; nest < argc; nest++)
+    {
+        // Try to find each nested command by keyword
+        cmd = priv->cmds->find_by_keyword(parent, args[nest]);
+        if (!cmd)
+        {
+            BLAMMO(DEBUG, "Command %s not found", args[nest]);
+            break;
+        }
+
+        BLAMMO(DEBUG, "Command %s found!", args[nest]);
+        parent = cmd;
+    }
+
+    BLAMMO(DEBUG, "parent keyword: %s  args[%d]: %s",
+            parent->keyword(parent), nest, args[nest]);
+
+    // Search through the parent command's sub-commands, but by starting
+    // letter(s)/sub-string match rather than by first full keyword
+    // match.  This returns a list of possible keywords that match the
+    // given substring.  I.E. given: "lo" return [logoff, log, local]
+    chain_t * pmatches = parent->partial_matches(parent, args[nest]);
+    free(line);
+    if (!pmatches) { return; }
+    BLAMMO(DEBUG, "partial_matches length: %u",
+                  pmatches->length(pmatches));
+
+    // Need to duplicate the line again, but this time leave the copy
+    // mostly intact except that we want to modify the potentially
+    // tab-completed argument in place and then feed the whole thing
+    // back to linenoise.  Just re-use the existing declared variables.
+    // Basically strdup() manually, but allow some extra room for tab completed
+    // keyword.  Maybe can use strndup() with a big n instead???
+    char * keyword = NULL;
+    size_t length = strlen(buf);
+    size_t lsize = length + SHELLCMD_MAX_KEYWORD_SIZE;
+    line = (char *) malloc(lsize);
+    memcpy(line, buf, length);
+    line[length] = 0;
+
+    // get markers within unmodified copy of line
+    memset(args, 0, sizeof(args));
+    markstr(args, SHELL_MAX_ARGS, line, priv->delim);
+
+    // iterate through partially matched keywords
+    pmatches->reset(pmatches);
+    do
+    {
+        keyword = (char *) pmatches->data(pmatches);
+
+        // This is overkill, but easier to understand and implement than
+        // trying to track where the terminating zero is while iterating
+        // through keywords of varying length.  I'm sure there are tons
+        // of bugs in this code.  TODO: harden it up later with some
+        // static and dynamic analysis and complete unit tests!!!
+        memset(args[nest], 0, strlen(keyword) + 2);
+        memcpy(args[nest], keyword, strlen(keyword));
+
+        BLAMMO(DEBUG, "Adding tab completion line: \'%s\'", line);
+        linenoiseAddCompletion(lc, line);
+        pmatches->spin(pmatches, 1);
+    }
+    while (!pmatches->origin(pmatches));
+
+    free(line);
+    pmatches->destroy(pmatches);
 }
 
 // Linenoise-only callback for argument hints
@@ -288,7 +382,7 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     memset(args, 0, sizeof(args));
     argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
     argc = shell_ignore_comments(shell, argc, args);
-    BLAMMO(DEBUG, "argc: %u\r", argc);
+    BLAMMO(DEBUG, "argc: %u", argc);
 
     // Ignore empty input
     if (argc == 0)
@@ -340,7 +434,7 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
 
     memset(hints, 0, sizeof(hints));
     hintc = markstr(hints, SHELL_MAX_ARGS, parent->arghints(parent), priv->delim);
-    BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d\r",
+    BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d",
             parent->arghints(parent), hintc, argc, nest);
 
     // Only show hints for expected arguments that have not already been

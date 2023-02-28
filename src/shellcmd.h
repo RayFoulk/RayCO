@@ -28,6 +28,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "chain.h"          // chain_t
+
+//------------------------------------------------------------------------|
+// Maximum size of a keyword (loosely enforced)
+#define SHELLCMD_MAX_KEYWORD_SIZE       64
+
 //------------------------------------------------------------------------|
 // Command handler function signature.
 typedef int (*shellcmd_handler_f) (void * shellcmd,
@@ -52,10 +58,18 @@ typedef struct shellcmd_t
     struct shellcmd_t * (*find_by_keyword)(struct shellcmd_t * shellcmd,
                                            const char * keyword);
 
+    // Get a list of partially matching keywords.  The returned chain_t
+    // instance is expected to be destroyed by the caller.
+    struct chain_t * (*partial_matches)(struct shellcmd_t * shellcmd,
+                                        const char * substring);
+
     // Execute the command's handler function with args
     int (*exec)(struct shellcmd_t * shellcmd,
                 int argc,
                 char ** args);
+
+    // Get keyword for _this_ command
+    const char * (*keyword)(struct shellcmd_t * shellcmd);
 
     // Get argument hints for _this_ command
     const char * (*arghints)(struct shellcmd_t * shellcmd);
