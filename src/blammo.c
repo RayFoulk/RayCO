@@ -175,7 +175,7 @@ void blammo(const char * fpath, int line, const char * func,
     va_start(args, format);
     vfprintf(stdout, format, args); 
     va_end(args);
-    fprintf(stdout, "\n");
+    fprintf(stdout, "\r\n");
 
     // Log to file if available
     if (NULL != blammo_data.filename)
@@ -188,7 +188,7 @@ void blammo(const char * fpath, int line, const char * func,
             va_start(args, format);
             vfprintf(file, format, args);
             va_end(args);
-            fprintf(file, "\n");
+            fprintf(file, "\r\n");
             fflush(file);
             fclose(file);
         }

@@ -186,6 +186,41 @@ static shellcmd_t * shellcmd_find_by_keyword(shellcmd_t * shellcmd,
                                            shellcmd_keyword_compare);
 }
 
+static chain_t * shellcmd_partial_matches(shellcmd_t * shellcmd,
+                                          const char * substring)
+{
+    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    chain_t * pmatches = chain_pub.create(NULL);
+    shellcmd_t * cmd = NULL;
+
+    if (!substring)
+    {
+        return NULL;
+    }
+
+    size_t length = strlen(substring);
+
+    // Search through all sub-commands.
+    priv->cmds->reset(priv->cmds);
+    do
+    {
+        cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
+
+        BLAMMO(DEBUG, "checking \'%s\' against \'%s\'",
+                cmd->keyword(cmd), substring);
+
+        if (!strncmp(cmd->keyword(cmd), substring, length))
+        {
+            pmatches->insert(pmatches, (void *) cmd->keyword(cmd));
+        }
+
+        priv->cmds->spin(priv->cmds, 1);
+    }
+    while (!priv->cmds->origin(priv->cmds));
+
+    return pmatches;
+}
+
 //------------------------------------------------------------------------|
 static inline int shellcmd_exec(shellcmd_t * shellcmd,
                                 int argc,
@@ -196,6 +231,13 @@ static inline int shellcmd_exec(shellcmd_t * shellcmd,
     return priv->handler ?
            priv->handler(shellcmd, priv->context, argc, args) :
            0;
+}
+
+//------------------------------------------------------------------------|
+static inline const char * shellcmd_keyword(shellcmd_t * shellcmd)
+{
+    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    return priv->keyword;
 }
 
 //------------------------------------------------------------------------|
@@ -313,7 +355,9 @@ const shellcmd_t shellcmd_pub = {
     &shellcmd_create,
     &shellcmd_destroy,
     &shellcmd_find_by_keyword,
+    &shellcmd_partial_matches,
     &shellcmd_exec,
+    &shellcmd_keyword,
     &shellcmd_arghints,
     &shellcmd_help,
     &shellcmd_register_cmd,
