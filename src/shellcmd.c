@@ -187,20 +187,33 @@ static shellcmd_t * shellcmd_find_by_keyword(shellcmd_t * shellcmd,
 }
 
 static chain_t * shellcmd_partial_matches(shellcmd_t * shellcmd,
-                                          const char * substring)
+                                          const char * substring,
+                                          size_t * longest)
 {
     shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
-    chain_t * pmatches = chain_pub.create(NULL);
     shellcmd_t * cmd = NULL;
+    chain_t * pmatches = chain_pub.create(NULL);
 
-    if (!substring)
+    // substring might be NULL in some cases like when hitting
+    // tab after an already completed keyword without argument,
+    // but also the shellcmd could be a terminator in the
+    // sub-command tree, in which case priv->cmds is NULL.
+    if (!substring || !priv->cmds)
     {
+        BLAMMO(DEBUG, "substring: %p  sub-commands: %p",
+                      substring, priv->cmds);
         return NULL;
     }
 
-    size_t length = strlen(substring);
+    // Keep track of the longest match if the caller has asked.
+    if (longest)
+    {
+        *longest = 0;
+    }
 
     // Search through all sub-commands.
+    size_t length = 0;
+    size_t sublength = strlen(substring);
     priv->cmds->reset(priv->cmds);
     do
     {
@@ -208,10 +221,15 @@ static chain_t * shellcmd_partial_matches(shellcmd_t * shellcmd,
 
         BLAMMO(DEBUG, "checking \'%s\' against \'%s\'",
                 cmd->keyword(cmd), substring);
-
-        if (!strncmp(cmd->keyword(cmd), substring, length))
+        if (!strncmp(cmd->keyword(cmd), substring, sublength))
         {
             pmatches->insert(pmatches, (void *) cmd->keyword(cmd));
+            // Keep track of the longest match if the caller has asked.
+            if (longest)
+            {
+                length = strlen(cmd->keyword(cmd));
+                if (length > *longest) { *longest = length; }
+            }
         }
 
         priv->cmds->spin(priv->cmds, 1);
@@ -248,34 +266,51 @@ static inline const char * shellcmd_arghints(shellcmd_t * shellcmd)
 }
 
 //------------------------------------------------------------------------|
+static inline const char * shellcmd_description(shellcmd_t * shellcmd)
+{
+    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    return priv->description;
+}
+
+//------------------------------------------------------------------------|
 static int shellcmd_help(shellcmd_t * shellcmd,
                          char ** helptext,
                          size_t * size)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    shellcmd_t * cmd = NULL;
 
+    // TODO: Append stuff about THIS command in the report???
+    // probably not since starting at root with nothing.
 
-    //    shell_t * shellptr = (shell_t *) shell;
-    //    shell_priv_t * priv = (shell_priv_t *) shellptr->priv;
-    //    shellcmd_t * cmd = NULL;
+    // Done if no sub-commands
+    if (!priv->cmds)
+    {
+        return 0;
+    }
 
-        /*  NEED RECURSIVE GET_HELP FROM ALL SUBCMDS
-        priv->cmds->reset(priv->cmds);
+    char * subhelp = NULL;
+    size_t subsize = 0;
+
+    // Recursively get help for all sub-commands
+    priv->cmds->reset(priv->cmds);
+    do
+    {
+        cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
+
+        // FIXME: Console output versus blammo output
+        BLAMMO(INFO, "%s  %s  %s", cmd->keyword(cmd),
+                                   cmd->arghints(cmd),
+                                   cmd->description(cmd));
+
+        cmd->help(cmd, &subhelp, &subsize);
+
+        // TODO: expand helptext with realloc
+        // and append help from this subcommand
+
         priv->cmds->spin(priv->cmds, 1);
-        while (!priv->cmds->origin(priv->cmds))
-        {
-            cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
-            (void) cmd;
-
-            // FIXME: Console output versus blammo output
-            BLAMMO(INFO, "%s  %s  %s", cmd->keyword,
-                                       cmd->arghints,
-                                       cmd->description);
-
-            priv->cmds->spin(priv->cmds, 1);
-        }
-        */
-
+    }
+    while (!priv->cmds->origin(priv->cmds));
 
     return 0;
 }
@@ -359,6 +394,7 @@ const shellcmd_t shellcmd_pub = {
     &shellcmd_exec,
     &shellcmd_keyword,
     &shellcmd_arghints,
+    &shellcmd_description,
     &shellcmd_help,
     &shellcmd_register_cmd,
     &shellcmd_unregister_cmd,

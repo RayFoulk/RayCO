@@ -104,5 +104,5 @@ notabs:
 .PHONY: clean
 clean:
 	rm -f core *.gcno *.gcda coverage*html coverage.css *.log \
-	$(TEST_OBJS) $(TEST_BINS) $(AUX_OBJS) \
+	$(TEST_OBJS) $(TEST_BINS) $(AUX_OBJS) $(OBJDIR)/* \
 	$(OBJECTS) $(STATIC_LIB) $(SHARED_LIB) $(SHARED_LINK)
