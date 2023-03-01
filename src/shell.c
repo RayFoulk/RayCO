@@ -46,6 +46,7 @@ static void * singleton_shell_ptr = NULL;
 
 #endif
 
+
 //------------------------------------------------------------------------|
 // shell private implementation data
 typedef struct
@@ -200,7 +201,8 @@ static int builtin_handler_help(void * shellcmd,
                                 int argc,
                                 char ** args)
 {
-    shellcmd_t * cmd = (shellcmd_t *) shellcmd;
+    //shellcmd_t * cmd = (shellcmd_t *) shellcmd;
+    shellcmd_t * cmd = (shellcmd_t *) context;
 
     char * helptext = NULL;
     size_t size = 0;
@@ -314,11 +316,12 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
     // letter(s)/sub-string match rather than by first full keyword
     // match.  This returns a list of possible keywords that match the
     // given substring.  I.E. given: "lo" return [logoff, log, local]
-    chain_t * pmatches = parent->partial_matches(parent, args[nest]);
+    size_t longest = 0;
+    chain_t * pmatches = parent->partial_matches(parent, args[nest], &longest);
     free(line);
     if (!pmatches) { return; }
-    BLAMMO(DEBUG, "partial_matches length: %u",
-                  pmatches->length(pmatches));
+    BLAMMO(DEBUG, "partial_matches length: %u  longest: %u",
+                  pmatches->length(pmatches), longest);
 
     // Need to duplicate the line again, but this time leave the copy
     // mostly intact except that we want to modify the potentially
@@ -328,7 +331,7 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
     // keyword.  Maybe can use strndup() with a big n instead???
     char * keyword = NULL;
     size_t length = strlen(buf);
-    size_t lsize = length + SHELLCMD_MAX_KEYWORD_SIZE;
+    size_t lsize = length + longest;
     line = (char *) malloc(lsize);
     memcpy(line, buf, length);
     line[length] = 0;
@@ -348,7 +351,7 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
         // through keywords of varying length.  I'm sure there are tons
         // of bugs in this code.  TODO: harden it up later with some
         // static and dynamic analysis and complete unit tests!!!
-        memset(args[nest], 0, strlen(keyword) + 2);
+        memset(args[nest], 0, strlen(keyword) + 1);
         memcpy(args[nest], keyword, strlen(keyword));
 
         BLAMMO(DEBUG, "Adding tab completion line: \'%s\'", line);
@@ -566,7 +569,7 @@ static shell_t * shell_create(const char * prompt,
     priv->cmds->register_cmd(priv->cmds,
             priv->cmds->create(
                     builtin_handler_help,
-                    NULL,
+                    priv->cmds,
                     "help",
                     NULL,
                     "show a list of commands with hints and description"));
