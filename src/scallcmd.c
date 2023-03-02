@@ -26,12 +26,12 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "shellcmd.h"
+#include "scallcmd.h"
 #include "chain.h"
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
-// Container for a command
+// Container for a command - private data
 typedef struct
 {
     // list of sub-commands to this command, allowing for recursive parsing
@@ -43,7 +43,7 @@ typedef struct
     chain_t * cmds;
 
     // command handler function taking arguments are returning int
-    shellcmd_handler_f handler;
+    scallop_cmd_handler_f handler;
 
     // A generic 'context' pointer.  This part will vary according
     // to the specific use case of the command being handled.
@@ -66,37 +66,37 @@ typedef struct
     // description of what the command does
     char * description;
 }
-shellcmd_priv_t;
+scallop_cmd_priv_t;
 
 //------------------------------------------------------------------------|
-static shellcmd_t * shellcmd_create(shellcmd_handler_f handler,
-                                    void * context,
-                                    const char * keyword,
-                                    const char * arghints,
-                                    const char * description)
+static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
+                                          void * context,
+                                          const char * keyword,
+                                          const char * arghints,
+                                          const char * description)
 {
     // Allocate and initialize public interface
-    shellcmd_t * cmd = (shellcmd_t *) malloc(sizeof(shellcmd_t));
+    scallop_cmd_t * cmd = (scallop_cmd_t *) malloc(sizeof(scallop_cmd_t));
     if (!cmd)
     {
-        BLAMMO(FATAL, "malloc(sizeof(shellcmd_t)) failed");
+        BLAMMO(FATAL, "malloc(sizeof(scallop_cmd_t)) failed");
         return NULL;
     }
 
     // Bulk copy all function pointers and initialize opaque ptr
-    memcpy(cmd, &shellcmd_pub, sizeof(shellcmd_t));
+    memcpy(cmd, &scallop_cmd_pub, sizeof(scallop_cmd_t));
 
     // Allocate and initialize private implementation
-    cmd->priv = malloc(sizeof(shellcmd_priv_t));
+    cmd->priv = malloc(sizeof(scallop_cmd_priv_t));
     if (!cmd->priv)
     {
-        BLAMMO(FATAL, "malloc(sizeof(shellcmd_priv_t)) failed");
+        BLAMMO(FATAL, "malloc(sizeof(scallop_cmd_priv_t)) failed");
         free(cmd);
         return NULL;
     }
 
-    memset(cmd->priv, 0, sizeof(shellcmd_priv_t));
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) cmd->priv;
+    memset(cmd->priv, 0, sizeof(scallop_cmd_priv_t));
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
 
     // Most commands are likely not going to have recursive
     // sub-commands, so don't waste memory allocating a bunch
@@ -115,9 +115,9 @@ static shellcmd_t * shellcmd_create(shellcmd_handler_f handler,
 }
 
 //------------------------------------------------------------------------|
-static void shellcmd_destroy(void * shellcmd)
+static void scallop_cmd_destroy(void * scallcmd)
 {
-    shellcmd_t * cmd = (shellcmd_t *) shellcmd;
+    scallop_cmd_t * cmd = (scallop_cmd_t *) scallcmd;
 
     // guard against accidental double-destroy or early-destroy
     if (!cmd || !cmd->priv)
@@ -126,7 +126,7 @@ static void shellcmd_destroy(void * shellcmd)
         return;
     }
 
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) cmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
 
     // Recursively destroy command tree, if there are any nodes
     if (priv->cmds)
@@ -136,23 +136,23 @@ static void shellcmd_destroy(void * shellcmd)
     }
 
     // zero out and destroy the private data
-    memset(cmd->priv, 0, sizeof(shellcmd_priv_t));
+    memset(cmd->priv, 0, sizeof(scallop_cmd_priv_t));
     free(cmd->priv);
 
     // zero out and destroy the public interface
-    memset(cmd, 0, sizeof(shellcmd_t));
+    memset(cmd, 0, sizeof(scallop_cmd_t));
     free(cmd);
 }
 
 //------------------------------------------------------------------------|
-static int shellcmd_keyword_compare(const void * shellcmd1,
-                                    const void * shellcmd2)
+static int scallop_cmd_keyword_compare(const void * scallcmd1,
+                                       const void * scallcmd2)
 {
-    shellcmd_t * cmd1 = (shellcmd_t *) shellcmd1;
-    shellcmd_priv_t * priv1 = (shellcmd_priv_t *) cmd1->priv;
+    scallop_cmd_t * cmd1 = (scallop_cmd_t *) scallcmd1;
+    scallop_cmd_priv_t * priv1 = (scallop_cmd_priv_t *) cmd1->priv;
 
-    shellcmd_t * cmd2 = (shellcmd_t *) shellcmd2;
-    shellcmd_priv_t * priv2 = (shellcmd_priv_t *) cmd2->priv;
+    scallop_cmd_t * cmd2 = (scallop_cmd_t *) scallcmd2;
+    scallop_cmd_priv_t * priv2 = (scallop_cmd_priv_t *) cmd2->priv;
 
     // Commands are identified through their keyword,
     // which must be unique within the same context
@@ -162,10 +162,10 @@ static int shellcmd_keyword_compare(const void * shellcmd1,
 }
 
 //------------------------------------------------------------------------|
-static shellcmd_t * shellcmd_find_by_keyword(shellcmd_t * shellcmd,
-                                             const char * keyword)
+static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * scallcmd,
+                                                  const char * keyword)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
 
     if (!priv->cmds)
     {
@@ -174,29 +174,29 @@ static shellcmd_t * shellcmd_find_by_keyword(shellcmd_t * shellcmd,
     }
 
     // create a temporary stack private data for search purposes
-    shellcmd_t cmd_to_find;
-    shellcmd_priv_t priv_to_find;
+    scallop_cmd_t cmd_to_find;
+    scallop_cmd_priv_t priv_to_find;
 
     cmd_to_find.priv = &priv_to_find;
     priv_to_find.keyword = (char *) keyword;
 
     // Do the search
-    return (shellcmd_t *) priv->cmds->find(priv->cmds,
+    return (scallop_cmd_t *) priv->cmds->find(priv->cmds,
                                            &cmd_to_find,
-                                           shellcmd_keyword_compare);
+                                           scallop_cmd_keyword_compare);
 }
 
-static chain_t * shellcmd_partial_matches(shellcmd_t * shellcmd,
-                                          const char * substring,
-                                          size_t * longest)
+static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
+                                             const char * substring,
+                                             size_t * longest)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
-    shellcmd_t * cmd = NULL;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_t * cmd = NULL;
     chain_t * pmatches = chain_pub.create(NULL);
 
     // substring might be NULL in some cases like when hitting
     // tab after an already completed keyword without argument,
-    // but also the shellcmd could be a terminator in the
+    // but also the scallcmd could be a terminator in the
     // sub-command tree, in which case priv->cmds is NULL.
     if (!substring || !priv->cmds)
     {
@@ -217,7 +217,7 @@ static chain_t * shellcmd_partial_matches(shellcmd_t * shellcmd,
     priv->cmds->reset(priv->cmds);
     do
     {
-        cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
+        cmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
 
         BLAMMO(DEBUG, "checking \'%s\' against \'%s\'",
                 cmd->keyword(cmd), substring);
@@ -240,45 +240,45 @@ static chain_t * shellcmd_partial_matches(shellcmd_t * shellcmd,
 }
 
 //------------------------------------------------------------------------|
-static inline int shellcmd_exec(shellcmd_t * shellcmd,
-                                int argc,
-                                char ** args)
+static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
+                                   int argc,
+                                   char ** args)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
 
     return priv->handler ?
-           priv->handler(shellcmd, priv->context, argc, args) :
+           priv->handler(scallcmd, priv->context, argc, args) :
            0;
 }
 
 //------------------------------------------------------------------------|
-static inline const char * shellcmd_keyword(shellcmd_t * shellcmd)
+static inline const char * scallop_cmd_keyword(scallop_cmd_t * scallcmd)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
     return priv->keyword;
 }
 
 //------------------------------------------------------------------------|
-static inline const char * shellcmd_arghints(shellcmd_t * shellcmd)
+static inline const char * scallop_cmd_arghints(scallop_cmd_t * scallcmd)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
     return priv->arghints;
 }
 
 //------------------------------------------------------------------------|
-static inline const char * shellcmd_description(shellcmd_t * shellcmd)
+static inline const char * scallop_cmd_description(scallop_cmd_t * scallcmd)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
     return priv->description;
 }
 
 //------------------------------------------------------------------------|
-static int shellcmd_help(shellcmd_t * shellcmd,
-                         char ** helptext,
-                         size_t * size)
+static int scallop_cmd_help(scallop_cmd_t * scallcmd,
+                            char ** helptext,
+                            size_t * size)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) shellcmd->priv;
-    shellcmd_t * cmd = NULL;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_t * cmd = NULL;
 
     // TODO: Append stuff about THIS command in the report???
     // probably not since starting at root with nothing.
@@ -296,7 +296,7 @@ static int shellcmd_help(shellcmd_t * shellcmd,
     priv->cmds->reset(priv->cmds);
     do
     {
-        cmd = (shellcmd_t *) priv->cmds->data(priv->cmds);
+        cmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
 
         // FIXME: Console output versus blammo output
         BLAMMO(INFO, "%s  %s  %s", cmd->keyword(cmd),
@@ -316,10 +316,10 @@ static int shellcmd_help(shellcmd_t * shellcmd,
 }
 
 //------------------------------------------------------------------------|
-bool shellcmd_register_cmd(shellcmd_t * parent,
-                           shellcmd_t * child)
+bool scallop_cmd_register_cmd(scallop_cmd_t * parent,
+                              scallop_cmd_t * child)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) parent->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) parent->priv;
 
     // Do some checks before inserting the child command
     if (!priv->cmds)
@@ -338,13 +338,13 @@ bool shellcmd_register_cmd(shellcmd_t * parent,
     {
         // command chain already exists.  must search before insert.
         // ensure that the requested keyword is unique within the given context.
-        shellcmd_t * found = (shellcmd_t *) priv->cmds->find(priv->cmds,
+        scallop_cmd_t * found = (scallop_cmd_t *) priv->cmds->find(priv->cmds,
                                                              child,
-                                                             shellcmd_keyword_compare);
+                                                             scallop_cmd_keyword_compare);
 
         if (found)
         {
-            BLAMMO_DECLARE(shellcmd_priv_t * found_priv = (shellcmd_priv_t *) found->priv);
+            BLAMMO_DECLARE(scallop_cmd_priv_t * found_priv = (scallop_cmd_priv_t *) found->priv);
             BLAMMO(ERROR, "Command \'%s\' already registered", found_priv->keyword);
             return false;
         }
@@ -357,10 +357,10 @@ bool shellcmd_register_cmd(shellcmd_t * parent,
 }
 
 //------------------------------------------------------------------------|
-bool shellcmd_unregister_cmd(shellcmd_t * parent,
-                             shellcmd_t * child)
+bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
+                                scallop_cmd_t * child)
 {
-    shellcmd_priv_t * priv = (shellcmd_priv_t *) parent->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) parent->priv;
 
     if (!priv->cmds)
     {
@@ -369,13 +369,13 @@ bool shellcmd_unregister_cmd(shellcmd_t * parent,
     }
 
     // Do the search for the child command
-    shellcmd_t * found = (shellcmd_t *) priv->cmds->find(priv->cmds,
-                                                         child,
-                                                         shellcmd_keyword_compare);
+    scallop_cmd_t * found = (scallop_cmd_t *) priv->cmds->find(priv->cmds,
+                                                              child,
+                                                              scallop_cmd_keyword_compare);
 
     if (!found)
     {
-        BLAMMO_DECLARE(shellcmd_priv_t * child_priv = (shellcmd_priv_t *) child->priv)
+        BLAMMO_DECLARE(scallop_cmd_priv_t * child_priv = (scallop_cmd_priv_t *) child->priv)
         BLAMMO(ERROR, "Command \'%s\' not found", child_priv->keyword);
         return false;
     }
@@ -386,17 +386,17 @@ bool shellcmd_unregister_cmd(shellcmd_t * parent,
 }
 
 //------------------------------------------------------------------------|
-const shellcmd_t shellcmd_pub = {
-    &shellcmd_create,
-    &shellcmd_destroy,
-    &shellcmd_find_by_keyword,
-    &shellcmd_partial_matches,
-    &shellcmd_exec,
-    &shellcmd_keyword,
-    &shellcmd_arghints,
-    &shellcmd_description,
-    &shellcmd_help,
-    &shellcmd_register_cmd,
-    &shellcmd_unregister_cmd,
+const scallop_cmd_t scallop_cmd_pub = {
+    &scallop_cmd_create,
+    &scallop_cmd_destroy,
+    &scallop_cmd_find_by_keyword,
+    &scallop_cmd_partial_matches,
+    &scallop_cmd_exec,
+    &scallop_cmd_keyword,
+    &scallop_cmd_arghints,
+    &scallop_cmd_description,
+    &scallop_cmd_help,
+    &scallop_cmd_register_cmd,
+    &scallop_cmd_unregister_cmd,
     NULL
 };

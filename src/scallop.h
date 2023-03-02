@@ -28,43 +28,43 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "shellcmd.h"
+#include "scallcmd.h"
 
 //------------------------------------------------------------------------|
 // Maximum number of individual arguments
-#define SHELL_MAX_ARGS          32
+#define SCALLOP_MAX_ARGS          32
 
 // Maximum recursion depth to avoid stack smashing
-#define SHELL_MAX_RECURS        64
+#define SCALLOP_MAX_RECURS        64
 
 //------------------------------------------------------------------------|
-typedef struct shell_t
+typedef struct scallop_t
 {
-    struct shell_t * (*create)(const char * prompt,
-                               const char * delim,
-                               const char * comment);
+    struct scallop_t * (*create)(const char * prompt,
+                                 const char * delim,
+                                 const char * comment);
 
     // Shell destructor function
-    void (*destroy)(void * shell);
+    void (*destroy)(void * scallop);
 
     // Get access to the command registry interface.
     // This is necessary for third-party command registration!
-    shellcmd_t * (*commands)(struct shell_t * shell);
+    scallop_cmd_t * (*commands)(struct scallop_t * scallop);
 
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.
-    int (*dispatch)(struct shell_t * shell, char * line);
+    int (*dispatch)(struct scallop_t * scallop, char * line);
 
     // Main interactive prompt loop
-    int (*loop)(struct shell_t * shell);
+    int (*loop)(struct scallop_t * scallop);
 
     // TODO: get/set prompt
 
     // Private data
     void * priv;
 }
-shell_t;
+scallop_t;
 
 //------------------------------------------------------------------------|
-// Public shell interface
-extern const shell_t shell_pub;
+// Public scallop interface
+extern const scallop_t scallop_pub;

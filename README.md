@@ -23,6 +23,10 @@
   - Main focus is just on being usable without needing to declare static buffers: 80% rule in effect here
 - **chronom_t** A chronometer for tracking elapsed time
   - Depends on libc struct timespec, breaking strict C99 requirement
+- **scallop_t** A simple and flexible Command Line Interface (CLI)
+  - Mostly declarative interface: Nested keyword and callback registration
+  - Optionally uses 'linenoise' submodule for tab completion and argument hints
+  - Intended to be re-used by multiple other planned projects
 
 # Future Plans
 - **bits_t** A C-only re-implementation of BitDeque

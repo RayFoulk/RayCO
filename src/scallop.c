@@ -28,8 +28,8 @@
 #include <stddef.h>
 #include <errno.h>
 
-#include "shell.h"
-#include "shellcmd.h"
+#include "scallop.h"
+#include "scallcmd.h"
 #include "chain.h"
 #include "utils.h"
 #include "blammo.h"
@@ -40,15 +40,15 @@
 // Kind of distasteful, but short of drastically modifying linenoise
 // itself, this appears to be the cost of getting nested tab completion
 // and argument hints via that submodule.  This forces a singleton-ish
-// pattern on the shell object.  It's not likely to have multiple
-// simultaneous shell objects per process so it's probably not a big deal.
-static void * singleton_shell_ptr = NULL;
+// pattern on the scallop object.  It's not likely to have multiple
+// simultaneous scallop objects per process so it's probably not a big deal.
+static void * singleton_scallop_ptr = NULL;
 
 #endif
 
 
 //------------------------------------------------------------------------|
-// shell private implementation data
+// scallop private implementation data
 typedef struct
 {
     // set true to break out of main loop
@@ -70,13 +70,13 @@ typedef struct
 
     // also assumed to be ubiqui
     // master list of top-level context commands
-    shellcmd_t * cmds;
+    scallop_cmd_t * cmds;
 }
-shell_priv_t;
+scallop_priv_t;
 
 //------------------------------------------------------------------------|
 // Built-In command handler functions
-static int builtin_handler_log(void * shellcmd,
+static int builtin_handler_log(void * scallcmd,
                                void * context,
                                int argc,
                                char ** args)
@@ -89,8 +89,8 @@ static int builtin_handler_log(void * shellcmd,
     }
 
     // Find and execute subcommand
-    shellcmd_t * log = (shellcmd_t *) shellcmd;
-    shellcmd_t * cmd = log->find_by_keyword(log, args[1]);
+    scallop_cmd_t * log = (scallop_cmd_t *) scallcmd;
+    scallop_cmd_t * cmd = log->find_by_keyword(log, args[1]);
     if (!cmd)
     {
         BLAMMO(WARNING, "Sub-command %s not found", args[1]);
@@ -100,7 +100,7 @@ static int builtin_handler_log(void * shellcmd,
     return cmd->exec(cmd, --argc, &args[1]);
 }
 
-static int builtin_handler_log_level(void * shellcmd,
+static int builtin_handler_log_level(void * scallcmd,
                                      void * context,
                                      int argc,
                                      char ** args)
@@ -119,7 +119,7 @@ static int builtin_handler_log_level(void * shellcmd,
     return 0;
 }
 
-static int builtin_handler_log_file(void * shellcmd,
+static int builtin_handler_log_file(void * scallcmd,
                                     void * context,
                                     int argc,
                                     char ** args)
@@ -137,14 +137,14 @@ static int builtin_handler_log_file(void * shellcmd,
     return 0;
 }
 
-static int builtin_handler_source(void * shellcmd,
+static int builtin_handler_source(void * scallcmd,
                                   void * context,
                                   int argc,
                                   char ** args)
 {
     BLAMMO(VERBOSE, "");
 
-    shell_t * shell = (shell_t *) context;
+    scallop_t * scallop = (scallop_t *) context;
 
     if (argc < 2)
     {
@@ -159,7 +159,7 @@ static int builtin_handler_source(void * shellcmd,
         return -2;
     }
 
-    // Similar to shell->loop() but getting input from FILE
+    // Similar to scallop->loop() but getting input from FILE
     // It is a design choice to not reuse/repurpose the
     // get_command_line() macro here: That implies echoing
     // both the prompt and the commands read to stdout, and
@@ -182,7 +182,7 @@ static int builtin_handler_source(void * shellcmd,
             return 0;
         }
 
-        result = shell->dispatch(shell, line);
+        result = scallop->dispatch(scallop, line);
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 
         // TODO possibly store result in priv, or else report on console
@@ -196,13 +196,13 @@ static int builtin_handler_source(void * shellcmd,
     return 0;
 }
 
-static int builtin_handler_help(void * shellcmd,
+static int builtin_handler_help(void * scallcmd,
                                 void * context,
                                 int argc,
                                 char ** args)
 {
-    //shellcmd_t * cmd = (shellcmd_t *) shellcmd;
-    shellcmd_t * cmd = (shellcmd_t *) context;
+    //scallop_cmd_t * cmd = (scallop_cmd_t *) scallcmd;
+    scallop_cmd_t * cmd = (scallop_cmd_t *) context;
 
     char * helptext = NULL;
     size_t size = 0;
@@ -220,22 +220,22 @@ static int builtin_handler_help(void * shellcmd,
     return result;
 }
 
-static int builtin_handler_quit(void * shellcmd,
+static int builtin_handler_quit(void * scallcmd,
                                 void * context,
                                 int argc,
                                 char ** args)
 {
-    shell_t * shell = (shell_t *) context;
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    scallop_t * scallop = (scallop_t *) context;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     priv->quit = true;
     return 0;
 }
 
 //------------------------------------------------------------------------|
 // Small private helper function to strip comments
-static int shell_ignore_comments(shell_t * shell, int argc, char ** args)
+static int scallop_ignore_comments(scallop_t * scallop, int argc, char ** args)
 {
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     size_t words = 0;
 
     // Specifically ignore comments by searching through
@@ -262,22 +262,22 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
 {
     BLAMMO(DEBUG, "buf: \'%s\'", buf);
 
-    // Always get a handle on the singleton shell
-    shell_t * shell = (shell_t *) singleton_shell_ptr;
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    // Always get a handle on the singleton scallop
+    scallop_t * scallop = (scallop_t *) singleton_scallop_ptr;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Do full split on mock command line so that we can match
     // fully qualified keywords up to and including incomplete
     // commands that need tab-completion added.  The original
     // buffer cannot be altered or it will break line editing.
     char * line = strdup(buf);
-    char * args[SHELL_MAX_ARGS];
+    char * args[SCALLOP_MAX_ARGS];
     size_t argc = 0;
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
-    argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
-    argc = shell_ignore_comments(shell, argc, args);
+    argc = splitstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    argc = scallop_ignore_comments(scallop, argc, args);
     BLAMMO(DEBUG, "argc: %u", argc);
 
     // Ignore empty input
@@ -291,8 +291,8 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
     // may require tab completion.  Match known command keywords
     // as far as possible before making suggestions on incomplete
     // arguments/keywords
-    shellcmd_t * parent = priv->cmds;
-    shellcmd_t * cmd = NULL;
+    scallop_cmd_t * parent = priv->cmds;
+    scallop_cmd_t * cmd = NULL;
     int nest = 0;
 
     for (nest = 0; nest < argc; nest++)
@@ -338,7 +338,7 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
 
     // get markers within unmodified copy of line
     memset(args, 0, sizeof(args));
-    markstr(args, SHELL_MAX_ARGS, line, priv->delim);
+    markstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
 
     // iterate through partially matched keywords
     pmatches->reset(pmatches);
@@ -369,22 +369,22 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
 {
     BLAMMO(DEBUG, "buf: \'%s\'", buf);
 
-    // Always get a handle on the singleton shell
-    shell_t * shell = (shell_t *) singleton_shell_ptr;
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    // Always get a handle on the singleton scallop
+    scallop_t * scallop = (scallop_t *) singleton_scallop_ptr;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Do full split on mock command line in order to preemptively
     // distinguish which specific command is about to be invoked so that
     // proper hints can be given.  Otherwise this cannot
     // distinguish between 'create' and 'created' for example.
     char * line = strdup(buf);
-    char * args[SHELL_MAX_ARGS];
+    char * args[SCALLOP_MAX_ARGS];
     size_t argc = 0;
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
-    argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
-    argc = shell_ignore_comments(shell, argc, args);
+    argc = splitstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    argc = scallop_ignore_comments(scallop, argc, args);
     BLAMMO(DEBUG, "argc: %u", argc);
 
     // Ignore empty input
@@ -399,8 +399,8 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     // keyword, then display the hints for the last known matching command.
     // This should fail and return NULL right out of the gate if the first
     // keyord does not match.
-    shellcmd_t * parent = priv->cmds;
-    shellcmd_t * cmd = NULL;
+    scallop_cmd_t * parent = priv->cmds;
+    scallop_cmd_t * cmd = NULL;
     int nest = 0;
 
     for (nest = 0; nest < argc; nest++)
@@ -431,12 +431,12 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     // Count tokens without modifying the original string, rather than
     // allocating another buffer.   The purpose is to determine which args
     // have been fulfilled and to only show hints for unfulfilled args.
-    char * hints[SHELL_MAX_ARGS] = { NULL };
+    char * hints[SCALLOP_MAX_ARGS] = { NULL };
     int hintc = 0;
     int hindex = 0;
 
     memset(hints, 0, sizeof(hints));
-    hintc = markstr(hints, SHELL_MAX_ARGS, parent->arghints(parent), priv->delim);
+    hintc = markstr(hints, SCALLOP_MAX_ARGS, parent->arghints(parent), priv->delim);
     BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d",
             parent->arghints(parent), hintc, argc, nest);
 
@@ -491,32 +491,32 @@ static char * get_command_line(const char * prompt)
 #endif
 
 //------------------------------------------------------------------------|
-static shell_t * shell_create(const char * prompt,
+static scallop_t * scallop_create(const char * prompt,
                               const char * delim,
                               const char * comment)
 {
     // Allocate and initialize public interface
-    shell_t * shell = (shell_t *) malloc(sizeof(shell_t));
-    if (!shell)
+    scallop_t * scallop = (scallop_t *) malloc(sizeof(scallop_t));
+    if (!scallop)
     {
-        BLAMMO(FATAL, "malloc(sizeof(shell_t)) failed");
+        BLAMMO(FATAL, "malloc(sizeof(scallop_t)) failed");
         return NULL;
     }
 
     // Bulk copy all function pointers and init opaque ptr
-    memcpy(shell, &shell_pub, sizeof(shell_t));
+    memcpy(scallop, &scallop_pub, sizeof(scallop_t));
 
     // Allocate and initialize private implementation
-    shell->priv = malloc(sizeof(shell_priv_t));
-    if (!shell->priv)
+    scallop->priv = malloc(sizeof(scallop_priv_t));
+    if (!scallop->priv)
     {
-        BLAMMO(FATAL, "malloc(sizeof(shell_priv_t)) failed");
-        free(shell);
+        BLAMMO(FATAL, "malloc(sizeof(scallop_priv_t)) failed");
+        free(scallop);
         return NULL;
     }
 
-    memset(shell->priv, 0, sizeof(shell_priv_t));
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    memset(scallop->priv, 0, sizeof(scallop_priv_t));
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Initialize prompt string
     priv->prompt = (char *) prompt;
@@ -524,16 +524,16 @@ static shell_t * shell_create(const char * prompt,
     priv->comment = (char *) comment;
 
     // Create the top-level list of commands
-    priv->cmds = shellcmd_pub.create(NULL, NULL, NULL, NULL, NULL);
+    priv->cmds = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
     if (!priv->cmds)
     {
-        BLAMMO(FATAL, "shellcmd_pub.create() failed");
-        shell->destroy(shell);
+        BLAMMO(FATAL, "scallop_cmd_pub.create() failed");
+        scallop->destroy(scallop);
         return NULL;
     }
 
     // Register all Built-In commands
-    shellcmd_t * log = priv->cmds->create(
+    scallop_cmd_t * log = priv->cmds->create(
             builtin_handler_log,
             NULL,
             "log",
@@ -561,7 +561,7 @@ static shell_t * shell_create(const char * prompt,
     priv->cmds->register_cmd(priv->cmds,
             priv->cmds->create(
                     builtin_handler_source,
-                    shell,
+                    scallop,
                     "source",
                     " <path>",
                     "load and run a command script"));
@@ -577,10 +577,10 @@ static shell_t * shell_create(const char * prompt,
     priv->cmds->register_cmd(priv->cmds,
             priv->cmds->create(
                     builtin_handler_quit,
-                    shell,
+                    scallop,
                     "quit",
                     NULL,
-                    "exit the shell command handling loop"));
+                    "exit the scallop command handling loop"));
 
 
 #ifdef LINENOISE_ENABLE
@@ -593,28 +593,28 @@ static shell_t * shell_create(const char * prompt,
     // Load command history from file.
     //linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
 
-    // Set global pointer to shell object.  WARNING: This will break if
-    // multiple shells are created, resulting in hints/completion for the
+    // Set global pointer to scallop object.  WARNING: This will break if
+    // multiple scallops are created, resulting in hints/completion for the
     // wrong object!
-    singleton_shell_ptr = (void *) shell;
+    singleton_scallop_ptr = (void *) scallop;
 #endif
 
-    return shell;
+    return scallop;
 }
 
 //------------------------------------------------------------------------|
-static void shell_destroy(void * shell_ptr)
+static void scallop_destroy(void * scallop_ptr)
 {
-    shell_t * shell = (shell_t *) shell_ptr;
+    scallop_t * scallop = (scallop_t *) scallop_ptr;
 
     // guard against accidental double-destroy or early-destroy
-    if (!shell || !shell->priv)
+    if (!scallop || !scallop->priv)
     {
         BLAMMO(WARNING, "attempt to early or double-destroy");
         return;
     }
 
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Recursively destroy command tree
     if (priv->cmds)
@@ -623,54 +623,54 @@ static void shell_destroy(void * shell_ptr)
     }
 
     // zero out and destroy the private data
-    memset(shell->priv, 0, sizeof(shell_priv_t));
-    free(shell->priv);
+    memset(scallop->priv, 0, sizeof(scallop_priv_t));
+    free(scallop->priv);
 
     // zero out and destroy the public interface
-    memset(shell, 0, sizeof(shell_t));
-    free(shell);
+    memset(scallop, 0, sizeof(scallop_t));
+    free(scallop);
 
 #ifdef LINENOISE_ENABLE
-    singleton_shell_ptr = NULL;
+    singleton_scallop_ptr = NULL;
 #endif
 
 }
 
 //------------------------------------------------------------------------|
-static inline shellcmd_t * shell_commands(shell_t * shell)
+static inline scallop_cmd_t * scallop_commands(scallop_t * scallop)
 {
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     return priv->cmds;
 }
 
 //------------------------------------------------------------------------|
-static int shell_dispatch(shell_t * shell, char * line)
+static int scallop_dispatch(scallop_t * scallop, char * line)
 {
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     BLAMMO(VERBOSE, "priv: %p depth: %u line: %s",
                     priv, priv->depth, line);
 
     // Keep track of recursion depth here
     priv->depth++;
-    if (priv->depth > SHELL_MAX_RECURS)
+    if (priv->depth > SCALLOP_MAX_RECURS)
     {
         BLAMMO(ERROR, "Maximum recursion depth %u reached",
-                      SHELL_MAX_RECURS);
+                      SCALLOP_MAX_RECURS);
         return -1;
     }
 
     // For getting a handle on the command to be executed
-    shellcmd_t * cmd = NULL;
+    scallop_cmd_t * cmd = NULL;
     int result = 0;
 
     // For splitting command line into args[]
-    char * args[SHELL_MAX_ARGS];
+    char * args[SCALLOP_MAX_ARGS];
     size_t argc = 0;
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
-    argc = splitstr(args, SHELL_MAX_ARGS, line, priv->delim);
-    argc = shell_ignore_comments(shell, argc, args);
+    argc = splitstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    argc = scallop_ignore_comments(scallop, argc, args);
 
     // Ignore empty input
     if (argc == 0)
@@ -695,9 +695,9 @@ static int shell_dispatch(shell_t * shell, char * line)
 }
 
 //------------------------------------------------------------------------|
-static int shell_loop(shell_t * shell)
+static int scallop_loop(scallop_t * scallop)
 {
-    shell_priv_t * priv = (shell_priv_t *) shell->priv;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     char * line = NULL;
     int result = 0;
 
@@ -707,7 +707,7 @@ static int shell_loop(shell_t * shell)
         line = get_command_line(priv->prompt);
         BLAMMO(DEBUG, "line: %s", line);
 
-        result = shell->dispatch(shell, line);
+        result = scallop->dispatch(scallop, line);
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 
         // TODO possibly store result in priv, or else report on console
@@ -721,12 +721,12 @@ static int shell_loop(shell_t * shell)
 }
 
 //------------------------------------------------------------------------|
-const shell_t shell_pub = {
-    &shell_create,
-    &shell_destroy,
-    &shell_commands,
-    &shell_dispatch,
-    &shell_loop,
+const scallop_t scallop_pub = {
+    &scallop_create,
+    &scallop_destroy,
+    &scallop_commands,
+    &scallop_dispatch,
+    &scallop_loop,
     NULL
 };
 

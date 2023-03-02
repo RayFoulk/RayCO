@@ -1,27 +1,79 @@
-~ write unit tests for all chain functions, pass and fail, build only in TEST mode
++-------------------------------------------------------------------------+
+DONE:
+
 * refactor chain/link to not use empty origin node
 * verify all tests still pass
 * move all function pointers into chain typedef and make static
   initialized from factory function
-X pass in link dtor function to delete and destroy, do not cache
 * refactor into pimpl private data pattern
 * fix chain_join
 * MUST migrate unit tests to a different framework
     * still must be lightweight, supportable by embedded targets.
     * must support multiple test*.c files, from one main is OK
+* add PRNG library (for targets that don't have one already)
+    * xoshiro / xoroshiro generators and the PRNG shootout http://prng.di.unimi.it/
+* introduce bytes object as managed string / byte array
+* adjust makefile for so, a lib targets
+* consider returning int instead of void * for shellcmd handlers
+
++-------------------------------------------------------------------------+
+MOSTLY DONE / SUPERCEDED:
+
+~ write unit tests for all chain functions, pass and fail, build only in TEST mode
+X pass in link dtor function to delete and destroy, do not cache
+  (This is now covered by notional collect_t
+
++-------------------------------------------------------------------------+
+TODO:
+
+- finish bytes_t object calls read()/write() (others?) and complete unit tests
 - app: migrate over to sink project and refactor
-- introduce bytes object as managed string / byte array
 - fix mem zero optimization problem (volatile?)
 - add license target to makefile to update all src
-* adjust makefile for so, a lib targets
 - migrate selected useful librmf objects
 - constify return values, pointers functions
 - add install and uninstall phony targets
-- add PRNG library (for targets that don't have one already)
-    - xoshiro / xoroshiro generators and the PRNG shootout http://prng.di.unimi.it/
-
-----------------------------
-- re-evaluate / manage all of the above tasks
-- consider returning int instead of void * for shellcmd handlers
 - consider other builtin commands: print, (dereference object???)
+- need to introduce a thread-safe console
+  - support input as well as output?  how to support linenoise?
+- need to introduce scallop procedures
+  - these are distinct from scripts, and necessary for specific projects
+  - will likely need to support variables, probably in string format
+  - check if cc65 supports env put/get, make design decision
+- dumb down to 32bits for embedded systems that don't support 64 bit integers
 
++-------------------------------------------------------------------------+
+TODOs FROM CODE:
+
+./test/test_bytes.c:126:    // TODO: Test some common types,
+./test/test_bytes.c:146:    // TODO: Turns out this does exactly what one
+./test/test_bytes.c:190:    // TODO: more cases, overlapping
+./src/scallop.h:61:    // TODO: get/set prompt
+./src/bytes.c:95:        // TODO: Deal with compiler optimization problem
+./src/bytes.c:139:        // TODO: Deal with compiler optimization problem
+./src/bytes.c:227:    // TODO: Impose some reasonable size checks here?  get available free
+./src/bytes.c:244:    // TODO: Impose some reasonable size checks here?  get available free
+./src/blammo.c:111:    	// TODO: fprintf(stderr if fopen fails
+./src/blammo.c:121:    // fail spectacularly.  TODO: Consider refactoring this later.
+./src/blammo.c:184:        // TODO: fprintf(stderr if fopen fails
+./src/scallop.c:188:        // TODO possibly store result in priv, or else report on console
+./src/scallop.c:352:        // of bugs in this code.  TODO: harden it up later with some
+./src/scallop.c:459:    // TODO: Make these constants or defines
+./src/scallop.c:713:        // TODO possibly store result in priv, or else report on console
+./src/chain.c:160:    // TODO: Likely this is redundant
+./src/scallcmd.c:283:    // TODO: Append stuff about THIS command in the report???
+./src/scallcmd.c:308:        // TODO: expand helptext with realloc
+./src/bytes.h:64:    // TODO: how to handle whther the string needs to be un-escaped or not?
+./src/bytes.h:65:    // TODO: manual escape/unescape calls for this
+./src/bytes.h:82:    // TODO: Notional Functions
+./src/bytes.h:91:    // TODO: Stubbed Functions
+
++-------------------------------------------------------------------------+
+FIXMEs FROM CODE:
+
+./test/test_bytes.c:186:    // FIXME: Disable until implemented
+./test/test_chain.c:278:    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+./src/scallop.c:60:    // FIXME: Eventually make this more dynamic
+./src/chain.c:352:    // FIXME: Switch to qsort_r() if available
+./src/scallcmd.c:160:    // FIXME: Danger of buffer overrun here.
+./src/scallcmd.c:301:        // FIXME: Console output versus blammo output

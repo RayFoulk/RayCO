@@ -32,68 +32,68 @@
 
 //------------------------------------------------------------------------|
 // Command handler function signature.
-typedef int (*shellcmd_handler_f) (void * shellcmd,
-                                   void * context,
-                                   int argc,
-                                   char ** args);
+typedef int (*scallop_cmd_handler_f) (void * scallcmd,
+                                      void * context,
+                                      int argc,
+                                      char ** args);
 
 //------------------------------------------------------------------------|
-typedef struct shellcmd_t
+typedef struct scallop_cmd_t
 {
     // Shell command factory function
-    struct shellcmd_t * (*create)(shellcmd_handler_f handler,
-                                  void * context,
-                                  const char * keyword,
-                                  const char * arghints,
-                                  const char * description);
+    struct scallop_cmd_t * (*create)(scallop_cmd_handler_f handler,
+                                     void * context,
+                                     const char * keyword,
+                                     const char * arghints,
+                                     const char * description);
 
     // Shell command destructor function
-    void (*destroy)(void * shellcmd);
+    void (*destroy)(void * scallcmd);
 
     // Find a registered command by keyword
-    struct shellcmd_t * (*find_by_keyword)(struct shellcmd_t * shellcmd,
-                                           const char * keyword);
+    struct scallop_cmd_t * (*find_by_keyword)(struct scallop_cmd_t * scallcmd,
+                                             const char * keyword);
 
     // Get a list of partially matching keywords.  The returned chain_t
     // instance is expected to be destroyed by the caller.
-    struct chain_t * (*partial_matches)(struct shellcmd_t * shellcmd,
+    struct chain_t * (*partial_matches)(struct scallop_cmd_t * scallcmd,
                                         const char * substring,
                                         size_t * longest);
 
     // Execute the command's handler function with args
-    int (*exec)(struct shellcmd_t * shellcmd,
+    int (*exec)(struct scallop_cmd_t * scallcmd,
                 int argc,
                 char ** args);
 
     // Get keyword for _this_ command
-    const char * (*keyword)(struct shellcmd_t * shellcmd);
+    const char * (*keyword)(struct scallop_cmd_t * scallcmd);
 
     // Get argument hints for _this_ command
-    const char * (*arghints)(struct shellcmd_t * shellcmd);
+    const char * (*arghints)(struct scallop_cmd_t * scallcmd);
 
     // Get description for _this_ command
-    const char * (*description)(struct shellcmd_t * shellcmd);
+    const char * (*description)(struct scallop_cmd_t * scallcmd);
 
     // Recursively get full help text for _this_ and all sub-commands
-    int (*help)(struct shellcmd_t * shellcmd,
+    int (*help)(struct scallop_cmd_t * scallcmd,
                 char ** helptext,
                 size_t * size);
 
     // Register a sub-command within the context of this command.
     // If this is serving as the root-level command, then this
     // represents a base level command
-    bool (*register_cmd)(struct shellcmd_t * parent,
-                         struct shellcmd_t * child);
+    bool (*register_cmd)(struct scallop_cmd_t * parent,
+                         struct scallop_cmd_t * child);
 
     // Unregister a command from this context
-    bool (*unregister_cmd)(struct shellcmd_t * parent,
-                           struct shellcmd_t * child);
+    bool (*unregister_cmd)(struct scallop_cmd_t * parent,
+                           struct scallop_cmd_t * child);
 
     // Private data
     void * priv;
 }
-shellcmd_t;
+scallop_cmd_t;
 
 //------------------------------------------------------------------------|
-// Public shell command interface
-extern const shellcmd_t shellcmd_pub;
+// Public scallop command interface
+extern const scallop_cmd_t scallop_cmd_pub;
