@@ -21,13 +21,13 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-#include "chain.h"
-#include "blammo.h"
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
+
+#include "chain.h"
+#include "blammo.h"
 
 //------------------------------------------------------------------------|
 // All links data types are assumed to be homogeneous.

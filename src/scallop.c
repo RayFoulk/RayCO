@@ -30,6 +30,7 @@
 
 #include "scallop.h"
 #include "scallcmd.h"
+#include "console.h"
 #include "chain.h"
 #include "utils.h"
 #include "blammo.h"
@@ -43,9 +44,7 @@
 // pattern on the scallop object.  It's not likely to have multiple
 // simultaneous scallop objects per process so it's probably not a big deal.
 static void * singleton_scallop_ptr = NULL;
-
 #endif
-
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -71,6 +70,9 @@ typedef struct
     // also assumed to be ubiqui
     // master list of top-level context commands
     scallop_cmd_t * cmds;
+
+    // Pointer to the console object for user I/O
+    console_t * console;
 }
 scallop_priv_t;
 
@@ -226,8 +228,7 @@ static int builtin_handler_quit(void * scallcmd,
                                 char ** args)
 {
     scallop_t * scallop = (scallop_t *) context;
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    priv->quit = true;
+    scallop->quit(scallop);
     return 0;
 }
 
@@ -491,9 +492,10 @@ static char * get_command_line(const char * prompt)
 #endif
 
 //------------------------------------------------------------------------|
-static scallop_t * scallop_create(const char * prompt,
-                              const char * delim,
-                              const char * comment)
+static scallop_t * scallop_create(console_t * console,
+                                  const char * prompt,
+                                  const char * delim,
+                                  const char * comment)
 {
     // Allocate and initialize public interface
     scallop_t * scallop = (scallop_t *) malloc(sizeof(scallop_t));
@@ -517,6 +519,18 @@ static scallop_t * scallop_create(const char * prompt,
 
     memset(scallop->priv, 0, sizeof(scallop_priv_t));
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    // Expect that a console must be given
+    if (!console)
+    {
+        BLAMMO(FATAL, "No console provided!");
+        scallop->destroy(scallop);
+        return NULL;
+    }
+    priv->console = console;
+    // FIXME: override console input function
+
+
 
     // Initialize prompt string
     priv->prompt = (char *) prompt;
@@ -720,6 +734,14 @@ static int scallop_loop(scallop_t * scallop)
     return 0;
 }
 
+static void scallop_quit(scallop_t * scallop)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    priv->quit = true;
+    // TODO: Need to pump a newline into the console here
+    // just to get it off the blocking call?
+}
+
 //------------------------------------------------------------------------|
 const scallop_t scallop_pub = {
     &scallop_create,
@@ -727,6 +749,7 @@ const scallop_t scallop_pub = {
     &scallop_commands,
     &scallop_dispatch,
     &scallop_loop,
+    &scallop_quit,
     NULL
 };
 
