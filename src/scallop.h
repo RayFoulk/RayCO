@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "console.h"
 #include "scallcmd.h"
 
 //------------------------------------------------------------------------|
@@ -40,7 +41,8 @@
 //------------------------------------------------------------------------|
 typedef struct scallop_t
 {
-    struct scallop_t * (*create)(const char * prompt,
+    struct scallop_t * (*create)(console_t * console,
+                                 const char * prompt,
                                  const char * delim,
                                  const char * comment);
 
@@ -57,6 +59,9 @@ typedef struct scallop_t
 
     // Main interactive prompt loop
     int (*loop)(struct scallop_t * scallop);
+
+    // Explicitely quit the main loop
+    void (*quit)(struct scallop_t * scallop);
 
     // TODO: get/set prompt
 

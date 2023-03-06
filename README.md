@@ -9,9 +9,13 @@
   - Will use 'astyle --style=allman <file>' for formatting
 
 # Goals
+- Remain MIT and/or BSD license-compatible.  No GPL of any version.
 - Fundamental design goal is to have as few dependencies and inter-dependencies as possible
-- Will depend (at least initially) on a subset of libc calls
+  - Will depend (at least initially) on a subset of libc calls
+  - May provide (or use) an optional limited implementation of libc subset later.  musl?
 - To produce a set of objects that can be used in highly constrained, embedded environments
+  - For example, ability to port to C64
+
 
 # Objects
 - **chain_t** A doubly-linked-list implementation using 'chain' and 'link' nomenclature

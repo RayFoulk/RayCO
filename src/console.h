@@ -24,10 +24,18 @@
 #pragma once
 
 #include <stdio.h>      // FILE
+#include <stdlib.h>
+#include <stddef.h>     // size_t
 #include <stdbool.h>    // bool
 
 //------------------------------------------------------------------------|
 #define CONSOLE_BUFFER_SIZE     4096
+
+//------------------------------------------------------------------------|
+// Cheesey plugin for linenoise while keeping dependency stuff limited to
+// scallop.  would have taken callback subscription approach but for the
+// linenoise data types in the function signatures.  PR to linenoise?
+typedef char * (*thirdparty_getline_f) (const char *);
 
 //------------------------------------------------------------------------|
 typedef struct console_t
@@ -44,8 +52,15 @@ typedef struct console_t
     // Explicitly unlock the console from current thread
     void (*unlock)(struct console_t * console);
 
-    // Get a line of input
-    ssize_t (*getline)(struct console_t * console, char ** lineptr, size_t * nchars);
+    // FIXME: Need setter for thirdparty_getline!!!
+
+    // XXXXXXXXXXXXXXXXXXXX
+
+
+    // Get a heap allocated line buffer from user.  This is intentionally
+    // simplistic attempting to match linenoise() as closely as possible.
+    // a direct override is not possible due to the object reference.
+    char * (*get_line)(struct console_t * console, const char * prompt);
 
     // Printf-style output function
     int (*print)(struct console_t * console, const char * format, ...);
