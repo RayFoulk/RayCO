@@ -32,10 +32,10 @@
 #define CONSOLE_BUFFER_SIZE     4096
 
 //------------------------------------------------------------------------|
-// Cheesey plugin for linenoise while keeping dependency stuff limited to
-// scallop.  would have taken callback subscription approach but for the
-// linenoise data types in the function signatures.  PR to linenoise?
-typedef char * (*thirdparty_getline_f) (const char *);
+// Contextual callback functions for tab completion and arg hints.
+// currently only linenoise is optionally supported.
+typedef void (*console_tab_completion_f)(void * object, const char * buffer);
+typedef char * (*console_arg_hints_f)(void * object, const char * buffer, int * color, int * bold);
 
 //------------------------------------------------------------------------|
 typedef struct console_t
@@ -52,21 +52,31 @@ typedef struct console_t
     // Explicitly unlock the console from current thread
     void (*unlock)(struct console_t * console);
 
-    // FIXME: Need setter for thirdparty_getline!!!
+    // Set tab completion and arg hints callbacks (if supported)
+    void (*set_line_callbacks)(struct console_t * console,
+                               console_tab_completion_f tab_callback,
+                               console_arg_hints_f hints_callback,
+                               void * object);
 
-    // XXXXXXXXXXXXXXXXXXXX
-
+    // Add a tab completion (if supported)
+    void (*add_tab_completion)(struct console_t * console,
+                               const char * line);
 
     // Get a heap allocated line buffer from user.  This is intentionally
     // simplistic attempting to match linenoise() as closely as possible.
     // a direct override is not possible due to the object reference.
-    char * (*get_line)(struct console_t * console, const char * prompt);
+    // TODO: OR FROM SCRIPT OR FROM ROUTINE!!!
+    char * (*get_line)(struct console_t * console,
+                       const char * prompt,
+                       bool interactive);
 
     // Printf-style output function
-    int (*print)(struct console_t * console, const char * format, ...);
+    int (*print)(struct console_t * console,
+                 const char * format, ...);
 
     // Update a previously printed string in-place
-    int (*reprint)(struct console_t * console, const char * format, ...);
+    int (*reprint)(struct console_t * console,
+                   const char * format, ...);
 
     // Private data
     void * priv;
