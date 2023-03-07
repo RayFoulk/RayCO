@@ -27,9 +27,14 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "blammo.h"
 #include "console.h"
+
+#ifdef LINENOISE_ENABLE
+#include "linenoise.h"
+#endif
 
 //------------------------------------------------------------------------|
 // Console private data container
@@ -38,15 +43,76 @@ typedef struct
     // Lock to keep I/O thread-safe and prevent interleaving.
     pthread_mutex_t lock;
 
-    // Optional third-party getline function for line editing and
-    // tab-completion
-    thirdparty_getline_f thirdparty_getline;
-
     // Pipes for user I/O
     FILE * input;
     FILE * output;
+
+    // reprint buffers
+    // TODO: make this dynamic heap allocated
+    char newbuffer[CONSOLE_BUFFER_SIZE];
+    char oldbuffer[CONSOLE_BUFFER_SIZE];
+
+    // Callbacks for tab completion and argument hints if supported
+    console_tab_completion_f tab_completion_callback;
+    console_arg_hints_f arg_hints_callback;
+    void * callback_object;
+
+#ifdef LINENOISE_ENABLE
+    // linenoise needs a little extra context to work properly
+    linenoiseCompletions * lc;
+#endif
 }
 console_priv_t;
+
+//------------------------------------------------------------------------|
+#ifdef LINENOISE_ENABLE
+
+// Some object is going to be forced into a singleton-ish pattern in order
+// to support the linenoise submodule.  This means when linenoise is
+// enabled then only one console object per process can be supported.
+// The restriction is not that bad of a price to pay.
+static console_t * singleton_console_ptr = NULL;
+
+// Surrogate callback functions for redirecting linenoise calls to our
+// contextual calls.
+static void surrogate_linenoise_completion(const char * buffer,
+                                           linenoiseCompletions * lc)
+{
+    BLAMMO(DEBUG, "buffer: \'%s\'", buffer);
+
+    console_t * console = singleton_console_ptr;
+    console_priv_t * priv = (console_priv_t *) console->priv;
+
+    // Set up context and do the callback
+    priv->lc = lc;
+    if (!priv->tab_completion_callback)
+    {
+        return;
+    }
+
+    priv->tab_completion_callback(priv->callback_object, buffer);
+}
+
+static char * surrogate_linenoise_hints(const char * buffer,
+                                        int * color,
+                                        int * bold)
+{
+    BLAMMO(DEBUG, "buffer: \'%s\'", buffer);
+
+    console_t * console = singleton_console_ptr;
+    console_priv_t * priv = (console_priv_t *) console->priv;
+
+    if (!priv->arg_hints_callback)
+    {
+        return NULL;
+    }
+
+    return priv->arg_hints_callback(priv->callback_object,
+                                    buffer,
+                                    color,
+                                    bold);
+}
+#endif
 
 //------------------------------------------------------------------------|
 static console_t * console_create(FILE * input, FILE * output)
@@ -74,6 +140,9 @@ static console_t * console_create(FILE * input, FILE * output)
     memset(console->priv, 0, sizeof(console_priv_t));
     console_priv_t * priv = (console_priv_t *) console->priv;
 
+    // Reset the reprint buffers
+    console->reprint(console, NULL);
+
     // Use a recursive lock
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -84,6 +153,18 @@ static console_t * console_create(FILE * input, FILE * output)
     // Setup the pipes
     priv->input = input;
     priv->output = output;
+
+#ifdef LINENOISE_ENABLE
+    // Set the completion callback, for when <tab> is pressed
+    linenoiseSetCompletionCallback(surrogate_linenoise_completion);
+
+    // Set the hints callback for when arguments are needed
+    linenoiseSetHintsCallback(surrogate_linenoise_hints);
+
+    // Set singleton pointer to console object.  WARNING: this will break
+    // if multiple console objects are created.
+    singleton_console_ptr = console;
+#endif
 
     return console;
 }
@@ -111,6 +192,10 @@ static void console_destroy(void * console_ptr)
     // zero out and destroy the public interface
     memset(console, 0, sizeof(console_t));
     free(console);
+
+#ifdef LINENOISE_ENABLE
+    singleton_console_ptr = NULL;
+#endif
 }
 
 //------------------------------------------------------------------------|
@@ -135,14 +220,64 @@ static void console_unlock(console_t * console)
 }
 
 //------------------------------------------------------------------------|
-static char * console_get_line(console_t * console, char ** lineptr, size_t * nchars)
+static void console_set_line_callbacks(console_t * console,
+                                       console_tab_completion_f tab_callback,
+                                       console_arg_hints_f hints_callback,
+                                       void * object)
 {
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    priv->tab_completion_callback = tab_callback;
+    priv->arg_hints_callback = hints_callback;
+    priv->callback_object = object;
+}
 
+//------------------------------------------------------------------------|
+void console_add_tab_completion(console_t * console, const char * line)
+{
+#ifdef LINENOISE_ENABLE
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    linenoiseAddCompletion(priv->lc, line);
+#else
+    BLAMMO(DEBUG, "Tab-completion not implemented");
+#endif
+}
 
+//------------------------------------------------------------------------|
+static char * console_get_line(console_t * console,
+                               const char * prompt,
+                               bool interactive)
+{
+    // if interactive and linenoise enabled, use linenoise
+    // else read from input FILE *???
+    // tempting to just compare with stdin here, but that would be a
+    // potential mistake leading to future problems...
+#ifdef LINENOISE_ENABLE
+    if (interactive)
+    {
+        // TODO: PR against linenoise to add setting of FILE *
+        // so that we can, for example, redirect I/O to a tty
+        return linenoise(prompt);
+    }
+#endif
 
+    console_priv_t * priv = (console_priv_t *) console->priv;
 
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    return -1;
+    // wrap getline, and use for interactive if there is no linenoise
+    // submodule.  This is always used for scripts, however.
+    fprintf(stdout, "%s", prompt);
+
+    char * line = NULL;
+    size_t nalloc = 0;
+    ssize_t nchars = getline(&line, &nalloc, priv->input);
+    if (nchars < 0)
+    {
+        BLAMMO(ERROR, "getline() failed with errno %d strerror %s",
+                      errno, strerror(errno));
+        free(line);
+        return NULL;
+    }
+
+    return line;
 }
 
 //------------------------------------------------------------------------|
@@ -215,12 +350,76 @@ static int console_print(console_t * console, const char * format, ...)
 //------------------------------------------------------------------------|
 static int console_reprint(console_t * console, const char * format, ...)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    console_priv_t * priv = (console_priv_t *) console->priv;
 
     // TODO: Consider finally making this dynamic heap alloc
     // beyond what librmf refprintf() does
+    pthread_mutex_lock(&priv->lock);
 
-    return -1;
+    va_list args;
+    int count = 0;
+    int address = 0;
+
+    // Null format string indicates a buffer reset
+    if (!format)
+    {
+        priv->newbuffer[0] = 0;
+        priv->oldbuffer[0] = 0;
+        pthread_mutex_unlock(&priv->lock);
+        return 0;
+
+    }
+
+    // map arguments into 'new' buffer
+    va_start (args, format);
+    vsnprintf (priv->newbuffer, CONSOLE_BUFFER_SIZE, format, args);
+    va_end (args);
+
+    // Check for first call after a reset
+    if (priv->oldbuffer[0] == 0)
+    {
+        // this is the first call _after_ a reset
+        console->print(console, "%s", priv->newbuffer);
+    }
+    else
+    {
+        // Update the output terminal with new information.
+        // We need to find where the first byte that's changed is.
+        while ((priv->newbuffer[address] == priv->oldbuffer[address])
+                && (priv->newbuffer[address] != 0))
+        {
+            address ++;
+        }
+
+        // Only print something if buffers differ somehow
+        if (!((priv->newbuffer[address] == 0)
+                && (priv->oldbuffer[address] == 0)))
+        {
+            // First delete what's differenent, working backwards
+            // from the end of old buffer down to the 1st changed byte
+            for (count = strnlen(priv->oldbuffer, CONSOLE_BUFFER_SIZE); count > address; count --)
+            {
+                // delete a character: delete-space-delete
+                console->print(console, "%c%c%c", (char) 8, (char) 32, (char) 8);
+            }
+
+            // Next print out the updated part of the new buffer
+            // from where we left off working forwards
+            address = strnlen(priv->newbuffer, CONSOLE_BUFFER_SIZE);
+            while (count < address)
+            {
+                console->print(console, "%c", priv->newbuffer[count]);
+                count ++;
+            }
+        }
+    }
+
+    // New buffer becomes old, and always fflush the output stream
+    strncpy (priv->oldbuffer, priv->newbuffer, CONSOLE_BUFFER_SIZE);
+    fflush (priv->output);
+
+    pthread_mutex_unlock(&priv->lock);
+    return 0;
 }
 
 //------------------------------------------------------------------------|
@@ -229,6 +428,8 @@ const console_t console_pub = {
     &console_destroy,
     &console_lock,
     &console_unlock,
+    &console_set_line_callbacks,
+    &console_add_tab_completion,
     &console_get_line,
     &console_print,
     &console_reprint,

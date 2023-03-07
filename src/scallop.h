@@ -63,7 +63,7 @@ typedef struct scallop_t
     // Explicitely quit the main loop
     void (*quit)(struct scallop_t * scallop);
 
-    // TODO: get/set prompt
+    // TODO: get/set context-based prompt
 
     // Private data
     void * priv;

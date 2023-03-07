@@ -61,8 +61,8 @@ typedef struct bytes_t
 
     // Assign data directly to buffer, replacing any existing data,
     // and sizing the buffer as necessary.  strncpy equivalent.
-    // TODO: how to handle whther the string needs to be un-escaped or not?
-    // TODO: manual escape/unescape calls for this
+    // TODO: how to handle whether the string needs to be un-escaped or not?
+    // TODO: manual escape/un-escape calls for this
     void (*assign)(struct bytes_t * bytes, const void * data, size_t size);
 
     // Append data to end of buffer, growing as necessary.
