@@ -35,17 +35,6 @@
 #include "utils.h"
 #include "blammo.h"
 
-#ifdef LINENOISE_ENABLE
-#include "linenoise.h"
-
-// Kind of distasteful, but short of drastically modifying linenoise
-// itself, this appears to be the cost of getting nested tab completion
-// and argument hints via that submodule.  This forces a singleton-ish
-// pattern on the scallop object.  It's not likely to have multiple
-// simultaneous scallop objects per process so it's probably not a big deal.
-static void * singleton_scallop_ptr = NULL;
-#endif
-
 //------------------------------------------------------------------------|
 // scallop private implementation data
 typedef struct
@@ -256,22 +245,19 @@ static int scallop_ignore_comments(scallop_t * scallop, int argc, char ** args)
 }
 
 //------------------------------------------------------------------------|
-#ifdef LINENOISE_ENABLE
-
-// Linenoise-only callback function for tab completion
-static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
+static void scallop_tab_completion(void * object, const char * buffer)
 {
-    BLAMMO(DEBUG, "buf: \'%s\'", buf);
+    BLAMMO(DEBUG, "buffer: \'%s\'", buffer);
 
     // Always get a handle on the singleton scallop
-    scallop_t * scallop = (scallop_t *) singleton_scallop_ptr;
+    scallop_t * scallop = (scallop_t *) object;
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Do full split on mock command line so that we can match
     // fully qualified keywords up to and including incomplete
     // commands that need tab-completion added.  The original
     // buffer cannot be altered or it will break line editing.
-    char * line = strdup(buf);
+    char * line = strdup(buffer);
     char * args[SCALLOP_MAX_ARGS];
     size_t argc = 0;
 
@@ -320,21 +306,21 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
     size_t longest = 0;
     chain_t * pmatches = parent->partial_matches(parent, args[nest], &longest);
     free(line);
-    if (!pmatches) { return; }
+    if (!pmatches || pmatches->length(pmatches) == 0) { return; }
     BLAMMO(DEBUG, "partial_matches length: %u  longest: %u",
                   pmatches->length(pmatches), longest);
 
     // Need to duplicate the line again, but this time leave the copy
     // mostly intact except that we want to modify the potentially
     // tab-completed argument in place and then feed the whole thing
-    // back to linenoise.  Just re-use the existing declared variables.
+    // back to console.  Just re-use the existing declared variables.
     // Basically strdup() manually, but allow some extra room for tab completed
     // keyword.  Maybe can use strndup() with a big n instead???
     char * keyword = NULL;
-    size_t length = strlen(buf);
+    size_t length = strlen(buffer);
     size_t lsize = length + longest;
     line = (char *) malloc(lsize);
-    memcpy(line, buf, length);
+    memcpy(line, buffer, length);
     line[length] = 0;
 
     // get markers within unmodified copy of line
@@ -352,11 +338,14 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
         // through keywords of varying length.  I'm sure there are tons
         // of bugs in this code.  TODO: harden it up later with some
         // static and dynamic analysis and complete unit tests!!!
-        memset(args[nest], 0, strlen(keyword) + 1);
+        memset(args[nest], 0, strlen(keyword) + 2);
         memcpy(args[nest], keyword, strlen(keyword));
 
+        // Add primary delimiter character at end of completion
+        args[nest][strlen(keyword)] = priv->delim[0];
+
         BLAMMO(DEBUG, "Adding tab completion line: \'%s\'", line);
-        linenoiseAddCompletion(lc, line);
+        priv->console->add_tab_completion(priv->console, line);
         pmatches->spin(pmatches, 1);
     }
     while (!pmatches->origin(pmatches));
@@ -365,20 +354,23 @@ static void linenoise_completion(const char * buf, linenoiseCompletions * lc)
     pmatches->destroy(pmatches);
 }
 
-// Linenoise-only callback for argument hints
-static char * linenoise_hints(const char * buf, int * color, int * bold)
+// callback for argument hints
+static char * scallop_arg_hints(void * object,
+                                      const char * buffer,
+                                      int * color,
+                                      int * bold)
 {
-    BLAMMO(DEBUG, "buf: \'%s\'", buf);
+    BLAMMO(DEBUG, "buffer: \'%s\'", buffer);
 
     // Always get a handle on the singleton scallop
-    scallop_t * scallop = (scallop_t *) singleton_scallop_ptr;
+    scallop_t * scallop = (scallop_t *) object;
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Do full split on mock command line in order to preemptively
     // distinguish which specific command is about to be invoked so that
     // proper hints can be given.  Otherwise this cannot
     // distinguish between 'create' and 'created' for example.
-    char * line = strdup(buf);
+    char * line = strdup(buffer);
     char * args[SCALLOP_MAX_ARGS];
     size_t argc = 0;
 
@@ -465,32 +457,6 @@ static char * linenoise_hints(const char * buf, int * color, int * bold)
     return hints[hindex] - 1;
 }
 
-// Redirect get_command_line to linenoise
-#define get_command_line(p)     linenoise(p)
-
-#else
-
-// wrap getline, and use for interactive if there is no linenoise
-// submodule.  This is always used for scripts, however.
-static char * get_command_line(const char * prompt)
-{
-    fprintf(stdout, "%s", prompt);
-
-    char * line = NULL;
-    size_t nalloc = 0;
-    ssize_t nchars = getline(&line, &nalloc, stdin);
-    if (nchars < 0)
-    {
-        BLAMMO(ERROR, "getline() failed with errno %d strerror %s",
-                      errno, strerror(errno));
-        free(line);
-        return NULL;
-    }
-
-    return line;
-}
-#endif
-
 //------------------------------------------------------------------------|
 static scallop_t * scallop_create(console_t * console,
                                   const char * prompt,
@@ -527,10 +493,14 @@ static scallop_t * scallop_create(console_t * console,
         scallop->destroy(scallop);
         return NULL;
     }
+
+    // cross-link the console into scallop, in terms
+    // of callbacks for tab completion and object reference.
     priv->console = console;
-    // FIXME: override console input function
-
-
+    console->set_line_callbacks(console,
+                                scallop_tab_completion,
+                                scallop_arg_hints,
+                                scallop);
 
     // Initialize prompt string
     priv->prompt = (char *) prompt;
@@ -596,23 +566,6 @@ static scallop_t * scallop_create(console_t * console,
                     NULL,
                     "exit the scallop command handling loop"));
 
-
-#ifdef LINENOISE_ENABLE
-    // Set the completion callback, for when <tab> is pressed
-    linenoiseSetCompletionCallback(linenoise_completion);
-
-    // Set the hints callback for when arguments are needed
-    linenoiseSetHintsCallback(linenoise_hints);
-
-    // Load command history from file.
-    //linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
-
-    // Set global pointer to scallop object.  WARNING: This will break if
-    // multiple scallops are created, resulting in hints/completion for the
-    // wrong object!
-    singleton_scallop_ptr = (void *) scallop;
-#endif
-
     return scallop;
 }
 
@@ -643,11 +596,6 @@ static void scallop_destroy(void * scallop_ptr)
     // zero out and destroy the public interface
     memset(scallop, 0, sizeof(scallop_t));
     free(scallop);
-
-#ifdef LINENOISE_ENABLE
-    singleton_scallop_ptr = NULL;
-#endif
-
 }
 
 //------------------------------------------------------------------------|
@@ -718,7 +666,9 @@ static int scallop_loop(scallop_t * scallop)
     while (!priv->quit)
     {
         // Get a line of raw user input
-        line = get_command_line(priv->prompt);
+        line = priv->console->get_line(priv->console,
+                                       priv->prompt,
+                                       true);
         BLAMMO(DEBUG, "line: %s", line);
 
         result = scallop->dispatch(scallop, line);
