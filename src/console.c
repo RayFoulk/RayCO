@@ -360,72 +360,61 @@ static int console_reprint(console_t * console, const char * format, ...)
     int count = 0;
     int address = 0;
 
-//    // format arguments and safely map them into new buffer
-//    va_start (args, format);
-//    vsnprintf (priv->newbuffer, CONSOLE_BUFFER_SIZE, format, args);
-//    va_end (args);
-
-    // check what caller intends to do
-//    if ((strcmp (priv->newbuffer, "(null)") == 0) || (priv->newbuffer[0] == (char) 0))
+    // Null format string indicates a buffer reset
     if (!format)
     {
-        // caller uses NULL argument list to indicate a reset
-        priv->newbuffer[0] = (char) 0;
-        priv->oldbuffer[0] = (char) 0;
+        priv->newbuffer[0] = 0;
+        priv->oldbuffer[0] = 0;
         pthread_mutex_unlock(&priv->lock);
         return 0;
 
     }
 
-    // format arguments and safely map them into new buffer
+    // map arguments into 'new' buffer
     va_start (args, format);
     vsnprintf (priv->newbuffer, CONSOLE_BUFFER_SIZE, format, args);
     va_end (args);
 
-    // this is NOT a reset, output will occur in some form
-    if (priv->oldbuffer[0] == (char) 0)
+    // Check for first call after a reset
+    if (priv->oldbuffer[0] == 0)
     {
         // this is the first call _after_ a reset
         console->print(console, "%s", priv->newbuffer);
     }
     else
     {
-        // caller wants to update the screen with new information
-        // do our own implementation of strcmp because we want
-        // to know the address of the _first_byte_ that is different
-        while ((priv->newbuffer[address] == priv->oldbuffer[address]) && (priv->newbuffer[address] != (char) 0))
+        // Update the output terminal with new information.
+        // We need to find where the first byte that's changed is.
+        while ((priv->newbuffer[address] == priv->oldbuffer[address])
+                && (priv->newbuffer[address] != 0))
         {
             address ++;
         }
 
-        // if both new[address] and old[address] are zero then new[] and old[]
-        // are identical and don't even bother, otherwise update stdout
-        if (!((priv->newbuffer[address] == (char) 0) && (priv->oldbuffer[address] == (char) 0)))
+        // Only print something if buffers differ somehow
+        if (!((priv->newbuffer[address] == 0)
+                && (priv->oldbuffer[address] == 0)))
         {
-            // first thing to do is erase what's differenet on the screen
-            // starting from the end of old[] down to the 1st different byte
-            for (count = strnlen (priv->oldbuffer, CONSOLE_BUFFER_SIZE); count > address; count --)
+            // First delete what's differenent, working backwards
+            // from the end of old buffer down to the 1st changed byte
+            for (count = strnlen(priv->oldbuffer, CONSOLE_BUFFER_SIZE); count > address; count --)
             {
-                // delete a character from stdout/stream (print a backspace)
+                // delete a character: delete-space-delete
                 console->print(console, "%c%c%c", (char) 8, (char) 32, (char) 8);
             }
 
-            // now we want to print out the different part of new[]
-            // count was left off _at_ address of the 1sr difference
-            // so we use address as the length of new[] now
-            address = strnlen (priv->newbuffer, CONSOLE_BUFFER_SIZE);
+            // Next print out the updated part of the new buffer
+            // from where we left off working forwards
+            address = strnlen(priv->newbuffer, CONSOLE_BUFFER_SIZE);
             while (count < address)
             {
-                // printf out current new[] character
-                // increment place counter
                 console->print(console, "%c", priv->newbuffer[count]);
                 count ++;
             }
         }
     }
 
-    // this was NOT a reset, so new becomes old
-    // always flush stream if output has occurred
+    // New buffer becomes old, and always fflush the output stream
     strncpy (priv->oldbuffer, priv->newbuffer, CONSOLE_BUFFER_SIZE);
     fflush (priv->output);
 
