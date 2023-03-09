@@ -23,37 +23,38 @@
 
 #include "blammo.h"
 #include "utils.h"
-#include "shellcmd.h"
+#include "scallcmd.h"
 #include "mut.h"
 
 #include <string.h>
 #include <limits.h>
 #include <stdbool.h>
 
-static void * bogus_shellcmd_handler(void * shell,
+static int bogus_scallcmd_handler(void * scallop,
                                      void * context,
                                      int argc,
                                      char ** argv)
 {
     BLAMMO(INFO, "called");
-    return NULL;
+    return 0;
 }
 
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
     BLAMMO_LEVEL(INFO);
-    BLAMMO_FILE("test_shellcmd.log");
-    BLAMMO(INFO, "shellcmd tests...");
+    BLAMMO_FILE("test_scallcmd.log");
+    BLAMMO(INFO, "scallcmd tests...");
 
 TEST_BEGIN("test create/destroy")
-    shellcmd_t * shellcmd = shellcmd_pub.create(bogus_shellcmd_handler,
-                                                "test",
-                                                " <hint>",
-                                                "a bogus test command");
-    CHECK(shellcmd != NULL);
+    scallop_cmd_t * scallcmd = scallop_cmd_pub.create(bogus_scallcmd_handler,
+                                                      NULL,
+                                                      "test",
+                                                      " <hint>",
+                                                      "a bogus test command");
+    CHECK(scallcmd != NULL);
 
-    shellcmd->destroy(shellcmd);
+    scallcmd->destroy(scallcmd);
 
 TEST_END
 

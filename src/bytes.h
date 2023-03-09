@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2020 by Raymond M. Foulk IV (rfoulk@gmail.com)
+// Copyright (c) 2018-2023 by Raymond M. Foulk IV (rfoulk@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
+//#include <stdlib.h>
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
@@ -35,7 +35,7 @@ typedef struct bytes_t
     // Factory function that creates a 'bytes' object.
     struct bytes_t * (*create)(const void * data, size_t size);
 
-    // Public bytes destructor function
+    // Bytes destructor function
     void (*destroy)(void * bytes);
 
     // Get the data as a byte array pointer
@@ -57,27 +57,43 @@ typedef struct bytes_t
     void (*resize)(struct bytes_t * bytes, size_t size);
 
     // Printf-style string formatter
-    ssize_t (*format)(struct bytes_t * bytes, const char * format, ...);
+    ssize_t (*print)(struct bytes_t * bytes, const char * format, ...);
 
     // Assign data directly to buffer, replacing any existing data,
     // and sizing the buffer as necessary.  strncpy equivalent.
     // TODO: how to handle whether the string needs to be un-escaped or not?
     // TODO: manual escape/un-escape calls for this
-    void (*assign)(struct bytes_t * bytes, const void * data, size_t size);
+    void (*assign)(struct bytes_t * bytes,
+                   const void * data,
+                   size_t size);
 
     // Append data to end of buffer, growing as necessary.
     // strncat equivalent style arguments
-    void (*append)(struct bytes_t * bytes, const void * data, size_t size);
+    void (*append)(struct bytes_t * bytes,
+                   const void * data,
+                   size_t size);
 
     // Analogous to pread(), this will read arbitrary data from the string
     // at an offset.  Return value is number of bytes read or negative
     // if an error occurred.
-    ssize_t (*read)(struct bytes_t * bytes, void * data, size_t count, size_t offset);
+    ssize_t (*read_at)(struct bytes_t * bytes,
+                       void * data,
+                       size_t count,
+                       size_t offset);
 
     // Analogous to pwrite(), this will write arbitrary data to the string
     // at an offset.  Return value is number of bytes read or negative
     // if an error occurred.  The size of the bytes object is unaltered.
-    ssize_t (*write)(struct bytes_t * bytes, const void * data, size_t count, size_t offset);
+    ssize_t (*write_at)(struct bytes_t * bytes,
+                        const void * data,
+                        size_t count,
+                        size_t offset);
+
+    // Trim whitespace as defined by caller from the right end, left
+    // end, and both ends of the byte buffer.  Returns new size.
+    size_t (*rtrim)(struct bytes_t * bytes, const char * whitespace);
+    size_t (*ltrim)(struct bytes_t * bytes, const char * whitespace);
+    size_t (*trim)(struct bytes_t * bytes, const char * whitespace);
 
     // TODO: Notional Functions
     /*
@@ -89,7 +105,6 @@ typedef struct bytes_t
     */
 
     // TODO: Stubbed Functions
-    size_t (*trim)(struct bytes_t * bytes);
     struct bytes_t * (*copy)(struct bytes_t * bytes);
     struct bytes_t * (*split)(struct bytes_t * bytes, size_t begin, size_t end);
     bool (*join)(struct bytes_t * head, struct bytes_t * tail);

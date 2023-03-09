@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2020 by Raymond M. Foulk IV (rfoulk@gmail.com)
+// Copyright (c) 2018-2023 by Raymond M. Foulk IV (rfoulk@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -118,14 +118,20 @@ TEST_BEGIN("resize/size")
     bytes->destroy(bytes);
 TEST_END
 
-TEST_BEGIN("format")
+TEST_BEGIN("print")
     bytes_t * bytes = bytes_pub.create(NULL, 0);
     CHECK(bytes != NULL);
     CHECK(bytes->priv != NULL);
 
-    // TODO: Test some common types,
-    // but no float/double!
+    // Test some common format types. but no float/double!
+    // TODO expand these later,
+    const char * expect = "hello -9 9 55 AA 214748364";
 
+    ssize_t result = bytes->print(bytes,
+            "%s %d %d %x %X %u", "hello",
+            -9, 9, 0x55, 0xAA, 0x1 << 31);
+
+    CHECK(strcmp(expect, bytes->cstr(bytes)) == 0);
     bytes->destroy(bytes);
 TEST_END
 
@@ -176,25 +182,54 @@ TEST_BEGIN("append")
 
 TEST_END
 
-TEST_BEGIN("read")
+TEST_BEGIN("read_at")
     const char * str = "abc123";
     size_t len = strlen(str);
     char buffer[8] = { 0x00 };
     bytes_t * bytes = bytes_pub.create(str, len);
-    bytes->read(bytes, buffer, 1, 3);
+    bytes->read_at(bytes, buffer, 1, 3);
 
-    // FIXME: Disable until implemented
-    BLAMMO(INFO, "buffer: %s\n", buffer);
-    //CHECK(strcmp(buffer, "1") == 0);
+    BLAMMO(INFO, "read_at buffer: %s\n", buffer);
+    CHECK(strcmp(buffer, "1") == 0);
 
     // TODO: more cases, overlapping
     bytes->destroy(bytes);
 TEST_END
 
-TEST_BEGIN("write")
+TEST_BEGIN("write_at")
+TEST_END
+
+TEST_BEGIN("rtrim")
+
+    const char * str = "abc123  \t \n\n ";
+    bytes_t * bytes = bytes_pub.create(str, strlen(str));
+    bytes->rtrim(bytes, " \t\n");
+    CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
+    bytes->destroy(bytes);
+
+TEST_END
+
+TEST_BEGIN("ltrim")
+
+    const char * str = " \t\t  \n abc123";
+    bytes_t * bytes = bytes_pub.create(str, strlen(str));
+    bytes->ltrim(bytes, " \t\n");
+    CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
+    bytes->destroy(bytes);
+
 TEST_END
 
 TEST_BEGIN("trim")
+
+    // FIXME: double terminating zero in this case
+    const char * str = "  \t\n  \t abc123  \n \t   ";
+    bytes_t * bytes = bytes_pub.create(str, strlen(str));
+    bytes->trim(bytes, " \t\n");
+    BLAMMO(INFO, "hexdump: %s", bytes->hexdump(bytes));
+    CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
+    bytes->destroy(bytes);
+
+
 TEST_END
 
 TEST_BEGIN("copy")

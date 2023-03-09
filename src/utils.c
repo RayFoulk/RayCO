@@ -170,3 +170,6 @@ int markstr(char ** markers, size_t max_markers,
     BLAMMO(VERBOSE, "number of markers: %u", nmark);
     return nmark;
 }
+
+// https://www.cryptologie.net/article/419/zeroing-memory-compiler-optimizations-and-memset_s/
+

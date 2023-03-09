@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------|
-// Copyright (c) 2018-2020 by Raymond M. Foulk IV (rfoulk@gmail.com)
+// Copyright (c) 2018-2023 by Raymond M. Foulk IV (rfoulk@gmail.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <string.h>
+#include <string.h>             // strchr(), others...
 #include <stddef.h>
 
 #include "bytes.h"
@@ -85,12 +85,12 @@ void bytes_destroy(void * bytes_ptr)
 
     bytes->clear(bytes);
 
-    if (NULL != bytes->priv)
+    if (bytes->priv)
     {
         free(bytes->priv);
     }
 
-    if (NULL != bytes)
+    if (bytes)
     {
         // TODO: Deal with compiler optimization problem
         memset(bytes, 0, sizeof(bytes_t));
@@ -128,13 +128,13 @@ static void bytes_clear(bytes_t * bytes)
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
     // Also destroy the report/working buffer
-    if (NULL != priv->buffer)
+    if (priv->buffer)
     {
         priv->buffer->destroy(priv->buffer);
         priv->buffer = NULL;
     }
 
-    if (NULL != priv->data)
+    if (priv->data)
     {
         // TODO: Deal with compiler optimization problem
         memset(priv->data, 0, priv->size);
@@ -176,14 +176,14 @@ static void bytes_resize(bytes_t * bytes, size_t size)
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_format(bytes_t * bytes, const char * format, ...)
+static ssize_t bytes_print(bytes_t * bytes, const char * format, ...)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
     ssize_t nchars = 0;
     bool redo = false;
     va_list args;
 
-    if (NULL == format)
+    if (!format)
     {
         BLAMMO(ERROR, "Format string is NULL");
         return -1;
@@ -229,7 +229,7 @@ static void bytes_assign(bytes_t * bytes, const void * data, size_t size)
     bytes->resize(bytes, size);
 
     // buffer was already terminated in resize
-    if (NULL != data)
+    if (data)
     {
         memcpy(priv->data, data, size);
     }
@@ -250,37 +250,104 @@ static void bytes_append(bytes_t * bytes, const void * data, size_t size)
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_read(struct bytes_t * bytes, void * data,
-                          size_t count, size_t offset)
+static ssize_t bytes_read_at(struct bytes_t * bytes,
+                             void * data,
+                             size_t count,
+                             size_t offset)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    // range check offset
-    // use memcpy
-    return -1;
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    // Both count and offset are unsigned, so the only case we have to
+    // check is the upper bound.  The lower bound may or may not be in
+    // range, but if the upper bound is, then the lower one will be also.
+    if (offset + count > priv->size)
+    {
+        BLAMMO(ERROR, "offset %u + count %u is out of bounds for size %u",
+                      offset, count, priv->size);
+        return -1;
+    }
+
+    memcpy(data, priv->data + offset, count);
+    return (ssize_t) count;
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_write(struct bytes_t * bytes, const void * data,
-                           size_t count, size_t offset)
+static ssize_t bytes_write_at(struct bytes_t * bytes,
+                              const void * data,
+                              size_t count,
+                              size_t offset)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    // range check offset
-    // use memcpy
-    return -1;
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    // Both count and offset are unsigned, so the only case we have to
+    // check is the upper bound.  The lower bound may or may not be in
+    // range, but if the upper bound is, then the lower one will be also.
+    if (offset + count > priv->size)
+    {
+        BLAMMO(ERROR, "offset %u + count %u is out of bounds for size %u",
+                      offset, count, priv->size);
+        return -1;
+    }
+
+    memcpy(priv->data + offset, data, count);
+    return (ssize_t) count;
 }
 
 //------------------------------------------------------------------------|
-static size_t bytes_trim(bytes_t * bytes)
+static size_t bytes_rtrim(bytes_t * bytes, const char * whitespace)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    return 0;
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    size_t index = priv->size - 1;
+
+    // search from right end backwards checking for any whitespace char
+    // and stop at the first character where there is no match.
+    while (index >= 0 && strchr(whitespace, priv->data[index]))
+    {
+        index--;
+    }
+
+    // +1 for post-loop correction and another for difference
+    // between final index and actual size.
+    // resize() already accounts for if there is no change
+    bytes->resize(bytes, index + 2);
+    priv->data[priv->size - 1] = 0;
+    return priv->size;
+}
+
+//------------------------------------------------------------------------|
+static size_t bytes_ltrim(bytes_t * bytes, const char * whitespace)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    size_t index = 0;
+
+    // search from the left end forwards and do the same
+    // thing, only this time a memmov will be required
+    while (index < priv->size && strchr(whitespace, priv->data[index]))
+    {
+        index++;
+    }
+
+    memmove(priv->data, priv->data + index, priv->size - index);
+    bytes->resize(bytes, index);
+    priv->data[priv->size - 1] = 0;
+    return priv->size;
+}
+
+//------------------------------------------------------------------------|
+static size_t bytes_trim(bytes_t * bytes, const char * whitespace)
+{
+    bytes->rtrim(bytes, whitespace);
+    return bytes->ltrim(bytes, whitespace);
 }
 
 //------------------------------------------------------------------------|
 static bytes_t * bytes_copy(bytes_t * bytes)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    bytes_t * copy = NULL;
+    // This should be an exact copy of the bytes object
+    // except for any differences in the state of the report string.
+    // The caller of copy() assumes responsibility for destroying the copy
+    bytes_t * copy = bytes->create(bytes->data(bytes),
+                                   bytes->size(bytes));
 
     return copy;
 }
@@ -348,6 +415,8 @@ static inline size_t hexaddr(char * hexaddr, size_t addr)
     return posn;
 }
 
+
+// TODO: merge this with the hexdump in utils
 static const char * const bytes_hexdump(bytes_t * bytes)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
@@ -430,11 +499,13 @@ const bytes_t bytes_pub = {
     &bytes_empty,
     &bytes_clear,
     &bytes_resize,
-    &bytes_format,
+    &bytes_print,
     &bytes_assign,
     &bytes_append,
-    &bytes_read,
-    &bytes_write,
+    &bytes_read_at,
+    &bytes_write_at,
+    &bytes_rtrim,
+    &bytes_ltrim,
     &bytes_trim,
     &bytes_copy,
     &bytes_split,

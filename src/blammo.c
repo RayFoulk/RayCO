@@ -113,14 +113,17 @@ void blammo_file(const char * filename)
         return;
     }
 
-    // File path can be written to
-    // WARNING: Because this is a pointer assignment, it relies on the
-    // string constant remaining active in scope throughout runtime.
-    // E.G. setting this from a parsed command-line argument is OK,
-    // but dynamically building a string in a function that returns will
-    // fail spectacularly.  TODO: Consider refactoring this later.
-    blammo_data.filename = (char *) filename;
+    // File path can be written to.  blammo must own the filename since
+    // the path assignment could come from a volatile source (e.g. optarg)
     fclose(file);
+
+    if (blammo_data.filename)
+    {
+        free(blammo_data.filename);
+    }
+
+    blammo_data.filename = strdup(filename);
+    // WARNING: FIXME: memory leak on exit
 }
 
 //------------------------------------------------------------------------|

@@ -23,7 +23,8 @@
 
 #include "blammo.h"
 #include "utils.h"
-#include "shell.h"
+#include "console.h"
+#include "scallop.h"
 #include "mut.h"
 
 #include <string.h>
@@ -34,14 +35,17 @@ TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
     BLAMMO_LEVEL(INFO);
-    BLAMMO_FILE("test_shell.log");
-    BLAMMO(INFO, "shell tests...");
+    BLAMMO_FILE("test_scallop.log");
+    BLAMMO(INFO, "scallop tests...");
 
 TEST_BEGIN("test create/destroy")
-    shell_t * shell = shell_pub.create("> ");
-    CHECK(shell != NULL);
+    console_t * console = console_pub.create(stdin, stdout);
+    CHECK(console != NULL);
 
-    shell->destroy(shell);
+    scallop_t * scallop = scallop_pub.create(console, "> ", " \t\n", "//");
+    CHECK(scallop != NULL);
+
+    scallop->destroy(scallop);
 
 TEST_END
 
