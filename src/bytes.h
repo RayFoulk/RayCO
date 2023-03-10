@@ -29,7 +29,11 @@
 //#include <stdlib.h>
 #include <stdbool.h>
 
+#define BYTES_EXPERIMENTAL_NULL_TERMINATOR
+
 //------------------------------------------------------------------------|
+// TODO: how to handle whether the string needs to be un-escaped or not?
+// TODO: manual escape/un-escape calls for this
 typedef struct bytes_t
 {
     // Factory function that creates a 'bytes' object.
@@ -60,15 +64,12 @@ typedef struct bytes_t
     ssize_t (*print)(struct bytes_t * bytes, const char * format, ...);
 
     // Assign data directly to buffer, replacing any existing data,
-    // and sizing the buffer as necessary.  strncpy equivalent.
-    // TODO: how to handle whether the string needs to be un-escaped or not?
-    // TODO: manual escape/un-escape calls for this
+    // and sizing the buffer as necessary.  strncpy/memcpy analog.
     void (*assign)(struct bytes_t * bytes,
                    const void * data,
                    size_t size);
 
-    // Append data to end of buffer, growing as necessary.
-    // strncat equivalent style arguments
+    // Append raw data to end of buffer, growing as necessary.
     void (*append)(struct bytes_t * bytes,
                    const void * data,
                    size_t size);

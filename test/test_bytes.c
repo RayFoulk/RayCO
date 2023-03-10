@@ -21,13 +21,13 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
+#include <string.h>
+#include <limits.h>
+
 #include "blammo.h"
 #include "bytes.h"
 #include "prng.h"
 #include "mut.h"
-
-#include <string.h>
-#include <limits.h>
 
 TESTSUITE_BEGIN
 
@@ -125,13 +125,21 @@ TEST_BEGIN("print")
 
     // Test some common format types. but no float/double!
     // TODO expand these later,
-    const char * expect = "hello -9 9 55 AA 214748364";
+    const char * expect = "hello -9 9 55 AA 2147483648";
+    size_t len = strlen(expect);
 
     ssize_t result = bytes->print(bytes,
             "%s %d %d %x %X %u", "hello",
             -9, 9, 0x55, 0xAA, 0x1 << 31);
 
+    BLAMMO(INFO, "size: %zu  len: %zu", bytes->size(bytes), len);
+    BLAMMO(INFO, "cstr: \'%s\'", bytes->cstr(bytes));
+    BLAMMO(INFO, "hexdump:\n%s\n", bytes->hexdump(bytes));
+
     CHECK(strcmp(expect, bytes->cstr(bytes)) == 0);
+    CHECK(bytes->size(bytes) == len);
+    CHECK(result == len);
+
     bytes->destroy(bytes);
 TEST_END
 
@@ -181,6 +189,27 @@ TEST_BEGIN("append")
     suffix->destroy(suffix);
 
 TEST_END
+
+TEST_BEGIN("print/append")
+    bytes_t * a = bytes_pub.create(NULL, 0);
+    bytes_t * b = bytes_pub.create(NULL, 0);
+
+    a->print(a, "abc%d", 1);
+    BLAMMO(INFO, "a hexdump:\n%s\n", a->hexdump(a));
+
+    b->print(b, "def%d", 2);
+    BLAMMO(INFO, "b hexdump:\n%s\n", b->hexdump(b));
+
+    a->append(a, b->data(b), b->size(b));
+    BLAMMO(INFO, "a' hexdump:\n%s\n", a->hexdump(a));
+    BLAMMO(INFO, "a' str: %s", a->cstr(a));
+
+    a->destroy(a);
+    b->destroy(b);
+
+TEST_END
+
+
 
 TEST_BEGIN("read_at")
     const char * str = "abc123";

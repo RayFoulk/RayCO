@@ -29,6 +29,7 @@
 #include <stdbool.h>
 
 #include "chain.h"          // chain_t
+#include "bytes.h"          // bytes_t
 
 //------------------------------------------------------------------------|
 // Command handler function signature.
@@ -76,8 +77,8 @@ typedef struct scallop_cmd_t
 
     // Recursively get full help text for _this_ and all sub-commands
     int (*help)(struct scallop_cmd_t * scallcmd,
-                char ** helptext,
-                size_t * size);
+                bytes_t * help,
+                size_t depth);
 
     // Register a sub-command within the context of this command.
     // If this is serving as the root-level command, then this

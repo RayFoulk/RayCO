@@ -28,6 +28,7 @@
 
 #include "scallcmd.h"
 #include "chain.h"
+#include "bytes.h"
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
@@ -274,11 +275,13 @@ static inline const char * scallop_cmd_description(scallop_cmd_t * scallcmd)
 
 //------------------------------------------------------------------------|
 static int scallop_cmd_help(scallop_cmd_t * scallcmd,
-                            char ** helptext,
-                            size_t * size)
+                            bytes_t * help,
+                            size_t depth)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
     scallop_cmd_t * cmd = NULL;
+    bytes_t * subhelp = NULL;
+    bytes_t * pad = NULL;
 
     // TODO: Append stuff about THIS command in the report???
     // probably not since starting at root with nothing.
@@ -289,29 +292,34 @@ static int scallop_cmd_help(scallop_cmd_t * scallcmd,
         return 0;
     }
 
-    char * subhelp = NULL;
-    size_t subsize = 0;
-
     // Recursively get help for all sub-commands
+    pad = bytes_pub.create("                      ", depth * 4);
     priv->cmds->reset(priv->cmds);
     do
     {
         cmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
+        subhelp = bytes_pub.create(NULL, 0);
 
-        // FIXME: Console output versus blammo output
-        BLAMMO(INFO, "%s  %s  %s", cmd->keyword(cmd),
-                                   cmd->arghints(cmd),
-                                   cmd->description(cmd));
+        subhelp->print(subhelp,
+                       "%s%s  %s  %s\r\n",
+                       pad->data(pad) ? pad->data(pad) : "",
+                       cmd->keyword(cmd),
+                       cmd->arghints(cmd),
+                       cmd->description(cmd));
 
-        cmd->help(cmd, &subhelp, &subsize);
+        cmd->help(cmd, subhelp, ++depth);
 
-        // TODO: expand helptext with realloc
-        // and append help from this subcommand
+        help->append(help,
+                     subhelp->data(subhelp),
+                     subhelp->size(subhelp));
+
+        subhelp->destroy(subhelp);
 
         priv->cmds->spin(priv->cmds, 1);
     }
     while (!priv->cmds->origin(priv->cmds));
 
+    pad->destroy(pad);
     return 0;
 }
 

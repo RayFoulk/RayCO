@@ -32,6 +32,7 @@
 #include "scallcmd.h"
 #include "console.h"
 #include "chain.h"
+#include "bytes.h"
 #include "utils.h"
 #include "blammo.h"
 
@@ -192,22 +193,26 @@ static int builtin_handler_help(void * scallcmd,
                                 int argc,
                                 char ** args)
 {
-    //scallop_cmd_t * cmd = (scallop_cmd_t *) scallcmd;
-    scallop_cmd_t * cmd = (scallop_cmd_t *) context;
+    scallop_priv_t * priv = (scallop_priv_t *) context;
+    bytes_t * help = bytes_pub.create(NULL, 0);
 
-    char * helptext = NULL;
-    size_t size = 0;
-    int result = cmd->help(cmd, &helptext, &size);
+    help->print(help, "commands:\r\n");
 
-    BLAMMO(INFO, "size: %u text: %s", size, helptext);
-
-    if (helptext)
+    int result = priv->cmds->help(priv->cmds, help, 0);
+    if (result < 0)
     {
-        free(helptext);
-        helptext = NULL;
-        size = 0;
+        BLAMMO(ERROR, "cmds->help() returned %d", result);
+        help->destroy(help);
+        return result;
     }
 
+    BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
+
+    // FIXME: run help text through a column formatter
+    //  potentially build this into bytes_t
+
+    priv->console->print(priv->console, "%s", help->cstr(help));
+    help->destroy(help);
     return result;
 }
 
@@ -553,7 +558,7 @@ static scallop_t * scallop_create(console_t * console,
     priv->cmds->register_cmd(priv->cmds,
             priv->cmds->create(
                     builtin_handler_help,
-                    priv->cmds,
+                    priv,
                     "help",
                     NULL,
                     "show a list of commands with hints and description"));

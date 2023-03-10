@@ -87,6 +87,7 @@ void bytes_destroy(void * bytes_ptr)
 
     if (bytes->priv)
     {
+        //memset(bytes->priv, 0, sizeof(bytes_priv_t));
         free(bytes->priv);
     }
 
@@ -157,15 +158,16 @@ static void bytes_resize(bytes_t * bytes, size_t size)
 
     // Use realloc to resize byte array
     priv->data = (uint8_t *) realloc(priv->data, size + 1);
-    if (NULL == priv->data)
+    if (!priv->data)
     {
-        BLAMMO(FATAL, "malloc(%zu) failed\n", size + 1);
+        BLAMMO(FATAL, "realloc(%zu) failed\n", size + 1);
         return;
     }
 
     // Zero out the new memory
     if (size > priv->size)
     {
+        // XXXXXXXXXXXXXXX
         memset(priv->data + priv->size, 0, size - priv->size);
     }
 
@@ -205,6 +207,8 @@ static ssize_t bytes_print(bytes_t * bytes, const char * format, ...)
     // If vsnprintf returns larger than existing size, then another pass
     // is necessary.  Either way, we'll resize to either shrink down or
     // grow to fit.  If the two are the same then resize checks for that.
+    // FIX: vsnprintf() apparently returns length including null terminator.
+    // This leads to all sorts of weird behavior when appending and trimming.
     redo = (nchars > priv->size); 
     bytes->resize(bytes, (size_t) nchars);
 
@@ -212,7 +216,7 @@ static ssize_t bytes_print(bytes_t * bytes, const char * format, ...)
     {
         // Second pass will pick up the full formatted buffer
         va_start (args, format);
-        nchars = vsnprintf((char *) priv->data, priv->size, format, args);
+        nchars = vsnprintf((char *) priv->data, priv->size + 1, format, args);
         va_end (args);
     }    
 
