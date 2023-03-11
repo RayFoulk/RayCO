@@ -250,14 +250,11 @@ TEST_END
 
 TEST_BEGIN("trim")
 
-    // FIXME: double terminating zero in this case
     const char * str = "  \t\n  \t abc123  \n \t   ";
     bytes_t * bytes = bytes_pub.create(str, strlen(str));
     bytes->trim(bytes, " \t\n");
-    BLAMMO(INFO, "hexdump: %s", bytes->hexdump(bytes));
     CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
     bytes->destroy(bytes);
-
 
 TEST_END
 

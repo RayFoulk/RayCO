@@ -26,10 +26,8 @@
 #include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>
-//#include <stdlib.h>
+#include <stdlib.h>
 #include <stdbool.h>
-
-#define BYTES_EXPERIMENTAL_NULL_TERMINATOR
 
 //------------------------------------------------------------------------|
 // TODO: how to handle whether the string needs to be un-escaped or not?

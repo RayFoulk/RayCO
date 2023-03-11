@@ -171,5 +171,26 @@ int markstr(char ** markers, size_t max_markers,
     return nmark;
 }
 
-// https://www.cryptologie.net/article/419/zeroing-memory-compiler-optimizations-and-memset_s/
+bool str_to_bool(const char * str)
+{
+    size_t index = 0;
+    const char * false_str[] = {
+        "disable",
+        "false",
+        "off",
+        "0",
+        NULL
+    };
 
+    while (false_str[index])
+    {
+        if (!strcasecmp(false_str[index], str))
+        {
+            return false;
+        }
+
+        index++;
+    }
+
+    return true;
+}

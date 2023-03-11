@@ -111,6 +111,25 @@ static int builtin_handler_log_level(void * scallcmd,
     return 0;
 }
 
+static int builtin_handler_log_stdout(void * scallcmd,
+                                      void * context,
+                                      int argc,
+                                      char ** args)
+{
+    // Everyone needs a log.  You're gonna love it, log.
+    if (argc < 2)
+    {
+        BLAMMO(ERROR, "Expected a boolean flag");
+        return -1;
+    }
+
+    BLAMMO(INFO, "Setting log stdout to %s",
+                 str_to_bool(args[1]) ? "true" : "false");
+    BLAMMO_STDOUT(str_to_bool(args[1]));
+
+    return 0;
+}
+
 static int builtin_handler_log_file(void * scallcmd,
                                     void * context,
                                     int argc,
@@ -526,7 +545,7 @@ static scallop_t * scallop_create(console_t * console,
             builtin_handler_log,
             NULL,
             "log",
-            " [level|file] <...>",
+            " <logcmd> <...>",
             "change blammo logger options");
 
     priv->cmds->register_cmd(priv->cmds, log);
@@ -538,6 +557,14 @@ static scallop_t * scallop_create(console_t * console,
                 "level",
                 " <0..5>",
                 "change the blammo log message level (0=VERBOSE, 5=FATAL)"));
+
+    log->register_cmd(log,
+            log->create(
+                builtin_handler_log_stdout,
+                NULL,
+                "stdout",
+                " <true/false>",
+                "enable or disable logging to stdout"));
 
     log->register_cmd(log,
             log->create(

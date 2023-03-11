@@ -379,7 +379,9 @@ static int console_reprint(console_t * console, const char * format, ...)
     if (priv->oldbuffer[0] == 0)
     {
         // this is the first call _after_ a reset
-        console->print(console, "%s", priv->newbuffer);
+        // XXXXXXXXXXXXXXXXXX
+        //console->print(console, "%s", priv->newbuffer);
+        fprintf(priv->output, "%s", priv->newbuffer);
     }
     else
     {
@@ -400,7 +402,12 @@ static int console_reprint(console_t * console, const char * format, ...)
             for (count = strnlen(priv->oldbuffer, CONSOLE_BUFFER_SIZE); count > address; count --)
             {
                 // delete a character: delete-space-delete
-                console->print(console, "%c%c%c", (char) 8, (char) 32, (char) 8);
+                // FIXME: USING CONSOLE PRINT IS BROKEN
+                //  DUE TO IMPLICIT CARRIAGE-RETURN-NEWLINE
+                // XXXXXXXXXXXXXXXXXX
+                //console->print(console, "%c%c%c", (char) 8, (char) 32, (char) 8);
+                fprintf(priv->output, "%c%c%c", (char) 8, (char) 32, (char) 8);
+
             }
 
             // Next print out the updated part of the new buffer
@@ -408,7 +415,9 @@ static int console_reprint(console_t * console, const char * format, ...)
             address = strnlen(priv->newbuffer, CONSOLE_BUFFER_SIZE);
             while (count < address)
             {
-                console->print(console, "%c", priv->newbuffer[count]);
+                // XXXXXXXXXXXX
+                //console->print(console, "%c", priv->newbuffer[count]);
+                fprintf(priv->output, "%c", priv->newbuffer[count]);
                 count ++;
             }
         }

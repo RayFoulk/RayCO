@@ -313,8 +313,7 @@ static size_t bytes_rtrim(bytes_t * bytes, const char * whitespace)
     // +1 for post-loop correction and another for difference
     // between final index and actual size.
     // resize() already accounts for if there is no change
-    bytes->resize(bytes, index + 2);
-    priv->data[priv->size - 1] = 0;
+    bytes->resize(bytes, index + 1);
     return priv->size;
 }
 
@@ -332,8 +331,7 @@ static size_t bytes_ltrim(bytes_t * bytes, const char * whitespace)
     }
 
     memmove(priv->data, priv->data + index, priv->size - index);
-    bytes->resize(bytes, index);
-    priv->data[priv->size - 1] = 0;
+    bytes->resize(bytes, priv->size - index);
     return priv->size;
 }
 

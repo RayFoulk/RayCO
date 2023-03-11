@@ -28,12 +28,16 @@
 // BLAMMO_ENABLE is defined on the command line during build.  otherwise
 // BLAMMO*() will be a set of empty macros.
 #ifndef BLAMMO_ENABLE
+#define BLAMMO_STDOUT(enable)
 #define BLAMMO_FILE(path)
 #define BLAMMO_LEVEL(level)
 #define BLAMMO(msgt, fmt, ...)
 #define BLAMMO_DECLARE(x)
 
 #else
+#include <stdbool.h>
+
+#define BLAMMO_STDOUT(enable)   blammo_stdout(enable)
 #define BLAMMO_FILE(path)       blammo_file(path)
 #define BLAMMO_LEVEL(level)     blammo_level(level)
 #define BLAMMO(msgt, fmt, ...)  blammo(__FILE__, __LINE__, __FUNCTION__, \
@@ -72,6 +76,7 @@ typedef enum
 blammo_msg_t;
 
 //------------------------------------------------------------------------|
+void blammo_stdout(bool enable);
 void blammo_file(const char * filename);
 void blammo_level(blammo_msg_t level);
 void blammo(const char * fpath, int line, const char * func,

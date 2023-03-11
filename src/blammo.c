@@ -38,6 +38,7 @@
 #include <time.h>
 #include <libgen.h>              // basename()
 #include <sys/time.h>            // gettimeofday()
+#include <errno.h>               // errno, strerror()
 #include <pthread.h>
 
 //------------------------------------------------------------------------|
@@ -55,6 +56,9 @@ static const char * blammo_msg_t_str[] =
 //------------------------------------------------------------------------|
 typedef struct
 {
+    // whether to log to stdout or not
+    bool to_stdout;
+
     // Log file name (if specified AND can be written to)
     char * filename;
 
@@ -72,6 +76,7 @@ blammo_data_t;
 //------------------------------------------------------------------------|
 // static initialization of blammo singleton
 static blammo_data_t blammo_data = {
+        true,
         NULL,
         ERROR,
         -1,
@@ -101,6 +106,12 @@ static inline int timestamp(char * tstr, size_t size, const char * format,
 }
 
 //------------------------------------------------------------------------|
+void blammo_stdout(bool enable)
+{
+    blammo_data.to_stdout = enable;
+}
+
+//------------------------------------------------------------------------|
 void blammo_file(const char * filename)
 {
     // This just checks if the file path is able to be written to.
@@ -108,8 +119,8 @@ void blammo_file(const char * filename)
     FILE * file = fopen(filename, "a");
     if (NULL == file)
     {
-    	// TODO: fprintf(stderr if fopen fails
-        BLAMMO(ERROR, "fopen(%s) for append failed", filename);
+        fprintf(stderr, "%s: fopen(%s, \"a\") failed with errno: %d strerror: %s\r\n",
+                __FUNCTION__, filename, errno, strerror(errno));
         return;
     }
 
@@ -146,7 +157,7 @@ void blammo(const char * fpath, int line, const char * func,
     int error = pthread_mutex_lock(&blammo_data.lock);
     if (error != 0)
     {
-        fprintf(stderr, "%s: pthread_mutex_lock() returned %d\n", __FUNCTION__, error);
+        fprintf(stderr, "%s: pthread_mutex_lock() returned %d\r\n", __FUNCTION__, error);
         return;
     }
 
@@ -166,26 +177,34 @@ void blammo(const char * fpath, int line, const char * func,
         BLAMMO(INFO, "--- %s ---", date);
     }
 
-    // Always log to stdout
-    fprintf(stdout,
-            "%s %s %s:%d %s() ",
-            time,
-            blammo_msg_t_str[type],
-            fname,
-            line,
-            func);
+    // Log to stdout if enabled
+    if (blammo_data.to_stdout)
+    {
+        fprintf(stdout,
+                "%s %s %s:%d %s() ",
+                time,
+                blammo_msg_t_str[type],
+                fname,
+                line,
+                func);
 
-    va_start(args, format);
-    vfprintf(stdout, format, args); 
-    va_end(args);
-    fprintf(stdout, "\r\n");
+        va_start(args, format);
+        vfprintf(stdout, format, args);
+        va_end(args);
+        fprintf(stdout, "\r\n");
+    }
 
     // Log to file if available
-    if (NULL != blammo_data.filename)
+    if (blammo_data.filename)
     {
         FILE * file = fopen(blammo_data.filename, "a");
-        // TODO: fprintf(stderr if fopen fails
-        if (NULL != file)
+
+        if (!file)
+        {
+            fprintf(stderr, "%s: fopen(%s, \"a\") failed with errno: %d strerror: %s\r\n",
+                    __FUNCTION__, blammo_data.filename, errno, strerror(errno));
+        }
+        else
         {
             fprintf(file, "%s %s %s:%d ", time, blammo_msg_t_str[type], fname, line);
             va_start(args, format);

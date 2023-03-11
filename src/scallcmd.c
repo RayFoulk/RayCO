@@ -302,7 +302,7 @@ static int scallop_cmd_help(scallop_cmd_t * scallcmd,
 
         subhelp->print(subhelp,
                        "%s%s  %s  %s\r\n",
-                       pad->data(pad) ? pad->data(pad) : "",
+                       pad->data(pad) ? (char *) pad->data(pad) : "",
                        cmd->keyword(cmd),
                        cmd->arghints(cmd),
                        cmd->description(cmd));

@@ -61,4 +61,14 @@ int splitstr(char ** tokens, size_t max_tokens,
 int markstr(char ** markers, size_t max_markers,
             const char * str, const char * delim);
 
+// Convert a string to boolean.  Things like "true" and "false", '0' and '1',
+// "on" and "off" should be supported by this.
+bool str_to_bool(const char * str);
+
+// https://www.cryptologie.net/article/419/zeroing-memory-compiler-optimizations-and-memset_s/
+
+
+
+
+
 
