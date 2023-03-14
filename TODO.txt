@@ -27,6 +27,8 @@ X pass in link dtor function to delete and destroy, do not cache
 TODO:
 
 - finish bytes_t object calls read()/write() (others?) and complete unit tests
+  - need a 'find' substring match returning offset & size.  left-to-right and vice versa
+  - need a replace() function to replace at location,  also insert() and remove()
 - app: migrate over to sink project and refactor
 - fix mem zero optimization problem (volatile?)
 - add license target to makefile to update all src
@@ -40,6 +42,7 @@ TODO:
   - these are distinct from scripts, and necessary for specific projects
   - will likely need to support variables, probably in string format
   - check if cc65 supports env put/get, make design decision
+  - need an 'alias' command to store routines as type definitions -- semantics
 - dumb down to 32bits for embedded systems that don't support 64 bit integers
 
 +-------------------------------------------------------------------------+

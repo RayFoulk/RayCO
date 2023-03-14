@@ -30,8 +30,6 @@
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
-// TODO: how to handle whether the string needs to be un-escaped or not?
-// TODO: manual escape/un-escape calls for this
 typedef struct bytes_t
 {
     // Factory function that creates a 'bytes' object.
@@ -39,6 +37,10 @@ typedef struct bytes_t
 
     // Bytes destructor function
     void (*destroy)(void * bytes);
+
+    // Comparator that intentionally has the same signature
+    // as qsort()'s 'compar' argument, for that purpose.
+    int (*compare)(const void * bytes, const void * other);
 
     // Get the data as a byte array pointer
     const uint8_t * (*data)(struct bytes_t * bytes);
@@ -60,6 +62,7 @@ typedef struct bytes_t
 
     // Printf-style string formatter
     ssize_t (*print)(struct bytes_t * bytes, const char * format, ...);
+    // TODO: vprint() and then use it in console->reprint()/print()
 
     // Assign data directly to buffer, replacing any existing data,
     // and sizing the buffer as necessary.  strncpy/memcpy analog.
@@ -90,18 +93,38 @@ typedef struct bytes_t
 
     // Trim whitespace as defined by caller from the right end, left
     // end, and both ends of the byte buffer.  Returns new size.
-    size_t (*rtrim)(struct bytes_t * bytes, const char * whitespace);
-    size_t (*ltrim)(struct bytes_t * bytes, const char * whitespace);
+    size_t (*trim_left)(struct bytes_t * bytes, const char * whitespace);
+    size_t (*trim_right)(struct bytes_t * bytes, const char * whitespace);
     size_t (*trim)(struct bytes_t * bytes, const char * whitespace);
 
+
+    // Find instance(s) of subsequence, searching from left or right,
+    // or else all occuring throughout the whole sequence.  negative
+    // return indicates not found.  length of match is same as substring
+    ssize_t (*find_left)(struct bytes_t * bytes,
+                         const void * data,
+                         size_t size);
+    ssize_t (*find_right)(struct bytes_t * bytes,
+                          const void * data,
+                          size_t size);
+
+//    ssize_t (*find_all)(struct bytes_t * bytes,
+//                        const void * data,
+//                        size_t size,
+//                        size_t * offsets,
+//                        size_t * max_offsets);
+    // Else consider returning a list.
+
+    // Fill the buffer completely with a given character
+    void (*fill)(struct bytes_t * bytes, const char c);
+
     // TODO: Notional Functions
-    /*
-    bool (*fill)(struct bytes_t * bytes, const char c);
-    void (*shrink)(struct bytes_t * bytes);
-    size_t (*rtrim)(struct bytes_t * bytes);
-    size_t (*ltrim)(struct bytes_t * bytes);
-    const char * (*hexdump)(struct bytes_t * bytes)
-    */
+    // (*fill_cyclic) // for VR purposes
+    // TODO: how to handle whether the string needs to be un-escaped or not?
+    // TODO: manual escape/un-escape calls for this
+    //(*escape/encode) (*unescape/decode)
+    //find/insert/replace/remove
+    //void (*shrink)(struct bytes_t * bytes); ???
 
     // TODO: Stubbed Functions
     struct bytes_t * (*copy)(struct bytes_t * bytes);

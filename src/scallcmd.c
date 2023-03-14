@@ -293,7 +293,17 @@ static int scallop_cmd_help(scallop_cmd_t * scallcmd,
     }
 
     // Recursively get help for all sub-commands
-    pad = bytes_pub.create("                      ", depth * 4);
+    pad = bytes_pub.create(NULL, depth * 4);
+    pad->fill(pad, ' ');
+
+    // show explicit context: parent command
+    if (scallcmd->keyword(scallcmd))
+    {
+        pad->append(pad, scallcmd->keyword(scallcmd),
+                    strlen(scallcmd->keyword(scallcmd)));
+        pad->append(pad, " ", 1);
+    }
+
     priv->cmds->reset(priv->cmds);
     do
     {

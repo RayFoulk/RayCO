@@ -225,8 +225,7 @@ static int builtin_handler_help(void * scallcmd,
         return result;
     }
 
-    BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
-
+    //BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
     // FIXME: run help text through a column formatter
     //  potentially build this into bytes_t
 

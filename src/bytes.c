@@ -31,6 +31,7 @@
 
 #include "bytes.h"
 #include "blammo.h"
+#include "utils.h"
 
 //------------------------------------------------------------------------|
 // bytes private implementation data
@@ -51,7 +52,7 @@ typedef struct
 bytes_priv_t;
 
 //------------------------------------------------------------------------|
-bytes_t * bytes_create(const void * data, size_t size)
+static bytes_t * bytes_create(const void * data, size_t size)
 {
     // Allocate and initialize public interface
     bytes_t * bytes = (bytes_t *) malloc(sizeof(bytes_t));
@@ -79,7 +80,7 @@ bytes_t * bytes_create(const void * data, size_t size)
 }
 
 //------------------------------------------------------------------------|
-void bytes_destroy(void * bytes_ptr)
+static void bytes_destroy(void * bytes_ptr)
 {
     bytes_t * bytes = (bytes_t *) bytes_ptr;
 
@@ -97,6 +98,22 @@ void bytes_destroy(void * bytes_ptr)
         memset(bytes, 0, sizeof(bytes_t));
         free(bytes);
     }
+}
+
+//------------------------------------------------------------------------|
+static int bytes_compare(const void * bytes, const void * other)
+{
+    bytes_t * a = (bytes_t *) bytes;
+    bytes_t * b = (bytes_t *) other;
+
+    // Sizes much first match to be equal.
+    if (a->size(a) != b->size(b))
+    {
+        return a->size(a) - b->size(b);
+    }
+
+    // Sizes match, compare content
+    return memcmp(a->data(a), b->data(b), a->size(a));
 }
 
 //------------------------------------------------------------------------|
@@ -228,11 +245,12 @@ static void bytes_assign(bytes_t * bytes, const void * data, size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
-    // TODO: Impose some reasonable size checks here?  get available free
-    // memory?  Return bool failure/success?
+    // Always size the memory as requested.  There is always an
+    // extra hidden null byte at the end for as-string use cases.
     bytes->resize(bytes, size);
 
-    // buffer was already terminated in resize
+    // buffer was already terminated in resize.  Assign data if
+    // any was provided.  USE CAUTION that payload >= size.
     if (data)
     {
         memcpy(priv->data, data, size);
@@ -298,7 +316,25 @@ static ssize_t bytes_write_at(struct bytes_t * bytes,
 }
 
 //------------------------------------------------------------------------|
-static size_t bytes_rtrim(bytes_t * bytes, const char * whitespace)
+static size_t bytes_trim_left(bytes_t * bytes, const char * whitespace)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    size_t index = 0;
+
+    // search from the left end forwards and do the same
+    // thing as trim_right, only now a memmov will be required
+    while (index < priv->size && strchr(whitespace, priv->data[index]))
+    {
+        index++;
+    }
+
+    memmove(priv->data, priv->data + index, priv->size - index);
+    bytes->resize(bytes, priv->size - index);
+    return priv->size;
+}
+
+//------------------------------------------------------------------------|
+static size_t bytes_trim_right(bytes_t * bytes, const char * whitespace)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
     size_t index = priv->size - 1;
@@ -318,28 +354,69 @@ static size_t bytes_rtrim(bytes_t * bytes, const char * whitespace)
 }
 
 //------------------------------------------------------------------------|
-static size_t bytes_ltrim(bytes_t * bytes, const char * whitespace)
+static size_t bytes_trim(bytes_t * bytes, const char * whitespace)
 {
-    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-    size_t index = 0;
-
-    // search from the left end forwards and do the same
-    // thing, only this time a memmov will be required
-    while (index < priv->size && strchr(whitespace, priv->data[index]))
-    {
-        index++;
-    }
-
-    memmove(priv->data, priv->data + index, priv->size - index);
-    bytes->resize(bytes, priv->size - index);
-    return priv->size;
+    bytes->trim_right(bytes, whitespace);
+    return bytes->trim_left(bytes, whitespace);
 }
 
 //------------------------------------------------------------------------|
-static size_t bytes_trim(bytes_t * bytes, const char * whitespace)
+static ssize_t bytes_find_left(struct bytes_t * bytes,
+                               const void * data,
+                               size_t size)
 {
-    bytes->rtrim(bytes, whitespace);
-    return bytes->ltrim(bytes, whitespace);
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    ssize_t index = 0;
+
+    // Return on first match
+    while(index + size <= priv->size)
+    {
+        if (!memcmp(priv->data + index, data, size))
+        {
+            return index;
+        }
+
+        index++;
+    }
+
+    // No match found
+    return -1;
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_find_right(struct bytes_t * bytes,
+                                const void * data,
+                                size_t size)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    ssize_t index = priv->size - size;
+
+    // Return on first match
+    while(index >= 0)
+    {
+        if (!memcmp(priv->data + index, data, size))
+        {
+            return index;
+        }
+
+        index--;
+    }
+
+    // No match found
+    return -1;
+}
+
+//------------------------------------------------------------------------|
+static inline void bytes_fill(bytes_t * bytes, const char c)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    // Size might be zero, in which case data is NULL
+    if (priv->data)
+    {
+        memset(priv->data, c, priv->size);
+        priv->data[priv->size] = 0;
+    }
 }
 
 //------------------------------------------------------------------------|
@@ -495,6 +572,7 @@ static const char * const bytes_hexdump(bytes_t * bytes)
 const bytes_t bytes_pub = {
     &bytes_create,
     &bytes_destroy,
+    &bytes_compare,
     &bytes_data,
     &bytes_cstr,
     &bytes_size,
@@ -506,9 +584,12 @@ const bytes_t bytes_pub = {
     &bytes_append,
     &bytes_read_at,
     &bytes_write_at,
-    &bytes_rtrim,
-    &bytes_ltrim,
+    &bytes_trim_left,
+    &bytes_trim_right,
     &bytes_trim,
+    &bytes_find_left,
+    &bytes_find_right,
+    &bytes_fill,
     &bytes_copy,
     &bytes_split,
     &bytes_join,

@@ -32,7 +32,7 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(INFO);
+    BLAMMO_LEVEL(DEBUG);
     BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
 
@@ -64,6 +64,22 @@ TEST_BEGIN("destroy")
     // Maybe by LD_PRELOAD voodoo TBD later.
     // or else use some kind of MALLOC macro.
     // Alternatively use valgrind on tests.
+TEST_END
+
+TEST_BEGIN("compare")
+    bytes_t * a = bytes_pub.create("asdfvcxz", 8);
+    bytes_t * b = bytes_pub.create("asdfvcxz", 8);
+    bytes_t * c = bytes_pub.create("qwertyui", 8);
+    bytes_t * d = bytes_pub.create("qwerty", 6);
+
+    CHECK(a->compare(a, b) == 0);
+    CHECK(a->compare(a, c) < 0);
+    CHECK(c->compare(c, d) > 0);
+
+    a->destroy(a);
+    b->destroy(b);
+    c->destroy(c);
+    d->destroy(d);
 TEST_END
 
 TEST_BEGIN("data")
@@ -132,9 +148,9 @@ TEST_BEGIN("print")
             "%s %d %d %x %X %u", "hello",
             -9, 9, 0x55, 0xAA, 0x1 << 31);
 
-    BLAMMO(INFO, "size: %zu  len: %zu", bytes->size(bytes), len);
-    BLAMMO(INFO, "cstr: \'%s\'", bytes->cstr(bytes));
-    BLAMMO(INFO, "hexdump:\n%s\n", bytes->hexdump(bytes));
+    //BLAMMO(INFO, "size: %zu  len: %zu", bytes->size(bytes), len);
+    //BLAMMO(INFO, "cstr: \'%s\'", bytes->cstr(bytes));
+    //BLAMMO(INFO, "hexdump:\n%s\n", bytes->hexdump(bytes));
 
     CHECK(strcmp(expect, bytes->cstr(bytes)) == 0);
     CHECK(bytes->size(bytes) == len);
@@ -164,7 +180,7 @@ TEST_BEGIN("assign")
     //bytes->assign(bytes, astr, 20);
     bytes->assign(bytes, astr, 13);
     bytes->resize(bytes, 20);
-    BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
+    //BLAMMO(INFO, "hexdump:\n%s", bytes->hexdump(bytes));
 
     CHECK(strcmp(bytes->cstr(bytes), bstr) == 0);
     CHECK(bytes->size(bytes) == 20);
@@ -195,21 +211,20 @@ TEST_BEGIN("print/append")
     bytes_t * b = bytes_pub.create(NULL, 0);
 
     a->print(a, "abc%d", 1);
-    BLAMMO(INFO, "a hexdump:\n%s\n", a->hexdump(a));
+    //BLAMMO(INFO, "a hexdump:\n%s\n", a->hexdump(a));
 
     b->print(b, "def%d", 2);
-    BLAMMO(INFO, "b hexdump:\n%s\n", b->hexdump(b));
+    //BLAMMO(INFO, "b hexdump:\n%s\n", b->hexdump(b));
 
     a->append(a, b->data(b), b->size(b));
-    BLAMMO(INFO, "a' hexdump:\n%s\n", a->hexdump(a));
-    BLAMMO(INFO, "a' str: %s", a->cstr(a));
+    //BLAMMO(INFO, "a' hexdump:\n%s\n", a->hexdump(a));
+    //BLAMMO(INFO, "a' str: %s", a->cstr(a));
+    CHECK(memcmp(a->data(a), "abc1def2", a->size(a)) == 0);
 
     a->destroy(a);
     b->destroy(b);
 
 TEST_END
-
-
 
 TEST_BEGIN("read_at")
     const char * str = "abc123";
@@ -218,7 +233,7 @@ TEST_BEGIN("read_at")
     bytes_t * bytes = bytes_pub.create(str, len);
     bytes->read_at(bytes, buffer, 1, 3);
 
-    BLAMMO(INFO, "read_at buffer: %s\n", buffer);
+    //BLAMMO(INFO, "read_at buffer: %s\n", buffer);
     CHECK(strcmp(buffer, "1") == 0);
 
     // TODO: more cases, overlapping
@@ -226,45 +241,78 @@ TEST_BEGIN("read_at")
 TEST_END
 
 TEST_BEGIN("write_at")
+    BLAMMO(INFO, "FIXME: TEST NOT IMPLEMENTED");
 TEST_END
 
-TEST_BEGIN("rtrim")
-
-    const char * str = "abc123  \t \n\n ";
-    bytes_t * bytes = bytes_pub.create(str, strlen(str));
-    bytes->rtrim(bytes, " \t\n");
-    CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
-    bytes->destroy(bytes);
-
-TEST_END
-
-TEST_BEGIN("ltrim")
-
+TEST_BEGIN("trim_left")
     const char * str = " \t\t  \n abc123";
     bytes_t * bytes = bytes_pub.create(str, strlen(str));
-    bytes->ltrim(bytes, " \t\n");
+    bytes->trim_left(bytes, " \t\n");
     CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
     bytes->destroy(bytes);
+TEST_END
 
+TEST_BEGIN("trim_right")
+    const char * str = "abc123  \t \n\n ";
+    bytes_t * bytes = bytes_pub.create(str, strlen(str));
+    bytes->trim_right(bytes, " \t\n");
+    CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
+    bytes->destroy(bytes);
 TEST_END
 
 TEST_BEGIN("trim")
-
     const char * str = "  \t\n  \t abc123  \n \t   ";
     bytes_t * bytes = bytes_pub.create(str, strlen(str));
     bytes->trim(bytes, " \t\n");
     CHECK(strcmp(bytes->cstr(bytes), "abc123") == 0)
     bytes->destroy(bytes);
+TEST_END
 
+TEST_BEGIN("find_left")
+    bytes_t * bytes = bytes_pub.create("abcdefghijkl", 12);
+    CHECK(bytes->find_left(bytes, "ghi", 3) == 6);
+    CHECK(bytes->find_left(bytes, "zzz", 3) < 0);
+    CHECK(bytes->find_left(bytes, "kl", 2) == 10);
+    CHECK(bytes->find_left(bytes, "abc", 3) == 0);
+    bytes->destroy(bytes);
+TEST_END
+
+TEST_BEGIN("find_right")
+    bytes_t * bytes = bytes_pub.create("mnopqrstuvwxyz", 14);
+    CHECK(bytes->find_right(bytes, "pqrs", 4) == 3);
+    CHECK(bytes->find_right(bytes, "mnomnop", 7) < 0);
+    CHECK(bytes->find_right(bytes, "mnop", 4) == 0);
+    CHECK(bytes->find_right(bytes, "xyz", 3) == 11);
+    bytes->destroy(bytes);
+TEST_END
+
+TEST_BEGIN("fill")
+    bytes_t * bytes = bytes_pub.create(NULL, 20);
+    bytes->fill(bytes, 'A');
+    CHECK(strcmp((const char *) bytes->data(bytes), "AAAAAAAAAAAAAAAAAAAA") == 0);
+    bytes->resize(bytes, 10);
+    bytes->fill(bytes, '5');
+    CHECK(strcmp((const char *) bytes->data(bytes), "5555555555") == 0);
+    bytes->destroy(bytes);
 TEST_END
 
 TEST_BEGIN("copy")
+    bytes_t * a = bytes_pub.create("qwertyuiop", 10);
+    bytes_t * b = a->copy(a);
+
+    CHECK(a->compare(a, b) == 0);
+    CHECK(a->data(a) != b->data(b));
+
+    a->destroy(a);
+    b->destroy(b);
 TEST_END
 
 TEST_BEGIN("split")
+    BLAMMO(INFO, "FIXME: TEST NOT IMPLEMENTED");
 TEST_END
 
 TEST_BEGIN("join")
+    BLAMMO(INFO, "FIXME: TEST NOT IMPLEMENTED");
 TEST_END
 
 TEST_BEGIN("hexdump")
@@ -280,4 +328,3 @@ TEST_BEGIN("hexdump")
 TEST_END
 
 TESTSUITE_END
-
