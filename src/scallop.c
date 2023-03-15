@@ -48,7 +48,8 @@ typedef struct
 
     // FIXME: Eventually make this more dynamic
     // maybe use bytes_t?  remember size?
-    char * prompt;
+    //char * prompt;
+    bytes_t * prompt;
 
     // command line delimiters are pretty universal.  usually whitespace,
     // but leaving this as an option in case there is a need.
@@ -68,6 +69,54 @@ scallop_priv_t;
 
 //------------------------------------------------------------------------|
 // Built-In command handler functions
+static int builtin_handler_help(void * scallcmd,
+                                void * context,
+                                int argc,
+                                char ** args)
+{
+    scallop_t * scallop = (scallop_t *) context;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    bytes_t * help = bytes_pub.create(NULL, 0);
+
+    help->print(help, "commands:\r\n");
+
+    int result = priv->cmds->help(priv->cmds, help, 0);
+    if (result < 0)
+    {
+        BLAMMO(ERROR, "cmds->help() returned %d", result);
+        help->destroy(help);
+        return result;
+    }
+
+    //BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
+    // TODO: run help text through a column formatter
+    //  potentially build this functionality into bytes_t
+
+    priv->console->print(priv->console, "%s", help->cstr(help));
+    help->destroy(help);
+    return result;
+}
+
+static int builtin_handler_alias(void * scallcmd,
+                                 void * context,
+                                 int argc,
+                                 char ** args)
+{
+    scallop_t * scallop = (scallop_t *) context;
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    // TODO: also unalias!
+
+    // want to actually register a new command here, under
+    // the keyword of the alias, but with the callback of the
+    // original keyword.  TBD under what scope this applies.
+    // NOTE: this is distinct from bash's alias which can
+    // encompass pretty much anything.
+    // this will be saved for the 'routine' keyword
+
+    return 0;
+}
+
 static int builtin_handler_log(void * scallcmd,
                                void * context,
                                int argc,
@@ -153,8 +202,6 @@ static int builtin_handler_source(void * scallcmd,
                                   int argc,
                                   char ** args)
 {
-    BLAMMO(VERBOSE, "");
-
     scallop_t * scallop = (scallop_t *) context;
 
     if (argc < 2)
@@ -182,6 +229,8 @@ static int builtin_handler_source(void * scallcmd,
 
     while (!feof(source))
     {
+        // TODO: Consider temporarily swapping console pipes
+        // and using the getter from the console interface.
         nchars = getline(&line, &nalloc, source);
         if (nchars < 0)
         {
@@ -205,33 +254,6 @@ static int builtin_handler_source(void * scallcmd,
 
     fclose(source);
     return 0;
-}
-
-static int builtin_handler_help(void * scallcmd,
-                                void * context,
-                                int argc,
-                                char ** args)
-{
-    scallop_priv_t * priv = (scallop_priv_t *) context;
-    bytes_t * help = bytes_pub.create(NULL, 0);
-
-    help->print(help, "commands:\r\n");
-
-    int result = priv->cmds->help(priv->cmds, help, 0);
-    if (result < 0)
-    {
-        BLAMMO(ERROR, "cmds->help() returned %d", result);
-        help->destroy(help);
-        return result;
-    }
-
-    //BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
-    // FIXME: run help text through a column formatter
-    //  potentially build this into bytes_t
-
-    priv->console->print(priv->console, "%s", help->cstr(help));
-    help->destroy(help);
-    return result;
 }
 
 static int builtin_handler_quit(void * scallcmd,
@@ -482,9 +504,7 @@ static char * scallop_arg_hints(void * object,
 
 //------------------------------------------------------------------------|
 static scallop_t * scallop_create(console_t * console,
-                                  const char * prompt,
-                                  const char * delim,
-                                  const char * comment)
+                                  const char * prompt_base)
 {
     // Allocate and initialize public interface
     scallop_t * scallop = (scallop_t *) malloc(sizeof(scallop_t));
@@ -525,12 +545,15 @@ static scallop_t * scallop_create(console_t * console,
                                 scallop_arg_hints,
                                 scallop);
 
-    // Initialize prompt string
-    priv->prompt = (char *) prompt;
-    priv->delim = (char *) delim;
-    priv->comment = (char *) comment;
+    // Initialize prompt
+    priv->prompt = bytes_pub.create(NULL, 0);
+    scallop->prompt_push(scallop, prompt_base);
 
-    // Create the top-level list of commands
+    // Set up some dialect 'constants'
+    priv->delim = SCALLOP_CMD_DELIM;
+    priv->comment = SCALLOP_CMD_COMMENT;
+
+     // Create the top-level list of commands
     priv->cmds = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
     if (!priv->cmds)
     {
@@ -540,6 +563,24 @@ static scallop_t * scallop_create(console_t * console,
     }
 
     // Register all Built-In commands
+    priv->cmds->register_cmd(priv->cmds,
+            priv->cmds->create(
+                    builtin_handler_help,
+                    scallop,
+                    "help",
+                    NULL,
+                    "show a list of commands with hints and description"));
+
+    priv->cmds->register_cmd(priv->cmds,
+            priv->cmds->create(
+                    builtin_handler_alias,
+                    scallop,
+                    "alias",
+                    " <new-keyword> <original-keyword>",
+                    "alias one command keyword to another (TBD)"));
+
+    // TODO: print, routine, eval, invert, jump, label
+
     scallop_cmd_t * log = priv->cmds->create(
             builtin_handler_log,
             NULL,
@@ -583,19 +624,28 @@ static scallop_t * scallop_create(console_t * console,
 
     priv->cmds->register_cmd(priv->cmds,
             priv->cmds->create(
-                    builtin_handler_help,
-                    priv,
-                    "help",
-                    NULL,
-                    "show a list of commands with hints and description"));
-
-    priv->cmds->register_cmd(priv->cmds,
-            priv->cmds->create(
                     builtin_handler_quit,
                     scallop,
                     "quit",
                     NULL,
                     "exit the scallop command handling loop"));
+
+    //    // BEGIN: NESTING TEST
+    //    scallop_cmd_t * horse = priv->cmds->create(
+    //            NULL,
+    //            NULL,
+    //            "horse",
+    //            " <nosir>",
+    //            "i don't like it");
+    //    horse->register_cmd(horse,
+    //            horse->create(
+    //                    NULL,
+    //                    NULL,
+    //                    "hockey",
+    //                    " <walrus>",
+    //                    "rubber walrus protectors"));
+    //    log->register_cmd(log, horse);
+    //    // END: NESTING TEST
 
     return scallop;
 }
@@ -698,7 +748,7 @@ static int scallop_loop(scallop_t * scallop)
     {
         // Get a line of raw user input
         line = priv->console->get_line(priv->console,
-                                       priv->prompt,
+                                       priv->prompt->cstr(priv->prompt),
                                        true);
         BLAMMO(DEBUG, "line: %s", line);
 
@@ -715,12 +765,65 @@ static int scallop_loop(scallop_t * scallop)
     return 0;
 }
 
+//------------------------------------------------------------------------|
 static void scallop_quit(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     priv->quit = true;
     // TODO: Need to pump a newline into the console here
     // just to get it off the blocking call?
+}
+
+//------------------------------------------------------------------------|
+void scallop_prompt_push(scallop_t * scallop, const char * name)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    bytes_t * prompt = priv->prompt;
+    ssize_t offset = prompt->find_right(prompt,
+                                        SCALLOP_PROMPT_FINAL,
+                                        strlen(SCALLOP_PROMPT_FINAL));
+
+    // first truncate at the finale if it exists.
+    if (offset > 0)
+    {
+        prompt->resize(prompt, offset);
+
+        // For initialization reasons, only append
+        // the context delimiter if this is NOT the
+        // first time, otherwise the base prompt
+        // would have one also.
+        prompt->append(prompt,
+                       SCALLOP_PROMPT_DELIM,
+                       strlen(SCALLOP_PROMPT_DELIM));
+    }
+
+    // Append the new context name on the end, and then the finale
+    prompt->append(prompt,
+                   name,
+                   strlen(name));
+
+    prompt->append(prompt,
+                   SCALLOP_PROMPT_FINAL,
+                   strlen(SCALLOP_PROMPT_FINAL));
+}
+
+//------------------------------------------------------------------------|
+void scallop_prompt_pop(scallop_t * scallop)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    bytes_t * prompt = priv->prompt;
+    ssize_t offset = prompt->find_right(prompt,
+                                        SCALLOP_PROMPT_DELIM,
+                                        strlen(SCALLOP_PROMPT_DELIM));
+
+    if (offset > 0)
+    {
+        prompt->resize(prompt, offset);
+
+        prompt->append(prompt,
+                       SCALLOP_PROMPT_FINAL,
+                       strlen(SCALLOP_PROMPT_FINAL));
+    }
 }
 
 //------------------------------------------------------------------------|
@@ -731,6 +834,8 @@ const scallop_t scallop_pub = {
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,
+    &scallop_prompt_push,
+    &scallop_prompt_pop,
     NULL
 };
 

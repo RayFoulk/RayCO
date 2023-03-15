@@ -15,11 +15,11 @@ CFLAGS  := -Wall -pipe -fPIC
 # If found, the shell object will have tab-completion and argument hints
 LINENOISE_DIR = ./ext/linenoise
 LINENOISE_FILE = $(LINENOISE_DIR)/linenoise.c
-#ifneq ("$(wildcard $(LINENOISE_FILE))", "")
-#	CFLAGS  += -D LINENOISE_ENABLE
-#	SOURCES += $(LINENOISE_DIR)/linenoise.c
-#	FOLDERS += $(LINENOISE_DIR)
-#endif
+ifneq ("$(wildcard $(LINENOISE_FILE))", "")
+	CFLAGS  += -D LINENOISE_ENABLE
+	SOURCES += $(LINENOISE_DIR)/linenoise.c
+	FOLDERS += $(LINENOISE_DIR)
+endif
 
 # Create object paths and compiler include arguments
 OBJECTS  := $(patsubst %.c,$(OBJDIR)/%.o,$(notdir $(SOURCES)))

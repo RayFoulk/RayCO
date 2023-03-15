@@ -15,6 +15,10 @@ DONE:
 * introduce bytes object as managed string / byte array
 * adjust makefile for so, a lib targets
 * consider returning int instead of void * for shellcmd handlers
+* Implement help command
+  * Need to figure out console/stdout thread protection
+  * able to pass a FILE * around or need an object with locking?
+* BUG: setting log file name always results in garbage file
 
 +-------------------------------------------------------------------------+
 MOSTLY DONE / SUPERCEDED:
@@ -29,8 +33,10 @@ TODO:
 - finish bytes_t object calls read()/write() (others?) and complete unit tests
   - need a 'find' substring match returning offset & size.  left-to-right and vice versa
   - need a replace() function to replace at location,  also insert() and remove()
+- dumb down to 32bits for embedded systems that don't support 64 bit integers
 - app: migrate over to sink project and refactor
 - fix mem zero optimization problem (volatile?)
+  - see URL commend in utils.c
 - add license target to makefile to update all src
 - migrate selected useful librmf objects
 - constify return values, pointers functions
@@ -43,7 +49,21 @@ TODO:
   - will likely need to support variables, probably in string format
   - check if cc65 supports env put/get, make design decision
   - need an 'alias' command to store routines as type definitions -- semantics
-- dumb down to 32bits for embedded systems that don't support 64 bit integers
+- refactor bytes_t interface to have _raw() versus plain, use bytes with plain.
+- Option in blammo logger for newline style \r\n or \n
+  - Maybe require escape/unescape functionality in bytes_t
+  - else present as a simple 'universal newline / optional' option
+- scrape 'TODO's out of source and paste them here.
+- Needed: bytes_t is needed for:
+  * dynamic contextual prompt
+  * appendable / formatted help report
+  - routine names? / routine lines
+  - dynamic reprint buffers in console
+
+- Rework console->reprint()
+  - use dynamically sized bytes_t
+  - refactor how it works, writing substrings-at-once
+
 
 +-------------------------------------------------------------------------+
 TODOs FROM CODE:
@@ -56,9 +76,6 @@ TODOs FROM CODE:
 ./src/bytes.c:139:        // TODO: Deal with compiler optimization problem
 ./src/bytes.c:227:    // TODO: Impose some reasonable size checks here?  get available free
 ./src/bytes.c:244:    // TODO: Impose some reasonable size checks here?  get available free
-./src/blammo.c:111:    	// TODO: fprintf(stderr if fopen fails
-./src/blammo.c:121:    // fail spectacularly.  TODO: Consider refactoring this later.
-./src/blammo.c:184:        // TODO: fprintf(stderr if fopen fails
 ./src/scallop.c:188:        // TODO possibly store result in priv, or else report on console
 ./src/scallop.c:352:        // of bugs in this code.  TODO: harden it up later with some
 ./src/scallop.c:459:    // TODO: Make these constants or defines
