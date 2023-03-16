@@ -107,12 +107,42 @@ static int builtin_handler_alias(void * scallcmd,
 
     // TODO: also unalias!
 
+    // TODO: Consider supporting aliasing nested commands
+    //  via some syntax like 'alias stuff log.file'.  or else
+    //  change root command context 'change log' and then
+    // 'alias stuff file'.  Then again, maybe we're going over
+    // the rails a bit here.
+
     // want to actually register a new command here, under
     // the keyword of the alias, but with the callback of the
     // original keyword.  TBD under what scope this applies.
     // NOTE: this is distinct from bash's alias which can
     // encompass pretty much anything.
     // this will be saved for the 'routine' keyword
+
+    if (argc < 3)
+    {
+        BLAMMO(ERROR, "Expected new and original keyword for alias");
+        return -1;
+    }
+
+    // Find the command that is referenced
+    scallop_cmd_t * scope = priv->cmds;
+    scallop_cmd_t * cmd = scope->find_by_keyword(scope, args[2]);
+    if (!cmd)
+    {
+        BLAMMO(WARNING, "Sub-command %s not found", args[2]);
+        return -2;
+    }
+
+    // re-register the same command under a different keyword
+    scallop_cmd_t * alias = priv->cmds->alias(cmd, args[1]);
+    if (!scope->register_cmd(scope, alias))
+    {
+        BLAMMO(ERROR, "Failed to register alias %s to %s",
+                      args[1], args[2]);
+        return -3;
+    }
 
     return 0;
 }

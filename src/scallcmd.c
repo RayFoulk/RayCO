@@ -52,20 +52,19 @@ typedef struct
     // It may be NULL if the handler doesn't use it.
     void * context;
 
-    // Note that this container does NOT own the memory for the command
-    // keyword, argument hints, or description.  This is assumed to be
-    // initialized from a string constant I.E:
-    // register_cmd("something", "hints", ...);
-    // This should normally be fine because the handler function must also
-    // be known at compile-time (since C has no reflection).
+    // this object must own the memory for keyword, arghints, and
+    // description, because in some cases the original source can
+    // be volatile, as in a heap allocated command line.  Particularly
+    // the alias command and potentially others to follow.
+
     // command keyword string
-    char * keyword;
+    bytes_t * keyword;
 
     // argument hint strings
-    char * arghints;
+    bytes_t * arghints;
 
     // description of what the command does
-    char * description;
+    bytes_t * description;
 }
 scallop_cmd_priv_t;
 
@@ -108,9 +107,12 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
     // Initialize most members
     priv->handler = handler;
     priv->context = context;
-    priv->keyword = (char *) keyword;
-    priv->arghints = (char *) arghints;
-    priv->description = (char *) description;
+    priv->keyword = bytes_pub.create(keyword,
+                                     keyword ? strlen(keyword) : 0);
+    priv->arghints = bytes_pub.create(arghints,
+                                      arghints ? strlen(arghints) : 0);
+    priv->description = bytes_pub.create(description,
+                                         description ? strlen(description) : 0);
 
     return cmd;
 }
@@ -129,6 +131,11 @@ static void scallop_cmd_destroy(void * scallcmd)
 
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
 
+    // destroy managed strings
+    priv->description->destroy(priv->description);
+    priv->arghints->destroy(priv->arghints);
+    priv->keyword->destroy(priv->keyword);
+
     // Recursively destroy command tree, if there are any nodes
     if (priv->cmds)
     {
@@ -146,6 +153,31 @@ static void scallop_cmd_destroy(void * scallcmd)
 }
 
 //------------------------------------------------------------------------|
+static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
+                                         const char * keyword)
+{
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    bytes_t * description = bytes_pub.create(NULL, 0);
+
+    // Make a mostly-copy of the original command with a few things
+    // distinctly changed.  It should function the same but with a
+    // new keyword.  Scope is not determined here.
+    description->print(description,
+                       "alias for %s",
+                       priv->keyword->cstr(priv->keyword));
+
+    scallop_cmd_t * alias = scallcmd->create(priv->handler,
+                                             priv->context,
+                                             keyword,
+                                             priv->arghints->cstr(priv->arghints),
+                                             description->cstr(description));
+
+    description->destroy(description);
+
+    return alias;
+}
+
+//------------------------------------------------------------------------|
 static int scallop_cmd_keyword_compare(const void * scallcmd1,
                                        const void * scallcmd2)
 {
@@ -158,13 +190,12 @@ static int scallop_cmd_keyword_compare(const void * scallcmd1,
     // Commands are identified through their keyword,
     // which must be unique within the same context
     // (keywords in different contexts can be reused)
-    // FIXME: Danger of buffer overrun here.
-    return strcmp(priv1->keyword, priv2->keyword);
+    return priv1->keyword->compare(priv1->keyword, priv2->keyword);
 }
 
 //------------------------------------------------------------------------|
 static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * scallcmd,
-                                                  const char * keyword)
+                                                   const char * keyword)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
 
@@ -178,13 +209,20 @@ static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * scallcmd,
     scallop_cmd_t cmd_to_find;
     scallop_cmd_priv_t priv_to_find;
 
+    memset(&cmd_to_find, 0, sizeof(scallop_cmd_t));
+    memset(&priv_to_find, 0, sizeof(scallop_cmd_priv_t));
+
     cmd_to_find.priv = &priv_to_find;
-    priv_to_find.keyword = (char *) keyword;
+    priv_to_find.keyword = bytes_pub.create(keyword, strlen(keyword));
 
     // Do the search
-    return (scallop_cmd_t *) priv->cmds->find(priv->cmds,
-                                           &cmd_to_find,
-                                           scallop_cmd_keyword_compare);
+    scallop_cmd_t * cmd = (scallop_cmd_t *)
+            priv->cmds->find(priv->cmds,
+                             &cmd_to_find,
+                             scallop_cmd_keyword_compare);
+
+    priv_to_find.keyword->destroy(priv_to_find.keyword);
+    return cmd;
 }
 
 static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
@@ -256,21 +294,21 @@ static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
 static inline const char * scallop_cmd_keyword(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->keyword;
+    return priv->keyword->cstr(priv->keyword);
 }
 
 //------------------------------------------------------------------------|
 static inline const char * scallop_cmd_arghints(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->arghints;
+    return priv->arghints->cstr(priv->arghints);
 }
 
 //------------------------------------------------------------------------|
 static inline const char * scallop_cmd_description(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->description;
+    return priv->description->cstr(priv->description);
 }
 
 //------------------------------------------------------------------------|
@@ -357,8 +395,8 @@ bool scallop_cmd_register_cmd(scallop_cmd_t * parent,
         // command chain already exists.  must search before insert.
         // ensure that the requested keyword is unique within the given context.
         scallop_cmd_t * found = (scallop_cmd_t *) priv->cmds->find(priv->cmds,
-                                                             child,
-                                                             scallop_cmd_keyword_compare);
+                                                                   child,
+                                                                   scallop_cmd_keyword_compare);
 
         if (found)
         {
@@ -407,6 +445,7 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
 const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_create,
     &scallop_cmd_destroy,
+    &scallop_cmd_alias,
     &scallop_cmd_find_by_keyword,
     &scallop_cmd_partial_matches,
     &scallop_cmd_exec,

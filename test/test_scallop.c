@@ -42,7 +42,7 @@ TEST_BEGIN("test create/destroy")
     console_t * console = console_pub.create(stdin, stdout);
     CHECK(console != NULL);
 
-    scallop_t * scallop = scallop_pub.create(console, "> ", " \t\n", "//");
+    scallop_t * scallop = scallop_pub.create(console, "TEST");
     CHECK(scallop != NULL);
 
     scallop->destroy(scallop);

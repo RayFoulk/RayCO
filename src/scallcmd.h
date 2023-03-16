@@ -41,7 +41,7 @@ typedef int (*scallop_cmd_handler_f) (void * scallcmd,
 //------------------------------------------------------------------------|
 typedef struct scallop_cmd_t
 {
-    // Shell command factory function
+    // Scallop command factory function
     struct scallop_cmd_t * (*create)(scallop_cmd_handler_f handler,
                                      void * context,
                                      const char * keyword,
@@ -51,9 +51,13 @@ typedef struct scallop_cmd_t
     // Shell command destructor function
     void (*destroy)(void * scallcmd);
 
+    // Psuedo-factory: Create an alias of an existing command
+    struct scallop_cmd_t * (*alias)(struct scallop_cmd_t * scallcmd,
+                                    const char * keyword);
+
     // Find a registered command by keyword
     struct scallop_cmd_t * (*find_by_keyword)(struct scallop_cmd_t * scallcmd,
-                                             const char * keyword);
+                                              const char * keyword);
 
     // Get a list of partially matching keywords.  The returned chain_t
     // instance is expected to be destroyed by the caller.
