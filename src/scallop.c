@@ -57,9 +57,11 @@ typedef struct
     // The string that designates everything to the right as a comment.
     char * comment;
 
-    // also assumed to be ubiqui
     // master list of top-level context commands
     scallop_cmd_t * cmds;
+
+    // The list of all defined routines
+    chain_t * rtns;
 
     // Pointer to the console object for user I/O
     console_t * console;
@@ -368,6 +370,9 @@ static scallop_t * scallop_create(console_t * console,
         scallop->destroy(scallop);
         return NULL;
     }
+
+    // XXXXXXXXXXXXXXXXXXXXXXXX
+    //priv->rtns = create!!!
 
     return scallop;
 }

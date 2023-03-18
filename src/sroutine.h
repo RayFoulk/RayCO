@@ -31,8 +31,6 @@
 #include "console.h"
 #include "scallop.h"
 #include "scommand.h"
-//#include "bytes.h"
-//#include "chain.h"
 
 //------------------------------------------------------------------------|
 // A scallop routine is something like a source script except that it
@@ -40,20 +38,27 @@
 // finalized by the keyword 'end'.  routines are going to need to be able
 // to accept arguments from when they are called, and to evaluate their
 // values in-place at arbitrary points of execution.
-typedef struct scallop_routine_t
+typedef struct scallop_rtn_t
 {
     // Routine factory function
-    struct scallop_routine_t * (*create)(const char * name);
+    struct scallop_rtn_t * (*create)(const char * name);
 
     // Scallop destructor function
     void (*destroy)(void * routine);
 
+    // Get the name of the routine
+    const char * (*name)(struct scallop_rtn_t * routine);
 
+    // Append a line to the routine
+    bool (*append)(struct scallop_rtn_t * routine, const char * line);
+
+    // Execute the routine with arguments
+    int (*exec)(struct scallop_rtn_t * routine, int argc, char ** args);
+
+    // Private data
+    void * priv;
 }
-scallop_routine_t;
+scallop_rtn_t;
 
-//    // The name of this routine
-//    bytes_t * name
-//
-//    // Raw command lines consisting of the routine body
-//    chain_t * lines;
+//------------------------------------------------------------------------|
+extern const scallop_rtn_t scallop_rtn_pub;
