@@ -21,50 +21,39 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-#include "blammo.h"
-#include "utils.h"
-#include "scallcmd.h"
-#include "mut.h"
+#pragma once
 
-#include <string.h>
-#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
-static int bogus_scallcmd_handler(void * scallop,
-                                     void * context,
-                                     int argc,
-                                     char ** argv)
+#include "console.h"
+#include "scallop.h"
+#include "scommand.h"
+//#include "bytes.h"
+//#include "chain.h"
+
+//------------------------------------------------------------------------|
+// A scallop routine is something like a source script except that it
+// resides in memory, and is defined by the keyword 'routine' and
+// finalized by the keyword 'end'.  routines are going to need to be able
+// to accept arguments from when they are called, and to evaluate their
+// values in-place at arbitrary points of execution.
+typedef struct scallop_routine_t
 {
-    BLAMMO(INFO, "called");
-    return 0;
+    // Routine factory function
+    struct scallop_routine_t * (*create)(const char * name);
+
+    // Scallop destructor function
+    void (*destroy)(void * routine);
+
+
 }
+scallop_routine_t;
 
-TESTSUITE_BEGIN
-
-    // Simple test of the blammo logger
-    BLAMMO_LEVEL(INFO);
-    BLAMMO_FILE("test_scallcmd.log");
-    BLAMMO(INFO, "scallcmd tests...");
-
-TEST_BEGIN("test create/destroy")
-    scallop_cmd_t * scallcmd = scallop_cmd_pub.create(bogus_scallcmd_handler,
-                                                      NULL,
-                                                      "test",
-                                                      " <hint>",
-                                                      "a bogus test command");
-    CHECK(scallcmd != NULL);
-
-    scallcmd->destroy(scallcmd);
-
-TEST_END
-
-TEST_BEGIN("test register/unregister")
-    CHECK(true);
-TEST_END
-
-TEST_BEGIN("test deep destroy")
-    CHECK(true);
-TEST_END
-
-TESTSUITE_END
-
+//    // The name of this routine
+//    bytes_t * name
+//
+//    // Raw command lines consisting of the routine body
+//    chain_t * lines;

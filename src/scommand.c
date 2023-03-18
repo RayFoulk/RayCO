@@ -26,7 +26,7 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "scallcmd.h"
+#include "scommand.h"
 #include "chain.h"
 #include "bytes.h"
 #include "blammo.h"
@@ -42,6 +42,10 @@ typedef struct
     // 'list objects' or 'list types' -- rather than ugly case-switching.
     // This can be NULL if there are no sub-commands
     chain_t * cmds;
+
+    // Flag indicating if _this_ command is an alias to something
+    // else, so that we have a hope of not corrupting things later.
+    bool is_alias;
 
     // command handler function taking arguments are returning int
     scallop_cmd_handler_f handler;
@@ -102,7 +106,7 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
     // sub-commands, so don't waste memory allocating a bunch
     // of empty lists everywhere.  Do lazy/late initialization
     // of the sub-commands list in register()
-    //priv->cmds = NULL;  // redundant
+    //priv->cmds = NULL;  // redundant due to earlier memset()
 
     // Initialize most members
     priv->handler = handler;
@@ -136,8 +140,9 @@ static void scallop_cmd_destroy(void * scallcmd)
     priv->arghints->destroy(priv->arghints);
     priv->keyword->destroy(priv->keyword);
 
-    // Recursively destroy command tree, if there are any nodes
-    if (priv->cmds)
+    // Recursively destroy command tree, if there are any nodes,
+    // and IF the pointer to those nodes is not an alias copy
+    if (priv->cmds && !priv->is_alias)
     {
         priv->cmds->destroy(priv->cmds);
         //priv->cmds = NULL;  // redundant
@@ -172,6 +177,16 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
                                              priv->arghints->cstr(priv->arghints),
                                              description->cstr(description));
 
+    // Manually copy the sub-command pointer to the original
+    // command being aliased so that things will work properly.
+    // Be cautious when destroying/unregistering objects to not
+    // impropoerly corrupt the original!  Even this, in principal,
+    // should not segfault if gaurd-blocks are in place, but it
+    // could lead to some weird unexpected behavior.
+    ((scallop_cmd_priv_t *) alias->priv)->cmds = priv->cmds;
+    ((scallop_cmd_priv_t *) alias->priv)->is_alias = true;
+
+    // Don't need this temporary buffer anymore
     description->destroy(description);
 
     return alias;
@@ -270,10 +285,8 @@ static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
                 if (length > *longest) { *longest = length; }
             }
         }
-
-        priv->cmds->spin(priv->cmds, 1);
     }
-    while (!priv->cmds->origin(priv->cmds));
+    while (priv->cmds->spin(priv->cmds, 1));
 
     return pmatches;
 }
@@ -291,24 +304,34 @@ static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
 }
 
 //------------------------------------------------------------------------|
+static inline bool scallop_cmd_is_alias(scallop_cmd_t * scallcmd)
+{
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    return priv->is_alias;
+}
+
+//------------------------------------------------------------------------|
 static inline const char * scallop_cmd_keyword(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->keyword->cstr(priv->keyword);
+    return priv->keyword->cstr(priv->keyword) ?
+           priv->keyword->cstr(priv->keyword) : "";
 }
 
 //------------------------------------------------------------------------|
 static inline const char * scallop_cmd_arghints(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->arghints->cstr(priv->arghints);
+    return priv->arghints->cstr(priv->arghints) ?
+           priv->arghints->cstr(priv->arghints) : "";
 }
 
 //------------------------------------------------------------------------|
 static inline const char * scallop_cmd_description(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->description->cstr(priv->description);
+    return priv->description->cstr(priv->description) ?
+           priv->description->cstr(priv->description) : "";
 }
 
 //------------------------------------------------------------------------|
@@ -321,11 +344,9 @@ static int scallop_cmd_help(scallop_cmd_t * scallcmd,
     bytes_t * subhelp = NULL;
     bytes_t * pad = NULL;
 
-    // TODO: Append stuff about THIS command in the report???
-    // probably not since starting at root with nothing.
-
     // Done if no sub-commands
-    if (!priv->cmds)
+    // Fix-it-twice:
+    if (!priv->cmds || !priv->cmds->priv)
     {
         return 0;
     }
@@ -335,6 +356,8 @@ static int scallop_cmd_help(scallop_cmd_t * scallcmd,
     pad->fill(pad, ' ');
 
     // show explicit context: parent command
+    // FIXME: Does not build up a complete string including
+    //  grandparents -- does not always show complete context!
     if (scallcmd->keyword(scallcmd))
     {
         pad->append(pad, scallcmd->keyword(scallcmd),
@@ -351,21 +374,20 @@ static int scallop_cmd_help(scallop_cmd_t * scallcmd,
         subhelp->print(subhelp,
                        "%s%s  %s  %s\r\n",
                        pad->cstr(pad) ? pad->cstr(pad) : "",
-                       cmd->keyword(cmd) ? cmd->keyword(cmd) : "",
-                       cmd->arghints(cmd) ? cmd->arghints(cmd) : "",
-                       cmd->description(cmd) ? cmd->description(cmd) : "");
+                       cmd->keyword(cmd),
+                       cmd->arghints(cmd),
+                       cmd->description(cmd));
 
         cmd->help(cmd, subhelp, ++depth);
+        depth--;
 
         help->append(help,
                      subhelp->data(subhelp),
                      subhelp->size(subhelp));
 
         subhelp->destroy(subhelp);
-
-        priv->cmds->spin(priv->cmds, 1);
     }
-    while (!priv->cmds->origin(priv->cmds));
+    while (priv->cmds->spin(priv->cmds, 1));
 
     pad->destroy(pad);
     return 0;
@@ -438,6 +460,12 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
 
     // Remove the found command link
     priv->cmds->remove(priv->cmds);
+
+    // TODO: Figure out what to do with the allocated 'found' command
+    //  object that is now unregistered.  FIXME: Use extra caution with
+    //  unregistereing/destroying alias'ed commands as the sub-command
+    //  link may be a duplicate pointer to the original command!
+
     return true;
 }
 
@@ -449,6 +477,7 @@ const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_find_by_keyword,
     &scallop_cmd_partial_matches,
     &scallop_cmd_exec,
+    &scallop_cmd_is_alias,
     &scallop_cmd_keyword,
     &scallop_cmd_arghints,
     &scallop_cmd_description,

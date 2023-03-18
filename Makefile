@@ -7,8 +7,8 @@ SRCDIR   := ./src
 OBJDIR   := ./obj
 
 # Gather project sources and folders, start cflags early
-SOURCES := $(notdir $(shell find ./src -follow -name '*.c'))
-FOLDERS := $(sort $(dir $(shell find ./src -follow -name '*.c')))
+SOURCES := $(notdir $(shell find $(SRCDIR) -follow -name '*.c'))
+FOLDERS := $(sort $(dir $(shell find $(SRCDIR) -follow -name '*.c')))
 CFLAGS  := -Wall -pipe -fPIC
 
 # Linenoise is an optional third-party submodule

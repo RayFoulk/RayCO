@@ -29,7 +29,7 @@
 #include <stdbool.h>
 
 #include "console.h"
-#include "scallcmd.h"
+#include "scommand.h"
 
 //------------------------------------------------------------------------|
 // Maximum number of individual arguments
@@ -54,8 +54,11 @@ typedef struct scallop_t
     struct scallop_t * (*create)(console_t * console,
                                  const char * prompt_base);
 
-    // Shell destructor function
+    // Scallop destructor function
     void (*destroy)(void * scallop);
+
+    // Get access to the console object
+    console_t * (*console)(struct scallop_t * scallop);
 
     // Get access to the command registry interface.
     // This is necessary for third-party command registration!

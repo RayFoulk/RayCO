@@ -19,6 +19,10 @@ DONE:
   * Need to figure out console/stdout thread protection
   * able to pass a FILE * around or need an object with locking?
 * BUG: setting log file name always results in garbage file
+* BUG alias bogus log, unalias log, help crashes!!!
+  * logic is inverted - fix it twice!!
+  (problem was original non-alias command was deleted, leaving
+   invalid unmanaged pointer to subcmds in aliased cmd)
 
 +-------------------------------------------------------------------------+
 MOSTLY DONE / SUPERCEDED:
@@ -63,7 +67,12 @@ TODO:
 - Rework console->reprint()
   - use dynamically sized bytes_t
   - refactor how it works, writing substrings-at-once
-
+- Enable command history, with options, when linenoise is available.
+- console to borrow message type enum from blammo, but with it's own strings.
+- break out all builtin commands into scallblt.c/h or scallop_builtin
+  - need to add console() public method, and use commands() instead of priv
+  - only need to export one function and that is the register_builtins()
+    and pass in the base command tree pointer.  all else can be static.
 
 +-------------------------------------------------------------------------+
 TODOs FROM CODE:

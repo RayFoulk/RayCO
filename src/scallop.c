@@ -29,7 +29,8 @@
 #include <errno.h>
 
 #include "scallop.h"
-#include "scallcmd.h"
+#include "scommand.h"
+#include "sbuiltin.h"
 #include "console.h"
 #include "chain.h"
 #include "bytes.h"
@@ -46,9 +47,7 @@ typedef struct
     // Recursion depth for when executing scripts/procedures
     size_t depth;
 
-    // FIXME: Eventually make this more dynamic
-    // maybe use bytes_t?  remember size?
-    //char * prompt;
+    // Current prompt text buffer
     bytes_t * prompt;
 
     // command line delimiters are pretty universal.  usually whitespace,
@@ -66,235 +65,6 @@ typedef struct
     console_t * console;
 }
 scallop_priv_t;
-
-//------------------------------------------------------------------------|
-// Built-In command handler functions
-static int builtin_handler_help(void * scallcmd,
-                                void * context,
-                                int argc,
-                                char ** args)
-{
-    scallop_t * scallop = (scallop_t *) context;
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    bytes_t * help = bytes_pub.create(NULL, 0);
-
-    help->print(help, "commands:\r\n");
-
-    int result = priv->cmds->help(priv->cmds, help, 0);
-    if (result < 0)
-    {
-        BLAMMO(ERROR, "cmds->help() returned %d", result);
-        help->destroy(help);
-        return result;
-    }
-
-    //BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
-    // TODO: run help text through a column formatter
-    //  potentially build this functionality into bytes_t
-
-    priv->console->print(priv->console, "%s", help->cstr(help));
-    help->destroy(help);
-    return result;
-}
-
-static int builtin_handler_alias(void * scallcmd,
-                                 void * context,
-                                 int argc,
-                                 char ** args)
-{
-    scallop_t * scallop = (scallop_t *) context;
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-
-    // TODO: also unalias!
-
-    // TODO: Consider supporting aliasing nested commands
-    //  via some syntax like 'alias stuff log.file'.  or else
-    //  change root command context 'change log' and then
-    // 'alias stuff file'.  Then again, maybe we're going over
-    // the rails a bit here.
-
-    // want to actually register a new command here, under
-    // the keyword of the alias, but with the callback of the
-    // original keyword.  TBD under what scope this applies.
-    // NOTE: this is distinct from bash's alias which can
-    // encompass pretty much anything.
-    // this will be saved for the 'routine' keyword
-
-    if (argc < 3)
-    {
-        BLAMMO(ERROR, "Expected new and original keyword for alias");
-        return -1;
-    }
-
-    // Find the command that is referenced
-    scallop_cmd_t * scope = priv->cmds;
-    scallop_cmd_t * cmd = scope->find_by_keyword(scope, args[2]);
-    if (!cmd)
-    {
-        BLAMMO(WARNING, "Sub-command %s not found", args[2]);
-        return -2;
-    }
-
-    // re-register the same command under a different keyword
-    scallop_cmd_t * alias = priv->cmds->alias(cmd, args[1]);
-    if (!scope->register_cmd(scope, alias))
-    {
-        BLAMMO(ERROR, "Failed to register alias %s to %s",
-                      args[1], args[2]);
-        return -3;
-    }
-
-    return 0;
-}
-
-static int builtin_handler_log(void * scallcmd,
-                               void * context,
-                               int argc,
-                               char ** args)
-{
-    // Everyone needs a log.  You're gonna love it, log.
-    if (argc < 2)
-    {
-        BLAMMO(ERROR, "Not enough arguments for log command");
-        return -1;
-    }
-
-    // Find and execute subcommand
-    scallop_cmd_t * log = (scallop_cmd_t *) scallcmd;
-    scallop_cmd_t * cmd = log->find_by_keyword(log, args[1]);
-    if (!cmd)
-    {
-        BLAMMO(WARNING, "Sub-command %s not found", args[1]);
-        return -2;
-    }
-
-    return cmd->exec(cmd, --argc, &args[1]);
-}
-
-static int builtin_handler_log_level(void * scallcmd,
-                                     void * context,
-                                     int argc,
-                                     char ** args)
-{
-    // Everyone needs a log.  You're gonna love it, log.
-    if (argc < 2)
-    {
-        BLAMMO(ERROR, "Expected a numeric argument for level");
-        return -1;
-    }
-
-    BLAMMO_DECLARE(size_t level = strtoul(args[1], NULL, 0));
-    BLAMMO(INFO, "Setting log level to %u", level);
-    BLAMMO_LEVEL(level);
-
-    return 0;
-}
-
-static int builtin_handler_log_stdout(void * scallcmd,
-                                      void * context,
-                                      int argc,
-                                      char ** args)
-{
-    // Everyone needs a log.  You're gonna love it, log.
-    if (argc < 2)
-    {
-        BLAMMO(ERROR, "Expected a boolean flag");
-        return -1;
-    }
-
-    BLAMMO(INFO, "Setting log stdout to %s",
-                 str_to_bool(args[1]) ? "true" : "false");
-    BLAMMO_STDOUT(str_to_bool(args[1]));
-
-    return 0;
-}
-
-static int builtin_handler_log_file(void * scallcmd,
-                                    void * context,
-                                    int argc,
-                                    char ** args)
-{
-    // Everyone needs a log.  You're gonna love it, log.
-    if (argc < 2)
-    {
-        BLAMMO(ERROR, "Expected a file path argument");
-        return -1;
-    }
-
-    BLAMMO(INFO, "Setting log file path to %s", args[1]);
-    BLAMMO_FILE(args[1]);
-
-    return 0;
-}
-
-static int builtin_handler_source(void * scallcmd,
-                                  void * context,
-                                  int argc,
-                                  char ** args)
-{
-    scallop_t * scallop = (scallop_t *) context;
-
-    if (argc < 2)
-    {
-        BLAMMO(ERROR, "Expected a file path argument");
-        return -1;
-    }
-
-    FILE * source = fopen(args[1], "r");
-    if (!source)
-    {
-        BLAMMO(ERROR, "Could not open %s for reading", args[1]);
-        return -2;
-    }
-
-    // Similar to scallop->loop() but getting input from FILE
-    // It is a design choice to not reuse/repurpose the
-    // get_command_line() macro here: That implies echoing
-    // both the prompt and the commands read to stdout, and
-    // that is not something I want happening.
-    char * line = NULL;
-    size_t nalloc = 0;
-    ssize_t nchars = 0;
-    int result = 0;
-
-    while (!feof(source))
-    {
-        // TODO: Consider temporarily swapping console pipes
-        // and using the getter from the console interface.
-        nchars = getline(&line, &nalloc, source);
-        if (nchars < 0)
-        {
-            // Can happen normally when at last line just before EOF
-            BLAMMO(WARNING, "getline(%s) failed with errno %d strerror %s",
-                            args[1], errno, strerror(errno));
-            fclose(source);
-            free(line);
-            return 0;
-        }
-
-        result = scallop->dispatch(scallop, line);
-        BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
-
-        // TODO possibly store result in priv, or else report on console
-        (void) result;
-
-        free(line);
-        line = NULL;
-    }
-
-    fclose(source);
-    return 0;
-}
-
-static int builtin_handler_quit(void * scallcmd,
-                                void * context,
-                                int argc,
-                                char ** args)
-{
-    scallop_t * scallop = (scallop_t *) context;
-    scallop->quit(scallop);
-    return 0;
-}
 
 //------------------------------------------------------------------------|
 // Small private helper function to strip comments
@@ -421,9 +191,8 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
         BLAMMO(DEBUG, "Adding tab completion line: \'%s\'", line);
         priv->console->add_tab_completion(priv->console, line);
-        pmatches->spin(pmatches, 1);
     }
-    while (!pmatches->origin(pmatches));
+    while (pmatches->spin(pmatches, 1));
 
     free(line);
     pmatches->destroy(pmatches);
@@ -431,9 +200,9 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
 // callback for argument hints
 static char * scallop_arg_hints(void * object,
-                                      const char * buffer,
-                                      int * color,
-                                      int * bold)
+                                const char * buffer,
+                                int * color,
+                                int * bold)
 {
     BLAMMO(DEBUG, "buffer: \'%s\'", buffer);
 
@@ -593,89 +362,12 @@ static scallop_t * scallop_create(console_t * console,
     }
 
     // Register all Built-In commands
-    priv->cmds->register_cmd(priv->cmds,
-            priv->cmds->create(
-                    builtin_handler_help,
-                    scallop,
-                    "help",
-                    NULL,
-                    "show a list of commands with hints and description"));
-
-    priv->cmds->register_cmd(priv->cmds,
-            priv->cmds->create(
-                    builtin_handler_alias,
-                    scallop,
-                    "alias",
-                    " <new-keyword> <original-keyword>",
-                    "alias one command keyword to another (TBD)"));
-
-    // TODO: print, routine, eval, invert, jump, label
-
-    scallop_cmd_t * log = priv->cmds->create(
-            builtin_handler_log,
-            NULL,
-            "log",
-            " <logcmd> <...>",
-            "change blammo logger options");
-
-    priv->cmds->register_cmd(priv->cmds, log);
-
-    log->register_cmd(log,
-            log->create(
-                builtin_handler_log_level,
-                NULL,
-                "level",
-                " <0..5>",
-                "change the blammo log message level (0=VERBOSE, 5=FATAL)"));
-
-    log->register_cmd(log,
-            log->create(
-                builtin_handler_log_stdout,
-                NULL,
-                "stdout",
-                " <true/false>",
-                "enable or disable logging to stdout"));
-
-    log->register_cmd(log,
-            log->create(
-                builtin_handler_log_file,
-                NULL,
-                "file",
-                " <path>",
-                "change the blammo log file path"));
-
-    priv->cmds->register_cmd(priv->cmds,
-            priv->cmds->create(
-                    builtin_handler_source,
-                    scallop,
-                    "source",
-                    " <path>",
-                    "load and run a command script"));
-
-    priv->cmds->register_cmd(priv->cmds,
-            priv->cmds->create(
-                    builtin_handler_quit,
-                    scallop,
-                    "quit",
-                    NULL,
-                    "exit the scallop command handling loop"));
-
-    //    // BEGIN: NESTING TEST
-    //    scallop_cmd_t * horse = priv->cmds->create(
-    //            NULL,
-    //            NULL,
-    //            "horse",
-    //            " <nosir>",
-    //            "i don't like it");
-    //    horse->register_cmd(horse,
-    //            horse->create(
-    //                    NULL,
-    //                    NULL,
-    //                    "hockey",
-    //                    " <walrus>",
-    //                    "rubber walrus protectors"));
-    //    log->register_cmd(log, horse);
-    //    // END: NESTING TEST
+    if (!register_builtin_commands(scallop))
+    {
+        BLAMMO(FATAL, "register_builtin_commands() failed");
+        scallop->destroy(scallop);
+        return NULL;
+    }
 
     return scallop;
 }
@@ -707,6 +399,13 @@ static void scallop_destroy(void * scallop_ptr)
     // zero out and destroy the public interface
     memset(scallop, 0, sizeof(scallop_t));
     free(scallop);
+}
+
+//------------------------------------------------------------------------|
+static inline console_t * scallop_console(scallop_t * scallop)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    return priv->console;
 }
 
 //------------------------------------------------------------------------|
@@ -860,6 +559,7 @@ void scallop_prompt_pop(scallop_t * scallop)
 const scallop_t scallop_pub = {
     &scallop_create,
     &scallop_destroy,
+    &scallop_console,
     &scallop_commands,
     &scallop_dispatch,
     &scallop_loop,
