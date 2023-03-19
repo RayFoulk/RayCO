@@ -50,7 +50,7 @@ typedef struct scallop_rtn_t
     const char * (*name)(struct scallop_rtn_t * routine);
 
     // Append a line to the routine
-    bool (*append)(struct scallop_rtn_t * routine, const char * line);
+    void (*append)(struct scallop_rtn_t * routine, const char * line);
 
     // Execute the routine with arguments
     int (*exec)(struct scallop_rtn_t * routine, int argc, char ** args);

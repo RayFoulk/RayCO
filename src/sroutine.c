@@ -24,7 +24,7 @@
 //#include <stdio.h>
 //#include <stdlib.h>
 #include <stdbool.h>
-//#include <string.h>
+#include <string.h>
 //#include <stddef.h>
 //#include <errno.h>
 
@@ -49,36 +49,112 @@ typedef struct
 scallop_rtn_priv_t;
 
 //------------------------------------------------------------------------|
+// TODO: fairly certain going to need the console pointer here TBD
 static scallop_rtn_t * scallop_rtn_create(const char * name)
 {
+    scallop_rtn_t * routine = (scallop_rtn_t *) malloc(
+            sizeof(scallop_rtn_t));
+    if (!routine)
+    {
+        BLAMMO(FATAL, "malloc(sizeof(scallop_rtn_t)) failed");
+        return NULL;
+    }
 
-    return NULL;
+    memcpy(routine, &scallop_rtn_pub, sizeof(scallop_rtn_t));
+
+    routine->priv = malloc(sizeof(scallop_rtn_priv_t));
+    if (!routine->priv)
+    {
+        BLAMMO(FATAL, "malloc(sizeof(scallop_rtn_priv_t)) failed");
+        free(routine);
+        return NULL;
+    }
+
+    memset(routine->priv, 0, sizeof(scallop_rtn_priv_t));
+    scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
+
+    // Name of this routine (NO SPACES!!! - FIXME filter this)
+    priv->name = bytes_pub.create(name, strlen(name));
+    if (!priv->name)
+    {
+        BLAMMO(FATAL, "bytes_pub.create(%s) failed", name);
+        routine->destroy(routine);
+        return NULL;
+    }
+
+    // List of raw (mostly) uninterpreted command lines consisting
+    // of the body of the routine.  One exception to this is we'll
+    // need to track the nested depth of an 'end' keyword (if multi-use)
+    // or else have a special 'end-routine' keyword.  TODO: figure out
+    // how to cleanly implement this.
+    priv->lines = chain_pub.create(bytes_pub.destroy);
+    if (!priv->lines)
+    {
+        BLAMMO(FATAL, "chain_pub.create() failed");
+        routine->destroy(routine);
+        return NULL;
+    }
+
+    return routine;
 }
 
 //------------------------------------------------------------------------|
-static void scallop_rtn_destroy(void * routine)
+static void scallop_rtn_destroy(void * routine_ptr)
 {
+    scallop_rtn_t * routine = (scallop_rtn_t *) routine_ptr;
+    if (!routine || !routine->priv)
+    {
+        BLAMMO(WARNING, "attempt to early or double-destroy");
+        return;
+    }
 
+    scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
+
+    if (priv->lines)
+    {
+        priv->lines->destroy(priv->lines);
+    }
+
+    if (priv->name)
+    {
+        priv->name->destroy(priv->name);
+    }
+
+    memset(routine->priv, 0, sizeof(scallop_rtn_priv_t));
+    free(routine->priv);
+
+    // zero out and destroy the public interface
+    memset(routine, 0, sizeof(scallop_rtn_t));
+    free(routine);
 }
 
 //------------------------------------------------------------------------|
-static const char * scallop_rtn_name(scallop_rtn_t * routine)
+static inline const char * scallop_rtn_name(scallop_rtn_t * routine)
 {
-
-    return "";
+    scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
+    return priv->name->cstr(priv->name);
 }
 
 //------------------------------------------------------------------------|
-static bool scallop_rtn_append(scallop_rtn_t * routine, const char * line)
+static void scallop_rtn_append(scallop_rtn_t * routine, const char * line)
 {
+    scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
 
-    return true;
+    // First create the line object
+    bytes_t * bline = bytes_pub.create(line, strlen(line));
+
+    // Make no assumptions about the state of the chain, but always
+    // force the insert at the 'end' of the chain, which is always at -1
+    // since the chain is circular.
+    priv->lines->reset(priv->lines);
+    priv->lines->spin(priv->lines, -1);
+    priv->lines->insert(priv->lines, bline);
 }
 
 //------------------------------------------------------------------------|
 static int scallop_rtn_exec(scallop_rtn_t * routine, int argc, char ** args)
 {
-
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
     return 0;
 }
 

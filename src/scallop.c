@@ -31,6 +31,7 @@
 #include "scallop.h"
 #include "scommand.h"
 #include "sbuiltin.h"
+#include "sroutine.h"
 #include "console.h"
 #include "chain.h"
 #include "bytes.h"
@@ -371,8 +372,14 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    // XXXXXXXXXXXXXXXXXXXXXXXX
-    //priv->rtns = create!!!
+    // Create the list of routines
+    priv->rtns = chain_pub.create(scallop_rtn_pub.destroy);
+    if (!priv->rtns)
+    {
+        BLAMMO(FATAL, "scallop_rtn_pub.create() failed");
+        scallop->destroy(scallop);
+        return NULL;
+    }
 
     return scallop;
 }
@@ -391,10 +398,22 @@ static void scallop_destroy(void * scallop_ptr)
 
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
+    // Destroy all routines
+    if (priv->rtns)
+    {
+        priv->rtns->destroy(priv->rtns);
+    }
+
     // Recursively destroy command tree
     if (priv->cmds)
     {
         priv->cmds->destroy(priv->cmds);
+    }
+
+    // Destroy the promp
+    if (priv->prompt)
+    {
+        priv->prompt->destroy(priv->prompt);
     }
 
     // zero out and destroy the private data
@@ -532,6 +551,9 @@ void scallop_prompt_push(scallop_t * scallop, const char * name)
     }
 
     // Append the new context name on the end, and then the finale
+    // FIXME: If the context name contains an actual prompt
+    //  delimiter then there is going to be a problem.  flatten
+    //  or escape these to avoid it.
     prompt->append(prompt,
                    name,
                    strlen(name));
