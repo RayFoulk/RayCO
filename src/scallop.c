@@ -595,4 +595,3 @@ const scallop_t scallop_pub = {
     &scallop_prompt_pop,
     NULL
 };
-

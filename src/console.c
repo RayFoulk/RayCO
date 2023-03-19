@@ -379,7 +379,8 @@ static int console_reprint(console_t * console, const char * format, ...)
     if (priv->oldbuffer[0] == 0)
     {
         // this is the first call _after_ a reset
-        // XXXXXXXXXXXXXXXXXX
+        // FIXME: console print has implicit newlines,
+        //  need to implement bytes_t vprint()
         //console->print(console, "%s", priv->newbuffer);
         fprintf(priv->output, "%s", priv->newbuffer);
     }
@@ -404,7 +405,6 @@ static int console_reprint(console_t * console, const char * format, ...)
                 // delete a character: delete-space-delete
                 // FIXME: USING CONSOLE PRINT IS BROKEN
                 //  DUE TO IMPLICIT CARRIAGE-RETURN-NEWLINE
-                // XXXXXXXXXXXXXXXXXX
                 //console->print(console, "%c%c%c", (char) 8, (char) 32, (char) 8);
                 fprintf(priv->output, "%c%c%c", (char) 8, (char) 32, (char) 8);
 
@@ -415,7 +415,7 @@ static int console_reprint(console_t * console, const char * format, ...)
             address = strnlen(priv->newbuffer, CONSOLE_BUFFER_SIZE);
             while (count < address)
             {
-                // XXXXXXXXXXXX
+                // FIXME: XXXXXXXXXXXX
                 //console->print(console, "%c", priv->newbuffer[count]);
                 fprintf(priv->output, "%c", priv->newbuffer[count]);
                 count ++;
