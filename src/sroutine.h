@@ -53,7 +53,7 @@ typedef struct scallop_rtn_t
     void (*append)(struct scallop_rtn_t * routine, const char * line);
 
     // Execute the routine with arguments
-    int (*exec)(struct scallop_rtn_t * routine, int argc, char ** args);
+    int (*handler)(void * scmd, void * context, int argc, char ** args);
 
     // Private data
     void * priv;

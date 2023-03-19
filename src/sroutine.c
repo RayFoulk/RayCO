@@ -152,8 +152,13 @@ static void scallop_rtn_append(scallop_rtn_t * routine, const char * line)
 }
 
 //------------------------------------------------------------------------|
-static int scallop_rtn_exec(scallop_rtn_t * routine, int argc, char ** args)
+static int scallop_rtn_handler(void * scmd, void * context, int argc, char ** args)
 {
+    // The command handler function for every routine once registered.
+    // get the routine by name, perform substitutions on lines/args,
+    // and iterate through the lines calling dispatch on each one
+    // until running out and then return.
+
     BLAMMO(ERROR, "NOT IMPLEMENTED");
     return 0;
 }
@@ -164,6 +169,6 @@ const scallop_rtn_t scallop_rtn_pub = {
     &scallop_rtn_destroy,
     &scallop_rtn_name,
     &scallop_rtn_append,
-    &scallop_rtn_exec,
+    &scallop_rtn_handler,
     NULL
 };

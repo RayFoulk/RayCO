@@ -440,6 +440,13 @@ static inline scallop_cmd_t * scallop_commands(scallop_t * scallop)
 }
 
 //------------------------------------------------------------------------|
+static inline chain_t * scallop_routines(scallop_t * scallop)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    return priv->rtns;
+}
+
+//------------------------------------------------------------------------|
 static int scallop_dispatch(scallop_t * scallop, char * line)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
@@ -455,13 +462,15 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
         return -1;
     }
 
-    // For getting a handle on the command to be executed
-    scallop_cmd_t * cmd = NULL;
-    int result = 0;
-
     // For splitting command line into args[]
     char * args[SCALLOP_MAX_ARGS];
     size_t argc = 0;
+
+    // FIXME / TODO : preprocessor-like variable substitution
+    //  probably needs to happen here BEFORE calling split.
+    //  Also strongly consider re-implementing this part inside
+    //  bytes_t, since replacement will generally be a different
+    //  size than original.
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
@@ -477,15 +486,17 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     }
 
     // Try to find the command being invoked
-    cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
+    scallop_cmd_t * cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
     if (!cmd)
     {
-        BLAMMO(WARNING, "Command %s not found", args[0]);
+        priv->console->print(priv->console,
+                             "Unknown command \'%s\'.  Try \'help\'",
+                             args[0]);
         priv->depth--;
         return -1;
     }
 
-    result = (int) (ssize_t) cmd->exec(cmd, argc, args);
+    int result = (int) (ssize_t) cmd->exec(cmd, argc, args);
     priv->depth--;
     return result;
 }
@@ -588,6 +599,7 @@ const scallop_t scallop_pub = {
     &scallop_destroy,
     &scallop_console,
     &scallop_commands,
+    &scallop_routines,
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,

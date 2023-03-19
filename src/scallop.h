@@ -64,6 +64,10 @@ typedef struct scallop_t
     // This is necessary for third-party command registration!
     scallop_cmd_t * (*commands)(struct scallop_t * scallop);
 
+    // Get access to the list of routines, so that builtins
+    // can define new ones or alter existing ones as needed.
+    chain_t * (*routines)(struct scallop_t * scallop);
+
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.
     int (*dispatch)(struct scallop_t * scallop, char * line);

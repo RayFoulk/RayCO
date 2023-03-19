@@ -30,6 +30,7 @@
 
 #include "scallop.h"
 #include "scommand.h"
+#include "sroutine.h"
 #include "sbuiltin.h"
 #include "console.h"
 #include "chain.h"
@@ -242,6 +243,28 @@ static int builtin_handler_log_file(void * scmd,
 }
 
 //------------------------------------------------------------------------|
+static int builtin_handler_print(void * scmd,
+                                 void * context,
+                                 int argc,
+                                 char ** args)
+{
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
+    int argnum = 1;
+
+    // TODO: use bytes_t append() to avoid all the unwanted newlines
+    //  and also perform variable lookup / substitution here also
+    //  so that the user can view variable values interactively.
+
+    for (argnum = 1; argnum < argc; argnum++)
+    {
+        console->print(console, "%s ", args[argc]);
+    }
+
+    return 0;
+}
+
+//------------------------------------------------------------------------|
 static int builtin_handler_source(void * scmd,
                                   void * context,
                                   int argc,
@@ -302,6 +325,47 @@ static int builtin_handler_source(void * scmd,
 }
 
 //------------------------------------------------------------------------|
+static int builtin_handler_routine(void * scmd,
+                                   void * context,
+                                   int argc,
+                                   char ** args)
+{
+    scallop_t * scallop = (scallop_t *) context;
+    chain_t * routines = scallop->routines(scallop);
+
+    if (argc < 2)
+    {
+        BLAMMO(ERROR, "Expected a name for the routine");
+        return -1;
+    }
+
+    // Create a working copy of a routine object
+    scallop_rtn_t * routine = scallop_rtn_pub.create(args[1]);
+    if (!routine)
+    {
+        BLAMMO(ERROR, "scallop_rtn_pub.create(%s) failed", args[1]);
+        return -2;
+    }
+
+    // Check if there is already a routine by the given name
+    //routines->find(routines, routine, )
+
+    // WWWWWWWWWWWWWWWWW
+    // This is to DEFINE a routine, however we cannot just
+    // use getline to get/store lines as the script does
+    // because a routine might be defined by a script,
+    // or by the user interactively.  So instead we'll have to
+    // create the routine in memory (if it doesn't already exist)
+    // and then append to it somehow from dipatch() or somewhere
+    // until we hit an end statement... THEN it can be registered
+    // once completed.
+
+
+
+    return 0;
+}
+
+//------------------------------------------------------------------------|
 static int builtin_handler_quit(void * scmd,
                                 void * context,
                                 int argc,
@@ -334,6 +398,13 @@ bool register_builtin_commands(scallop_t * scallop)
         " <alias-keyword> <original-keyword>",
         "alias one command keyword to another"));
 
+    // TODO: Consider something like 'unregister' for all
+    //  aliases, routines, other things... and just mark
+    //  some things as not-unregisterable.  This would reduce
+    //  the number of root-scope keywords.
+    // TODO: Also, removing a thing should ALWAYS remove all
+    //  of it's aliases.  otherwise the aliases are present
+    //  but invalid and could cause weird crashes/undefined behavior.
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_unalias,
         scallop,
@@ -345,7 +416,7 @@ bool register_builtin_commands(scallop_t * scallop)
         builtin_handler_log,
         NULL,
         "log",
-        " <logcmd> <...>",
+        " <log-command> <...>",
         "change blammo logger options");
 
     success &= cmds->register_cmd(cmds, log);
@@ -368,15 +439,29 @@ bool register_builtin_commands(scallop_t * scallop)
         builtin_handler_log_file,
         NULL,
         "file",
-        " <path>",
+        " <log-file-path>",
         "change the blammo log file path"));
+
+    success &= cmds->register_cmd(cmds, cmds->create(
+        builtin_handler_print,
+        scallop,
+        "print",
+        " [arbitrary-strings-and-variables]",
+        "print strings and (TODO: variables)"));
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_source,
         scallop,
         "source",
-        " <path>",
+        " <script-path>",
         "load and run a command script"));
+
+    success &= cmds->register_cmd(cmds, cmds->create(
+        builtin_handler_routine,
+        scallop,
+        "routine",
+        " <routine-name>",
+        "define and register a new routine"));
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_quit,
