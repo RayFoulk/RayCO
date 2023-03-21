@@ -184,7 +184,7 @@ static void bytes_resize(bytes_t * bytes, size_t size)
     // Zero out the new memory
     if (size > priv->size)
     {
-        // XXXXXXXXXXXXXXX
+        // TODO: Replace with secure memory wipe
         memset(priv->data + priv->size, 0, size - priv->size);
     }
 

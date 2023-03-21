@@ -118,17 +118,17 @@ static int builtin_handler_alias(void * scmd,
 }
 
 //------------------------------------------------------------------------|
-static int builtin_handler_unalias(void * scmd,
-                                   void * context,
-                                   int argc,
-                                   char ** args)
+static int builtin_handler_unregister(void * scmd,
+                                      void * context,
+                                      int argc,
+                                      char ** args)
 {
     scallop_t * scallop = (scallop_t *) context;
     console_t * console = scallop->console(scallop);
 
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected keyword to unalias");
+        BLAMMO(ERROR, "Expected keyword to unregister");
         return -1;
     }
 
@@ -140,11 +140,11 @@ static int builtin_handler_unalias(void * scmd,
         return -2;
     }
 
-    if (!cmd->is_alias(cmd))
+    if (!cmd->is_mutable(cmd))
     {
         // FIXME: Borrow message types from blammo
         console->print(console,
-                "error: %s is not an alias",
+                "error: can't unregister immutable command \'%s\'",
                 cmd->keyword(cmd));
         return -3;
     }
@@ -229,7 +229,6 @@ static int builtin_handler_log_file(void * scmd,
                                     int argc,
                                     char ** args)
 {
-    // Everyone needs a log.  You're gonna love it, log.
     if (argc < 2)
     {
         BLAMMO(ERROR, "Expected a file path argument");
@@ -258,7 +257,7 @@ static int builtin_handler_print(void * scmd,
 
     for (argnum = 1; argnum < argc; argnum++)
     {
-        console->print(console, "%s ", args[argc]);
+        console->print(console, "%s ", args[argnum]);
     }
 
     return 0;
@@ -271,6 +270,7 @@ static int builtin_handler_source(void * scmd,
                                   char ** args)
 {
     scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
 
     if (argc < 2)
     {
@@ -285,43 +285,19 @@ static int builtin_handler_source(void * scmd,
         return -2;
     }
 
-    // Similar to scallop->loop() but getting input from FILE
-    // It is a design choice to not reuse/repurpose the
-    // get_command_line() macro here: That implies echoing
-    // both the prompt and the commands read to stdout, and
-    // that is not something I want happening.
-    char * line = NULL;
-    size_t nalloc = 0;
-    ssize_t nchars = 0;
-    int result = 0;
+    // Stash the current console input source & swap to source file
+    FILE * input = console->get_input(console);
+    console->set_input(console, source);
 
-    while (!feof(source))
-    {
-        // TODO: Consider temporarily swapping console pipes
-        // and using the getter from the console interface.
-        nchars = getline(&line, &nalloc, source);
-        if (nchars < 0)
-        {
-            // Can happen normally when at last line just before EOF
-            BLAMMO(WARNING, "getline(%s) failed with errno %d strerror %s",
-                            args[1], errno, strerror(errno));
-            fclose(source);
-            free(line);
-            return 0;
-        }
+    // Now get an dispatch commands from the script until EOF
+    int result = scallop->loop(scallop, false);
 
-        result = scallop->dispatch(scallop, line);
-        BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
+    // Put console back to original state
+    console->set_input(console, input);
 
-        // TODO possibly store result in priv, or else report on console
-        (void) result;
-
-        free(line);
-        line = NULL;
-    }
-
+    // Done with script file -- TODO: return status of script run?
     fclose(source);
-    return 0;
+    return result;
 }
 
 //------------------------------------------------------------------------|
@@ -330,7 +306,10 @@ static int builtin_handler_routine(void * scmd,
                                    int argc,
                                    char ** args)
 {
+    BLAMMO(VERBOSE, "");
+
     scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
     chain_t * routines = scallop->routines(scallop);
 
     if (argc < 2)
@@ -338,6 +317,10 @@ static int builtin_handler_routine(void * scmd,
         BLAMMO(ERROR, "Expected a name for the routine");
         return -1;
     }
+
+    // TODO: Decide if this this routine management code should be
+    // pushed inside scallop.c? find/add/finalize_routine() ??
+    // seems clunky either way.
 
     // Create a working copy of a routine object
     scallop_rtn_t * routine = scallop_rtn_pub.create(args[1]);
@@ -348,7 +331,24 @@ static int builtin_handler_routine(void * scmd,
     }
 
     // Check if there is already a routine by the given name
-    //routines->find(routines, routine, )
+    scallop_rtn_t * found = (scallop_rtn_t *) routines->find(routines,
+                                                             routine,
+                                                             routine->compare_name);
+    if (found)
+    {
+        console->print(console,
+                       "error: routine \'%s\' already exists",
+                       args[1]);
+        routine->destroy(routine);
+        return -3;
+    }
+
+    // Store the new routine in the chain, but do not register
+    // it yet -- until it is finalized.  Order doesn't matter.
+    routines->insert(routines, routine);
+
+    // Set a flag so dispatch()??? knows what to do with future lines???
+
 
     // WWWWWWWWWWWWWWWWW
     // This is to DEFINE a routine, however we cannot just
@@ -406,11 +406,11 @@ bool register_builtin_commands(scallop_t * scallop)
     //  of it's aliases.  otherwise the aliases are present
     //  but invalid and could cause weird crashes/undefined behavior.
     success &= cmds->register_cmd(cmds, cmds->create(
-        builtin_handler_unalias,
+        builtin_handler_unregister,
         scallop,
-        "unalias",
-        " <alias-keyword>",
-        "unregister a command alias"));
+        "unregister",
+        " <command-keyword>",
+        "unregister a mutable command"));
 
     scallop_cmd_t * log = cmds->create(
         builtin_handler_log,
@@ -460,7 +460,7 @@ bool register_builtin_commands(scallop_t * scallop)
         builtin_handler_routine,
         scallop,
         "routine",
-        " <routine-name>",
+        " <routine-name>", //\r\n. . . . .\r\n. . . . .",
         "define and register a new routine"));
 
     success &= cmds->register_cmd(cmds, cmds->create(

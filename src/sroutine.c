@@ -128,6 +128,17 @@ static void scallop_rtn_destroy(void * routine_ptr)
     free(routine);
 }
 
+static int scallop_rtn_compare_name(const void * routine,
+                                    const void * other)
+{
+    scallop_rtn_t * routine1 = (scallop_rtn_t *) routine;
+    scallop_rtn_priv_t * priv1 = (scallop_rtn_priv_t *) routine1->priv;
+
+    scallop_rtn_t * routine2 = (scallop_rtn_t *) other;
+    scallop_rtn_priv_t * priv2 = (scallop_rtn_priv_t *) routine2->priv;
+
+    return priv1->name->compare(priv1->name, priv2->name);
+}
 //------------------------------------------------------------------------|
 static inline const char * scallop_rtn_name(scallop_rtn_t * routine)
 {
@@ -167,6 +178,7 @@ static int scallop_rtn_handler(void * scmd, void * context, int argc, char ** ar
 const scallop_rtn_t scallop_rtn_pub = {
     &scallop_rtn_create,
     &scallop_rtn_destroy,
+    &scallop_rtn_compare_name,
     &scallop_rtn_name,
     &scallop_rtn_append,
     &scallop_rtn_handler,

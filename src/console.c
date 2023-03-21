@@ -243,6 +243,60 @@ void console_add_tab_completion(console_t * console, const char * line)
 }
 
 //------------------------------------------------------------------------|
+static inline FILE * console_get_input(console_t * console)
+{
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    return priv->input;
+}
+
+//------------------------------------------------------------------------|
+static inline FILE * console_get_output(console_t * console)
+{
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    return priv->output;
+}
+
+//------------------------------------------------------------------------|
+static bool console_set_input(console_t * console, FILE * input)
+{
+    if (!console->lock(console))
+    {
+        BLAMMO(ERROR, "console->lock() failed");
+        return false;
+    }
+
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    priv->input = input;
+
+    console->unlock(console);
+    return true;
+}
+
+//------------------------------------------------------------------------|
+static bool console_set_output(console_t * console, FILE * output)
+{
+    if (!console->lock(console))
+    {
+        BLAMMO(ERROR, "console->lock() failed");
+        return false;
+    }
+
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    priv->output = output;
+
+    console->unlock(console);
+    return true;
+
+}
+
+//------------------------------------------------------------------------|
+bool console_input_eof(console_t * console)
+{
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    return (bool) feof(priv->input);
+}
+
+//------------------------------------------------------------------------|
 static char * console_get_line(console_t * console,
                                const char * prompt,
                                bool interactive)
@@ -264,7 +318,11 @@ static char * console_get_line(console_t * console,
 
     // wrap getline, and use for interactive if there is no linenoise
     // submodule.  This is always used for scripts, however.
-    fprintf(stdout, "%s", prompt);
+    // Do not show prompt if not interactive
+    if (interactive)
+    {
+        fprintf(priv->output, "%s", prompt);
+    }
 
     char * line = NULL;
     size_t nalloc = 0;
@@ -439,6 +497,11 @@ const console_t console_pub = {
     &console_unlock,
     &console_set_line_callbacks,
     &console_add_tab_completion,
+    &console_get_input,
+    &console_get_output,
+    &console_set_input,
+    &console_set_output,
+    &console_input_eof,
     &console_get_line,
     &console_print,
     &console_reprint,

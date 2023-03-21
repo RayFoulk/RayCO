@@ -71,7 +71,7 @@ typedef struct scallop_cmd_t
                 char ** args);
 
     // Get whether this command is an alias to another command
-    bool (*is_alias)(struct scallop_cmd_t * scallcmd);
+    bool (*is_mutable)(struct scallop_cmd_t * scallcmd);
 
     // Get keyword for _this_ command
     const char * (*keyword)(struct scallop_cmd_t * scallcmd);

@@ -62,6 +62,21 @@ typedef struct console_t
     void (*add_tab_completion)(struct console_t * console,
                                const char * line);
 
+    // Get the current input or output pipe.
+    // Opt for this approach rather than push/pop because
+    // either we manage the stack or use the OS's call stack
+    // within the script handling callback.
+    FILE * (*get_input)(struct console_t * console);
+    FILE * (*get_output)(struct console_t * console);
+
+    // Directly set either of the pipes.  Caller is
+    // responsible for not putting the console in a bad state.
+    bool (*set_input)(struct console_t * console, FILE * input);
+    bool (*set_output)(struct console_t * console, FILE * output);
+
+    // Check for EOF on input file (typically end of script)
+    bool (*input_eof)(struct console_t * console);
+
     // Get a heap allocated line buffer from user.  This is intentionally
     // simplistic attempting to match linenoise() as closely as possible.
     // a direct override is not possible due to the object reference.

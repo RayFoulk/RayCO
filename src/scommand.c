@@ -43,9 +43,9 @@ typedef struct
     // This can be NULL if there are no sub-commands
     chain_t * cmds;
 
-    // Flag indicating if _this_ command is an alias to something
-    // else, so that we have a hope of not corrupting things later.
-    bool is_alias;
+    // Whether the command can be dynamically unregistered or altered
+    // at runtime as part of a handler's actions, normal shutdown exluded
+    bool is_mutable;
 
     // command handler function taking arguments are returning int
     scallop_cmd_handler_f handler;
@@ -108,6 +108,8 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
     // of the sub-commands list in register()
     //priv->cmds = NULL;  // redundant due to earlier memset()
 
+    // Also every command created by create() is immutable.
+
     // Initialize most members
     priv->handler = handler;
     priv->context = context;
@@ -142,7 +144,7 @@ static void scallop_cmd_destroy(void * scallcmd)
 
     // Recursively destroy command tree, if there are any nodes,
     // and IF the pointer to those nodes is not an alias copy
-    if (priv->cmds && !priv->is_alias)
+    if (priv->cmds && !priv->is_mutable)
     {
         priv->cmds->destroy(priv->cmds);
         //priv->cmds = NULL;  // redundant
@@ -183,8 +185,9 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
     // impropoerly corrupt the original!  Even this, in principal,
     // should not segfault if gaurd-blocks are in place, but it
     // could lead to some weird unexpected behavior.
-    ((scallop_cmd_priv_t *) alias->priv)->cmds = priv->cmds;
-    ((scallop_cmd_priv_t *) alias->priv)->is_alias = true;
+    scallop_cmd_priv_t * alias_priv = alias->priv;
+    alias_priv->cmds = priv->cmds;
+    alias_priv->is_mutable = true;
 
     // Don't need this temporary buffer anymore
     description->destroy(description);
@@ -304,10 +307,10 @@ static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
 }
 
 //------------------------------------------------------------------------|
-static inline bool scallop_cmd_is_alias(scallop_cmd_t * scallcmd)
+static inline bool scallop_cmd_is_mutable(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->is_alias;
+    return priv->is_mutable;
 }
 
 //------------------------------------------------------------------------|
@@ -477,7 +480,7 @@ const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_find_by_keyword,
     &scallop_cmd_partial_matches,
     &scallop_cmd_exec,
-    &scallop_cmd_is_alias,
+    &scallop_cmd_is_mutable,
     &scallop_cmd_keyword,
     &scallop_cmd_arghints,
     &scallop_cmd_description,

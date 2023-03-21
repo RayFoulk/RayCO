@@ -459,6 +459,7 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     {
         BLAMMO(ERROR, "Maximum recursion depth %u reached",
                       SCALLOP_MAX_RECURS);
+        priv->depth--;
         return -1;
     }
 
@@ -496,24 +497,32 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
         return -1;
     }
 
-    int result = (int) (ssize_t) cmd->exec(cmd, argc, args);
+
+    // TODO: If in the mode of defining a routine, then
+    // the command should not be executed, but instead
+    // should be added to the routine definition UNTIL
+    // an 'immediate' command is encountered.
+
+
+
+    int result = cmd->exec(cmd, argc, args);
     priv->depth--;
     return result;
 }
 
 //------------------------------------------------------------------------|
-static int scallop_loop(scallop_t * scallop)
+static int scallop_loop(scallop_t * scallop, bool interactive)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     char * line = NULL;
     int result = 0;
 
-    while (!priv->quit)
+    while (!priv->console->input_eof(priv->console) && !priv->quit)
     {
         // Get a line of raw user input
         line = priv->console->get_line(priv->console,
                                        priv->prompt->cstr(priv->prompt),
-                                       true);
+                                       interactive);
         BLAMMO(DEBUG, "line: %s", line);
 
         result = scallop->dispatch(scallop, line);

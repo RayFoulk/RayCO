@@ -73,7 +73,7 @@ typedef struct scallop_t
     int (*dispatch)(struct scallop_t * scallop, char * line);
 
     // Main interactive prompt loop
-    int (*loop)(struct scallop_t * scallop);
+    int (*loop)(struct scallop_t * scallop, bool interactive);
 
     // Explicitely quit the main loop
     void (*quit)(struct scallop_t * scallop);

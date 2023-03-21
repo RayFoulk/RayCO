@@ -46,6 +46,9 @@ typedef struct scallop_rtn_t
     // Scallop destructor function
     void (*destroy)(void * routine);
 
+    // Name comparator for finding routines in a chain
+    int (*compare_name)(const void * routine, const void * other);
+
     // Get the name of the routine
     const char * (*name)(struct scallop_rtn_t * routine);
 
