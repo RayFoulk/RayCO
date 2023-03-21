@@ -39,6 +39,23 @@
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
+// String constants that define the syntax/dialect of scallop's "language"
+// These could be made options if necessary, but I don't anticipate having
+// a need to do so.
+
+// The 'end-cap' that goes on the command line prompt
+static const char * scallop_prompt_finale = " > ";
+
+// This character is used to delimit nested context names
+static const char * scallop_prompt_delim = ".";
+
+// command line delimiters are pretty universal: whitespace is best.
+static const char * scallop_cmd_delim = " \t\n";
+
+// The string that designates everything to the right as a comment.
+static const char * scallop_cmd_comment = "#";
+
+//------------------------------------------------------------------------|
 // scallop private implementation data
 typedef struct
 {
@@ -48,15 +65,14 @@ typedef struct
     // Recursion depth for when executing scripts/procedures
     size_t depth;
 
-    // Current prompt text buffer
+    // Context stack.  Necessary to keep track of nested routine
+    // definitions, while loops, any construct that requires a
+    // beginning and end keyword with body in between that is not
+    // immediately executed.
+    chain_t * context;
+
+    // Current prompt text buffer, rebuilt whenever context changes.
     bytes_t * prompt;
-
-    // command line delimiters are pretty universal.  usually whitespace,
-    // but leaving this as an option in case there is a need.
-    char * delim;
-
-    // The string that designates everything to the right as a comment.
-    char * comment;
 
     // master list of top-level context commands
     scallop_cmd_t * cmds;
@@ -71,9 +87,10 @@ scallop_priv_t;
 
 //------------------------------------------------------------------------|
 // Small private helper function to strip comments
+// TODO: This can be moved to utils
 static int scallop_ignore_comments(scallop_t * scallop, int argc, char ** args)
 {
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    //scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     size_t words = 0;
 
     // Specifically ignore comments by searching through
@@ -81,10 +98,12 @@ static int scallop_ignore_comments(scallop_t * scallop, int argc, char ** args)
     // where comment string is identified
     for (words = 0; words < argc; words++)
     {
-        if (!strncmp(args[words], priv->comment, strlen(priv->comment)))
+        if (!strncmp(args[words],
+                     scallop_cmd_comment,
+                     strlen(scallop_cmd_comment)))
         {
             BLAMMO(VERBOSE, "Found comment %s at arg %u",
-                            priv->comment, words);
+                            scallop_cmd_comment, words);
             break;
         }
     }
@@ -111,7 +130,7 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
-    argc = splitstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
     argc = scallop_ignore_comments(scallop, argc, args);
     BLAMMO(DEBUG, "argc: %u", argc);
 
@@ -173,7 +192,7 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
     // get markers within unmodified copy of line
     memset(args, 0, sizeof(args));
-    markstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    markstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
 
     // iterate through partially matched keywords
     pmatches->reset(pmatches);
@@ -190,7 +209,7 @@ static void scallop_tab_completion(void * object, const char * buffer)
         memcpy(args[nest], keyword, strlen(keyword));
 
         // Add primary delimiter character at end of completion
-        args[nest][strlen(keyword)] = priv->delim[0];
+        args[nest][strlen(keyword)] = scallop_cmd_delim[0];
 
         BLAMMO(DEBUG, "Adding tab completion line: \'%s\'", line);
         priv->console->add_tab_completion(priv->console, line);
@@ -223,7 +242,7 @@ static char * scallop_arg_hints(void * object,
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
-    argc = splitstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
     argc = scallop_ignore_comments(scallop, argc, args);
     BLAMMO(DEBUG, "argc: %u", argc);
 
@@ -276,7 +295,10 @@ static char * scallop_arg_hints(void * object,
     int hindex = 0;
 
     memset(hints, 0, sizeof(hints));
-    hintc = markstr(hints, SCALLOP_MAX_ARGS, parent->arghints(parent), priv->delim);
+    hintc = markstr(hints,
+                    SCALLOP_MAX_ARGS,
+                    parent->arghints(parent),
+                    scallop_cmd_delim);
     BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d",
             parent->arghints(parent), hintc, argc, nest);
 
@@ -347,13 +369,22 @@ static scallop_t * scallop_create(console_t * console,
                                 scallop_arg_hints,
                                 scallop);
 
+    // Create context stack
+    priv->context = chain_pub.create(bytes_pub.destroy);
+    if (!priv->context)
+    {
+        BLAMMO(FATAL, "chain_pub.create() failed");
+        scallop->destroy(scallop);
+        return NULL;
+    }
+
     // Initialize prompt
     priv->prompt = bytes_pub.create(NULL, 0);
-    scallop->prompt_push(scallop, prompt_base);
 
-    // Set up some dialect 'constants'
-    priv->delim = SCALLOP_CMD_DELIM;
-    priv->comment = SCALLOP_CMD_COMMENT;
+    // WWWWWWWWWWWWWW
+    //scallop->prompt_push(scallop, prompt_base);
+    // WWWWWWWWWWW
+
 
      // Create the top-level list of commands
     priv->cmds = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
@@ -376,7 +407,7 @@ static scallop_t * scallop_create(console_t * console,
     priv->rtns = chain_pub.create(scallop_rtn_pub.destroy);
     if (!priv->rtns)
     {
-        BLAMMO(FATAL, "scallop_rtn_pub.create() failed");
+        BLAMMO(FATAL, "chain_pub.create() failed");
         scallop->destroy(scallop);
         return NULL;
     }
@@ -414,6 +445,12 @@ static void scallop_destroy(void * scallop_ptr)
     if (priv->prompt)
     {
         priv->prompt->destroy(priv->prompt);
+    }
+
+    // Destroy context stack
+    if (priv->context)
+    {
+        priv->context->destroy(priv->context);
     }
 
     // zero out and destroy the private data
@@ -475,7 +512,7 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
 
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
-    argc = splitstr(args, SCALLOP_MAX_ARGS, line, priv->delim);
+    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
     argc = scallop_ignore_comments(scallop, argc, args);
 
     // Ignore empty input
@@ -502,7 +539,7 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     // the command should not be executed, but instead
     // should be added to the routine definition UNTIL
     // an 'immediate' command is encountered.
-
+    // WWWWWWWWWWWWWWW
 
 
     int result = cmd->exec(cmd, argc, args);
@@ -529,6 +566,7 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 
         // TODO possibly store result in priv, or else report on console
+        // TODO: need to implement variables (dict)
         (void) result;
 
         free(line);
@@ -547,60 +585,60 @@ static void scallop_quit(scallop_t * scallop)
     // just to get it off the blocking call?
 }
 
-//------------------------------------------------------------------------|
-void scallop_prompt_push(scallop_t * scallop, const char * name)
-{
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    bytes_t * prompt = priv->prompt;
-    ssize_t offset = prompt->find_right(prompt,
-                                        SCALLOP_PROMPT_FINAL,
-                                        strlen(SCALLOP_PROMPT_FINAL));
-
-    // first truncate at the finale if it exists.
-    if (offset > 0)
-    {
-        prompt->resize(prompt, offset);
-
-        // For initialization reasons, only append
-        // the context delimiter if this is NOT the
-        // first time, otherwise the base prompt
-        // would have one also.
-        prompt->append(prompt,
-                       SCALLOP_PROMPT_DELIM,
-                       strlen(SCALLOP_PROMPT_DELIM));
-    }
-
-    // Append the new context name on the end, and then the finale
-    // FIXME: If the context name contains an actual prompt
-    //  delimiter then there is going to be a problem.  flatten
-    //  or escape these to avoid it.
-    prompt->append(prompt,
-                   name,
-                   strlen(name));
-
-    prompt->append(prompt,
-                   SCALLOP_PROMPT_FINAL,
-                   strlen(SCALLOP_PROMPT_FINAL));
-}
-
-//------------------------------------------------------------------------|
-void scallop_prompt_pop(scallop_t * scallop)
-{
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    bytes_t * prompt = priv->prompt;
-    ssize_t offset = prompt->find_right(prompt,
-                                        SCALLOP_PROMPT_DELIM,
-                                        strlen(SCALLOP_PROMPT_DELIM));
-
-    if (offset > 0)
-    {
-        prompt->resize(prompt, offset);
-
-        prompt->append(prompt,
-                       SCALLOP_PROMPT_FINAL,
-                       strlen(SCALLOP_PROMPT_FINAL));
-    }
-}
+////------------------------------------------------------------------------|
+//void scallop_prompt_push(scallop_t * scallop, const char * name)
+//{
+//    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+//    bytes_t * prompt = priv->prompt;
+//    ssize_t offset = prompt->find_right(prompt,
+//                                        SCALLOP_PROMPT_FINAL,
+//                                        strlen(SCALLOP_PROMPT_FINAL));
+//
+//    // first truncate at the finale if it exists.
+//    if (offset > 0)
+//    {
+//        prompt->resize(prompt, offset);
+//
+//        // For initialization reasons, only append
+//        // the context delimiter if this is NOT the
+//        // first time, otherwise the base prompt
+//        // would have one also.
+//        prompt->append(prompt,
+//                       SCALLOP_PROMPT_DELIM,
+//                       strlen(SCALLOP_PROMPT_DELIM));
+//    }
+//
+//    // Append the new context name on the end, and then the finale
+//    // FIXME: If the context name contains an actual prompt
+//    //  delimiter then there is going to be a problem.  flatten
+//    //  or escape these to avoid it.
+//    prompt->append(prompt,
+//                   name,
+//                   strlen(name));
+//
+//    prompt->append(prompt,
+//                   SCALLOP_PROMPT_FINAL,
+//                   strlen(SCALLOP_PROMPT_FINAL));
+//}
+//
+////------------------------------------------------------------------------|
+//void scallop_prompt_pop(scallop_t * scallop)
+//{
+//    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+//    bytes_t * prompt = priv->prompt;
+//    ssize_t offset = prompt->find_right(prompt,
+//                                        SCALLOP_PROMPT_DELIM,
+//                                        strlen(SCALLOP_PROMPT_DELIM));
+//
+//    if (offset > 0)
+//    {
+//        prompt->resize(prompt, offset);
+//
+//        prompt->append(prompt,
+//                       SCALLOP_PROMPT_FINAL,
+//                       strlen(SCALLOP_PROMPT_FINAL));
+//    }
+//}
 
 //------------------------------------------------------------------------|
 const scallop_t scallop_pub = {
@@ -612,8 +650,8 @@ const scallop_t scallop_pub = {
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,
-    &scallop_prompt_push,
-    &scallop_prompt_pop,
+//    &scallop_prompt_push,
+//    &scallop_prompt_pop,
     NULL
 };
 

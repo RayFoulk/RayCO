@@ -38,16 +38,6 @@
 // Maximum recursion depth to avoid stack smashing
 #define SCALLOP_MAX_RECURS        64
 
-// If there is ever a need to change the syntax/dialect of the scallop
-// 'language', this is the place to do it.  For the set of projects I
-// intend to use this command shell for, that will likely never be the
-// case.  Any of these could be made factory options if truly necessary,
-// which would be preferable to forking the code.
-#define SCALLOP_PROMPT_FINAL    " > "
-#define SCALLOP_PROMPT_DELIM    "\\"
-#define SCALLOP_CMD_DELIM       " \t\n"
-#define SCALLOP_CMD_COMMENT     "#"
-
 //------------------------------------------------------------------------|
 typedef struct scallop_t
 {
@@ -78,11 +68,16 @@ typedef struct scallop_t
     // Explicitely quit the main loop
     void (*quit)(struct scallop_t * scallop);
 
-    // Push a context name onto the prompt
-    void (*prompt_push)(struct scallop_t * scallop, const char * name);
+    // Push a context name onto the context stack
+    void (*context_push)(struct scallop_t * scallop, const char * context);
 
-    // Pop the previous context name off of the prompt
-    void (*prompt_pop)(struct scallop_t * scallop);
+    // Pop a context name off the top of the context stack
+    void (*context_pop)(struct scallop_t * scallop);
+
+    // Get the name of the current context (top of stack).
+    // Returns NULL when on "bottom" (which is actually
+    // the base prompt left untouched)
+    const char * (*context_name)(struct scallop_t * scallop);
 
     // Private data
     void * priv;
