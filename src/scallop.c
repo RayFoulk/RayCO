@@ -85,6 +85,31 @@ typedef struct
 }
 scallop_priv_t;
 
+// Private data structure for context stack
+// All data members must be unmanaged by this struct,
+// but point elsewhere to persistent data, at least
+// for the lifetime of the context.
+typedef struct
+{
+    // Name of this context
+    char * name;
+
+    // The context under which this item was pushed to the stack
+    // I.E. It's probably the scallop instance itself, or the same
+    // thing that was passed as the context pointer to a command
+    // handler.
+    void * context;
+
+    // The contextual object being operated on.  This might be the
+    // 'routine' instance, or a 'while loop' instance or some other
+    // added-on language construct.
+    void * object;
+
+    // The function to be called when this item is popped
+    scallop_context_pop_f popfunc;
+}
+scallop_context_t;
+
 //------------------------------------------------------------------------|
 // Small private helper function to strip comments
 // TODO: This can be moved to utils
@@ -370,7 +395,7 @@ static scallop_t * scallop_create(console_t * console,
                                 scallop);
 
     // Create context stack
-    priv->context = chain_pub.create(bytes_pub.destroy);
+    priv->context = chain_pub.create(free);
     if (!priv->context)
     {
         BLAMMO(FATAL, "chain_pub.create() failed");
@@ -378,15 +403,11 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    // Initialize prompt
+    // Initialize prompt, push prompt_base as initial context
     priv->prompt = bytes_pub.create(NULL, 0);
+    scallop->context_push(scallop, prompt_base, NULL, NULL, NULL);
 
-    // WWWWWWWWWWWWWW
-    //scallop->prompt_push(scallop, prompt_base);
-    // WWWWWWWWWWW
-
-
-     // Create the top-level list of commands
+    // Create the top-level list of commands
     priv->cmds = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
     if (!priv->cmds)
     {
@@ -540,6 +561,7 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     // should be added to the routine definition UNTIL
     // an 'immediate' command is encountered.
     // WWWWWWWWWWWWWWW
+    // answer: private get_context() struct
 
 
     int result = cmd->exec(cmd, argc, args);
@@ -584,6 +606,93 @@ static void scallop_quit(scallop_t * scallop)
     // TODO: Need to pump a newline into the console here
     // just to get it off the blocking call?
 }
+
+//------------------------------------------------------------------------|
+// Private prompt rebuild function on context push/pop
+static void scallop_rebuild_prompt(scallop_t * scallop)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    priv->prompt->resize(priv->prompt, 0);
+    priv->context->reset(priv->context);
+    do
+    {
+        priv->prompt->append();
+        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+
+    }
+    while (priv->context->spin(priv->context, -1));
+
+}
+
+//------------------------------------------------------------------------|
+static void scallop_context_push(scallop_t * scallop,
+                                 const char * name,
+                                 void * context,
+                                 void * object,
+                                 scallop_context_pop_f popfunc)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    // Create a context structure to be pushed
+    scallop_context_t * scontext = (scallop_context_t *)
+            malloc(sizeof(scallop_context_t));
+    scontext->name = name;
+    scontext->context = context;
+    scontext->object = object;
+    scontext->popfunc = popfunc;
+
+    // Push the context onto the stack, treating the link after the
+    // origin as the 'top' of the stack, pushing all other links forward.
+    priv->context->reset(priv->context);
+    priv->context->insert(priv->context, scontext);
+}
+
+//------------------------------------------------------------------------|
+static int scallop_context_pop(scallop_t * scallop)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    // Select the top item
+    priv->context->reset(priv->context);
+    priv->context->spin(priv->context, 1);
+
+    // Get the context
+    scallop_context_t * scontext = (scallop_context_t *)
+            priv->context->data(priv->context);
+    int result = 0;
+
+    // Call the pop function if provided
+    if (scontext->popfunc)
+    {
+        result = scontext->popfunc(scontext->context, scontext->object);
+    }
+
+    // Remove item from the stack, moving all other links back
+    priv->context->remove(priv->context);
+
+    return result;
+}
+
+//------------------------------------------------------------------------|
+const scallop_t scallop_pub = {
+    &scallop_create,
+    &scallop_destroy,
+    &scallop_console,
+    &scallop_commands,
+    &scallop_routines,
+    &scallop_dispatch,
+    &scallop_loop,
+    &scallop_quit,
+    &scallop_context_push,
+    &scallop_context_pop,
+    NULL
+};
+
+
 
 ////------------------------------------------------------------------------|
 //void scallop_prompt_push(scallop_t * scallop, const char * name)
@@ -639,19 +748,4 @@ static void scallop_quit(scallop_t * scallop)
 //                       strlen(SCALLOP_PROMPT_FINAL));
 //    }
 //}
-
-//------------------------------------------------------------------------|
-const scallop_t scallop_pub = {
-    &scallop_create,
-    &scallop_destroy,
-    &scallop_console,
-    &scallop_commands,
-    &scallop_routines,
-    &scallop_dispatch,
-    &scallop_loop,
-    &scallop_quit,
-//    &scallop_prompt_push,
-//    &scallop_prompt_pop,
-    NULL
-};
 
