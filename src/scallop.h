@@ -39,9 +39,14 @@
 #define SCALLOP_MAX_RECURS        64
 
 //------------------------------------------------------------------------|
-// Context stack pop handler function signature.
-typedef int (*scallop_context_pop_f) (void * context,
-                                      void * object);
+// Language construct line handler function signature
+typedef int (*scallop_construct_line_f)(void * context,
+                                        void * object,
+                                        char * line);
+
+// Language construct stack pop handler function signature.
+typedef int (*scallop_construct_pop_f)(void * context,
+                                       void * object);
 
 //------------------------------------------------------------------------|
 typedef struct scallop_t
@@ -74,19 +79,20 @@ typedef struct scallop_t
     void (*quit)(struct scallop_t * scallop);
 
     // Push a full context onto the context stack
-    void (*context_push)(struct scallop_t * scallop,
+    void (*construct_push)(struct scallop_t * scallop,
                          const char * name,
                          void * context,
                          void * object,
-                         scallop_context_pop_f popfunc);
+                         scallop_construct_line_f linefunc,
+                         scallop_construct_pop_f popfunc);
 
     // Pop a context name off the top of the context stack
-    int (*context_pop)(struct scallop_t * scallop);
+    int (*construct_pop)(struct scallop_t * scallop);
 
     // Get the name of the current context (top of stack).
     // Returns NULL when on "bottom" (which is actually
     // the base prompt left untouched)
-    const char * (*context_name)(struct scallop_t * scallop);
+    const char * (*construct_name)(struct scallop_t * scallop);
 
     // Private data
     void * priv;

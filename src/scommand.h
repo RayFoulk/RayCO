@@ -43,6 +43,7 @@ typedef struct scallop_cmd_t
 {
     // Scallop command factory function
     struct scallop_cmd_t * (*create)(scallop_cmd_handler_f handler,
+                                     bool is_construct,
                                      void * context,
                                      const char * keyword,
                                      const char * arghints,
@@ -72,6 +73,9 @@ typedef struct scallop_cmd_t
 
     // Get whether this command is an alias to another command
     bool (*is_mutable)(struct scallop_cmd_t * scallcmd);
+
+    // Get whether this command is part of a multi-line language construct
+    bool (*is_construct)(struct scallop_cmd_t * scallcmd);
 
     // Get keyword for _this_ command
     const char * (*keyword)(struct scallop_cmd_t * scallcmd);

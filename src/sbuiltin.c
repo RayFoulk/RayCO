@@ -301,6 +301,41 @@ static int builtin_handler_source(void * scmd,
 }
 
 //------------------------------------------------------------------------|
+static int builtin_linefunc_routine(void * context,
+                                    void * object,
+                                    char * line)
+{
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    // FIXME: Cache the line in the routine
+
+    return 0;
+}
+
+//------------------------------------------------------------------------|
+static int builtin_popfunc_routine(void * context,
+                                   void * object)
+{
+    BLAMMO(VERBOSE, "");
+
+    scallop_t * scallop = (scallop_t *) context;
+    scallop_rtn_t * routine = (scallop_rtn_t *) object;
+    scallop_cmd_t * cmds = scallop->commands(scallop);
+    bool success = true;
+
+    // All done defining this routine.  Now register it as a
+    // proper command.
+    success = cmds->register_cmd(cmds, cmds->create(
+        routine->handler,
+        false,
+        scallop,
+        routine->name(routine),
+        " [argument-list]",
+        "user-registered routine"));
+
+    return success ? 0 : -1;
+}
+
+//------------------------------------------------------------------------|
 static int builtin_handler_routine(void * scmd,
                                    void * context,
                                    int argc,
@@ -347,6 +382,19 @@ static int builtin_handler_routine(void * scmd,
     // it yet -- until it is finalized.  Order doesn't matter.
     routines->insert(routines, routine);
 
+    // Push the new routine definition onto the language construct
+    // stack.  This should get popped off when the matching 'end'
+    // statement is reached, and at THAT point it will become
+    // registered as a new command (with the ubiquitous routine handler)
+    // Until then, incoming lines will be added to the construct.
+    scallop->construct_push(scallop,
+                            routine->name(routine),
+                            context,
+                            routine,
+                            builtin_linefunc_routine,
+                            builtin_popfunc_routine);
+
+
     // Set a flag so dispatch()??? knows what to do with future lines???
 
 
@@ -363,6 +411,16 @@ static int builtin_handler_routine(void * scmd,
 
 
     return 0;
+}
+
+//------------------------------------------------------------------------|
+static int builtin_handler_end(void * scmd,
+                               void * context,
+                               int argc,
+                               char ** args)
+{
+    scallop_t * scallop = (scallop_t *) context;
+    return scallop->construct_pop(scallop);
 }
 
 //------------------------------------------------------------------------|
@@ -386,6 +444,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_help,
+        false,
         scallop,
         "help",
         NULL,
@@ -393,6 +452,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_alias,
+        false,
         scallop,
         "alias",
         " <alias-keyword> <original-keyword>",
@@ -407,6 +467,7 @@ bool register_builtin_commands(scallop_t * scallop)
     //  but invalid and could cause weird crashes/undefined behavior.
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_unregister,
+        false,
         scallop,
         "unregister",
         " <command-keyword>",
@@ -414,6 +475,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     scallop_cmd_t * log = cmds->create(
         builtin_handler_log,
+        false,
         NULL,
         "log",
         " <log-command> <...>",
@@ -423,6 +485,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_level,
+        false,
         NULL,
         "level",
         " <0..5>",
@@ -430,6 +493,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_stdout,
+        false,
         NULL,
         "stdout",
         " <true/false>",
@@ -437,6 +501,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_file,
+        false,
         NULL,
         "file",
         " <log-file-path>",
@@ -444,6 +509,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_print,
+        false,
         scallop,
         "print",
         " [arbitrary-strings-and-variables]",
@@ -451,6 +517,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_source,
+        false,
         scallop,
         "source",
         " <script-path>",
@@ -458,13 +525,23 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_routine,
+        true,
         scallop,
         "routine",
         " <routine-name>", //\r\n. . . . .\r\n. . . . .",
         "define and register a new routine"));
 
     success &= cmds->register_cmd(cmds, cmds->create(
+        builtin_handler_end,
+        true,
+        scallop,
+        "end",
+        NULL,
+        "finalize a multi-line language construct"));
+
+    success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_quit,
+        false,
         scallop,
         "quit",
         NULL,
@@ -478,6 +555,7 @@ bool register_builtin_commands(scallop_t * scallop)
     //  and add a unit test to verify it remains so.
     scallop_cmd_t * horse = priv->cmds->create(
         NULL,
+        false,
         NULL,
         "horse",
         " <nosir>",
@@ -485,6 +563,7 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= horse->register_cmd(horse, horse->create(
         NULL,
+        false,
         NULL,
         "hockey",
         " <walrus>",

@@ -108,28 +108,23 @@ typedef struct bytes_t
                           const void * data,
                           size_t size);
 
-//    ssize_t (*find_all)(struct bytes_t * bytes,
-//                        const void * data,
-//                        size_t size,
-//                        size_t * offsets,
-//                        size_t * max_offsets);
-    // Else consider returning a list.
-
     // Fill the buffer completely with a given character
     void (*fill)(struct bytes_t * bytes, const char c);
 
-    // TODO: Notional Functions
-    // (*fill_cyclic) // for VR purposes
-    // TODO: how to handle whether the string needs to be un-escaped or not?
-    // TODO: manual escape/un-escape calls for this
-    //(*escape/encode) (*unescape/decode)
-    //find/insert/replace/remove
-    //void (*shrink)(struct bytes_t * bytes); ???
-
-    // TODO: Stubbed Functions
+    // Create a copy of the given bytes object.
+    // Caller is responsible for destroying the copy.
     struct bytes_t * (*copy)(struct bytes_t * bytes);
-    struct bytes_t * (*split)(struct bytes_t * bytes, size_t begin, size_t end);
-    bool (*join)(struct bytes_t * head, struct bytes_t * tail);
+
+    // Split byte array into tokenized string list by delimiters.
+    // Caller is responsible for destroying returned list.
+    // The bytes array is altered in-place, having null bytes inserted.
+//    chain_t * (*split)(struct bytes_t * bytes,
+//                       const char * delim,
+//                       const char * ignore);
+    int * (*split)(struct bytes_t * bytes,
+                   char ** tokens,
+                   const char * delim,
+                   const char * ignore);
 
     // debug, serialization, etc... reorganize later
     const char * const (*hexdump)(struct bytes_t * bytes);
@@ -142,3 +137,18 @@ bytes_t;
 //------------------------------------------------------------------------|
 // Public 'bytes' interface
 extern const bytes_t bytes_pub;
+
+//------------------------------------------------------------------------|
+//    ssize_t (*find_all)(struct bytes_t * bytes,
+//                        const void * data,
+//                        size_t size,
+//                        size_t * offsets,
+//                        size_t * max_offsets);
+// Else consider returning a list.
+// TODO: Notional Functions
+// (*fill_cyclic) // for VR purposes
+// TODO: how to handle whether the string needs to be un-escaped or not?
+// TODO: manual escape/un-escape calls for this
+//(*escape/encode) (*unescape/decode)
+//find/insert/replace/remove
+//void (*shrink)(struct bytes_t * bytes); ???

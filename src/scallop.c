@@ -65,11 +65,11 @@ typedef struct
     // Recursion depth for when executing scripts/procedures
     size_t depth;
 
-    // Context stack.  Necessary to keep track of nested routine
-    // definitions, while loops, any construct that requires a
-    // beginning and end keyword with body in between that is not
-    // immediately executed.
-    chain_t * context;
+    // Language construct stack used to keep track of nested routine
+    // definitions, while loops, if-else and any other construct that
+    // requires a beginning and end keyword with body in between that
+    // is not immediately executed.
+    chain_t * constructs;
 
     // Current prompt text buffer, rebuilt whenever context changes.
     bytes_t * prompt;
@@ -78,7 +78,7 @@ typedef struct
     scallop_cmd_t * cmds;
 
     // The list of all defined routines
-    chain_t * rtns;
+    chain_t * routines;
 
     // Pointer to the console object for user I/O
     console_t * console;
@@ -91,50 +91,31 @@ scallop_priv_t;
 // for the lifetime of the context.
 typedef struct
 {
-    // Name of this context
+    // Name of this language construct
     char * name;
 
     // The context under which this item was pushed to the stack
     // I.E. It's probably the scallop instance itself, or the same
     // thing that was passed as the context pointer to a command
     // handler.
-    void * context;
+    void * constructs;
 
-    // The contextual object being operated on.  This might be the
+    // The construct object being operated on.  This might be the
     // 'routine' instance, or a 'while loop' instance or some other
     // added-on language construct.
     void * object;
 
+    // The function to be called when a line is provided by
+    // the user or a scipt.  If this is NULL then the line
+    // should go directly to dispatch().  If not, then the
+    // line handler function can decide if it needs to dispatch
+    // or cache the line inside the construct object.
+    scallop_construct_line_f linefunc;
+
     // The function to be called when this item is popped
-    scallop_context_pop_f popfunc;
+    scallop_construct_pop_f popfunc;
 }
-scallop_context_t;
-
-//------------------------------------------------------------------------|
-// Small private helper function to strip comments
-// TODO: This can be moved to utils
-static int scallop_ignore_comments(scallop_t * scallop, int argc, char ** args)
-{
-    //scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    size_t words = 0;
-
-    // Specifically ignore comments by searching through
-    // the list and simply reducing the effective arg count
-    // where comment string is identified
-    for (words = 0; words < argc; words++)
-    {
-        if (!strncmp(args[words],
-                     scallop_cmd_comment,
-                     strlen(scallop_cmd_comment)))
-        {
-            BLAMMO(VERBOSE, "Found comment %s at arg %u",
-                            scallop_cmd_comment, words);
-            break;
-        }
-    }
-
-    return words;
-}
+scallop_construct_t;
 
 //------------------------------------------------------------------------|
 static void scallop_tab_completion(void * object, const char * buffer)
@@ -156,7 +137,7 @@ static void scallop_tab_completion(void * object, const char * buffer)
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
     argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-    argc = scallop_ignore_comments(scallop, argc, args);
+    argc = ignore_comments(argc, args, scallop_cmd_comment);
     BLAMMO(DEBUG, "argc: %u", argc);
 
     // Ignore empty input
@@ -268,7 +249,7 @@ static char * scallop_arg_hints(void * object,
     // Clear and split the line into args[]
     memset(args, 0, sizeof(args));
     argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-    argc = scallop_ignore_comments(scallop, argc, args);
+    argc = ignore_comments(argc, args, scallop_cmd_comment);
     BLAMMO(DEBUG, "argc: %u", argc);
 
     // Ignore empty input
@@ -395,8 +376,8 @@ static scallop_t * scallop_create(console_t * console,
                                 scallop);
 
     // Create context stack
-    priv->context = chain_pub.create(free);
-    if (!priv->context)
+    priv->constructs = chain_pub.create(free);
+    if (!priv->constructs)
     {
         BLAMMO(FATAL, "chain_pub.create() failed");
         scallop->destroy(scallop);
@@ -405,10 +386,10 @@ static scallop_t * scallop_create(console_t * console,
 
     // Initialize prompt, push prompt_base as initial context
     priv->prompt = bytes_pub.create(NULL, 0);
-    scallop->context_push(scallop, prompt_base, NULL, NULL, NULL);
+    scallop->construct_push(scallop, prompt_base, NULL, NULL, NULL, NULL);
 
     // Create the top-level list of commands
-    priv->cmds = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
+    priv->cmds = scallop_cmd_pub.create(NULL, false, NULL, NULL, NULL, NULL);
     if (!priv->cmds)
     {
         BLAMMO(FATAL, "scallop_cmd_pub.create() failed");
@@ -425,8 +406,8 @@ static scallop_t * scallop_create(console_t * console,
     }
 
     // Create the list of routines
-    priv->rtns = chain_pub.create(scallop_rtn_pub.destroy);
-    if (!priv->rtns)
+    priv->routines = chain_pub.create(scallop_rtn_pub.destroy);
+    if (!priv->routines)
     {
         BLAMMO(FATAL, "chain_pub.create() failed");
         scallop->destroy(scallop);
@@ -451,9 +432,9 @@ static void scallop_destroy(void * scallop_ptr)
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Destroy all routines
-    if (priv->rtns)
+    if (priv->routines)
     {
-        priv->rtns->destroy(priv->rtns);
+        priv->routines->destroy(priv->routines);
     }
 
     // Recursively destroy command tree
@@ -469,9 +450,9 @@ static void scallop_destroy(void * scallop_ptr)
     }
 
     // Destroy context stack
-    if (priv->context)
+    if (priv->constructs)
     {
-        priv->context->destroy(priv->context);
+        priv->constructs->destroy(priv->constructs);
     }
 
     // zero out and destroy the private data
@@ -501,7 +482,7 @@ static inline scallop_cmd_t * scallop_commands(scallop_t * scallop)
 static inline chain_t * scallop_routines(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    return priv->rtns;
+    return priv->routines;
 }
 
 //------------------------------------------------------------------------|
@@ -521,20 +502,42 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
         return -1;
     }
 
-    // For splitting command line into args[]
-    char * args[SCALLOP_MAX_ARGS];
-    size_t argc = 0;
-
-    // FIXME / TODO : preprocessor-like variable substitution
+     // FIXME / TODO : preprocessor-like variable substitution
     //  probably needs to happen here BEFORE calling split.
     //  Also strongly consider re-implementing this part inside
     //  bytes_t, since replacement will generally be a different
     //  size than original.
 
+    // ORDER MATTERS HERE
+    // 1.) need to know the command to be executed
+    // AND have the unaltered line SIMULTANEOUSLY
+    // because the command->is_construct needs to be known
+    // in order to disposition the RAW LINE.
+    //  therefore it cannot be chopped up destructively.
+    // 2.) THEN, if and only if the line is to be executed,
+    // should it have variable substitution/evaluation performed
+    // on it.  I.E. do not store mangled lines in constructs
+    // that have not yet been executed!
+
+    bytes_t * bline = bytes_pub.create(line, strlen(line));
+    chain_t * tokens = bline->split(bline,
+                                    scallop_cmd_delim,
+                                    scallop_cmd_comment);
+    do
+    {
+        BLAMMO(INFO, "token: %s", (char *) tokens->data(tokens));
+    }
+    while(tokens->spin(tokens, 1));
+
+
+
     // Clear and split the line into args[]
+    // For splitting command line into args[]
+    char * args[SCALLOP_MAX_ARGS];
+    size_t argc = 0;
     memset(args, 0, sizeof(args));
     argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-    argc = scallop_ignore_comments(scallop, argc, args);
+    argc = ignore_comments(argc, args, scallop_cmd_comment);
 
     // Ignore empty input
     if (argc == 0)
@@ -584,6 +587,8 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
                                        interactive);
         BLAMMO(DEBUG, "line: %s", line);
 
+        // WWWWWWWWWWWWWWWWWW
+
         result = scallop->dispatch(scallop, line);
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 
@@ -603,8 +608,8 @@ static void scallop_quit(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     priv->quit = true;
-    // TODO: Need to pump a newline into the console here
-    // just to get it off the blocking call?
+    // TODO: Is it ever necessary to pump a newline into the console
+    // here just to get it off the blocking call?
 }
 
 //------------------------------------------------------------------------|
@@ -612,68 +617,98 @@ static void scallop_quit(scallop_t * scallop)
 static void scallop_rebuild_prompt(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    scallop_construct_t * construct = NULL;
 
     priv->prompt->resize(priv->prompt, 0);
-    priv->context->reset(priv->context);
+    priv->constructs->reset(priv->constructs);
     do
     {
-        priv->prompt->append();
-        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-        // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+        if (construct)
+        {
+            priv->prompt->append(priv->prompt,
+                                 scallop_prompt_delim,
+                                 strlen(scallop_prompt_delim));
+        }
+
+        construct = (scallop_construct_t *)
+                priv->constructs->data(priv->constructs);
+        if (!construct)
+        {
+            BLAMMO(ERROR, "NULL construct in stack!");
+            break;
+        }
+
+        priv->prompt->append(priv->prompt,
+                             construct->name,
+                             strlen(construct->name));
 
     }
-    while (priv->context->spin(priv->context, -1));
+    while (priv->constructs->spin(priv->constructs, -1));
+
+    priv->prompt->append(priv->prompt,
+                         scallop_prompt_finale,
+                         strlen(scallop_prompt_finale));
 
 }
 
 //------------------------------------------------------------------------|
-static void scallop_context_push(scallop_t * scallop,
-                                 const char * name,
-                                 void * context,
-                                 void * object,
-                                 scallop_context_pop_f popfunc)
+static void scallop_construct_push(scallop_t * scallop,
+                                   const char * name,
+                                   void * context,
+                                   void * object,
+                                   scallop_construct_line_f linefunc,
+                                   scallop_construct_pop_f popfunc)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Create a context structure to be pushed
-    scallop_context_t * scontext = (scallop_context_t *)
-            malloc(sizeof(scallop_context_t));
-    scontext->name = name;
-    scontext->context = context;
-    scontext->object = object;
-    scontext->popfunc = popfunc;
+    scallop_construct_t * construct = (scallop_construct_t *)
+            malloc(sizeof(scallop_construct_t));
+    construct->name = (char *) name;
+    construct->constructs = context;
+    construct->object = object;
+    construct->linefunc = linefunc;
+    construct->popfunc = popfunc;
 
     // Push the context onto the stack, treating the link after the
     // origin as the 'top' of the stack, pushing all other links forward.
-    priv->context->reset(priv->context);
-    priv->context->insert(priv->context, scontext);
+    priv->constructs->reset(priv->constructs);
+    priv->constructs->insert(priv->constructs, construct);
+
+    scallop_rebuild_prompt(scallop);
 }
 
 //------------------------------------------------------------------------|
-static int scallop_context_pop(scallop_t * scallop)
+static int scallop_construct_pop(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
+    // Do not allow popping the final element, which is the base prompt
+    if (priv->constructs->length(priv->constructs) <= 1)
+    {
+        priv->console->print(priv->console, "error: construct stack is empty");
+        return -1;
+    }
+
     // Select the top item
-    priv->context->reset(priv->context);
-    priv->context->spin(priv->context, 1);
+    priv->constructs->reset(priv->constructs);
+    priv->constructs->spin(priv->constructs, 1);
 
     // Get the context
-    scallop_context_t * scontext = (scallop_context_t *)
-            priv->context->data(priv->context);
+    scallop_construct_t * construct = (scallop_construct_t *)
+            priv->constructs->data(priv->constructs);
     int result = 0;
 
     // Call the pop function if provided
-    if (scontext->popfunc)
+    if (construct->popfunc)
     {
-        result = scontext->popfunc(scontext->context, scontext->object);
+        result = construct->popfunc(construct->constructs, construct->object);
     }
 
     // Remove item from the stack, moving all other links back
-    priv->context->remove(priv->context);
+    priv->constructs->remove(priv->constructs);
 
+    scallop_rebuild_prompt(scallop);
     return result;
 }
 
@@ -687,65 +722,7 @@ const scallop_t scallop_pub = {
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,
-    &scallop_context_push,
-    &scallop_context_pop,
+    &scallop_construct_push,
+    &scallop_construct_pop,
     NULL
 };
-
-
-
-////------------------------------------------------------------------------|
-//void scallop_prompt_push(scallop_t * scallop, const char * name)
-//{
-//    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-//    bytes_t * prompt = priv->prompt;
-//    ssize_t offset = prompt->find_right(prompt,
-//                                        SCALLOP_PROMPT_FINAL,
-//                                        strlen(SCALLOP_PROMPT_FINAL));
-//
-//    // first truncate at the finale if it exists.
-//    if (offset > 0)
-//    {
-//        prompt->resize(prompt, offset);
-//
-//        // For initialization reasons, only append
-//        // the context delimiter if this is NOT the
-//        // first time, otherwise the base prompt
-//        // would have one also.
-//        prompt->append(prompt,
-//                       SCALLOP_PROMPT_DELIM,
-//                       strlen(SCALLOP_PROMPT_DELIM));
-//    }
-//
-//    // Append the new context name on the end, and then the finale
-//    // FIXME: If the context name contains an actual prompt
-//    //  delimiter then there is going to be a problem.  flatten
-//    //  or escape these to avoid it.
-//    prompt->append(prompt,
-//                   name,
-//                   strlen(name));
-//
-//    prompt->append(prompt,
-//                   SCALLOP_PROMPT_FINAL,
-//                   strlen(SCALLOP_PROMPT_FINAL));
-//}
-//
-////------------------------------------------------------------------------|
-//void scallop_prompt_pop(scallop_t * scallop)
-//{
-//    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-//    bytes_t * prompt = priv->prompt;
-//    ssize_t offset = prompt->find_right(prompt,
-//                                        SCALLOP_PROMPT_DELIM,
-//                                        strlen(SCALLOP_PROMPT_DELIM));
-//
-//    if (offset > 0)
-//    {
-//        prompt->resize(prompt, offset);
-//
-//        prompt->append(prompt,
-//                       SCALLOP_PROMPT_FINAL,
-//                       strlen(SCALLOP_PROMPT_FINAL));
-//    }
-//}
-

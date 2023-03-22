@@ -432,20 +432,53 @@ static bytes_t * bytes_copy(bytes_t * bytes)
 }
 
 //------------------------------------------------------------------------|
-static bytes_t * bytes_split(bytes_t * bytes, size_t begin, size_t end)
+static int bytes_split(bytes_t * bytes,
+                       char ** tokens,
+                       const char * delim,
+                       const char * ignore)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    bytes_t * seg = NULL;
+    int ntokens = 0;
 
-    return seg;
-}
+    // dynamically reallog tokens array
+    // as necessary.  put this in private
+    // data so it can be cleaned up on destroy.
+    // and just return the pointer to it.
 
-//------------------------------------------------------------------------|
-static bool bytes_join(bytes_t * head, bytes_t * tail)
-{
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    // This approach: 1.) avoids having to
+    // depend on chain_t, and also 2.) avoids
+    // having to convert chain_t into argv-format
+    // for all callbacks!!
 
-    return true;
+    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+
+
+
+    //chain_t * tokens = chain_pub.create(NULL);
+//    char * saveptr = NULL;
+//    char * ptr = strtok_r ((char *) bytes->cstr(bytes), delim, &saveptr);
+//
+//    while (ptr != NULL)
+//    {
+//        BLAMMO(DEBUG, "ptr: %s", ptr);
+//
+//        if (!strncmp(ptr, ignore, strlen(ignore)))
+//        {
+//            BLAMMO(DEBUG, "ignoring: %s", ptr);
+//            break;
+//        }
+//
+//        tokens->insert(tokens, ptr);
+//        ptr = strtok_r (NULL, delim, &saveptr);
+//    }
+//
+//    tokens->reset(tokens);
+//    return tokens;
+
+
+    return ntokens;
 }
 
 //------------------------------------------------------------------------|
@@ -592,7 +625,6 @@ const bytes_t bytes_pub = {
     &bytes_fill,
     &bytes_copy,
     &bytes_split,
-    &bytes_join,
     &bytes_hexdump,
     NULL
 };

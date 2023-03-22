@@ -47,6 +47,13 @@ typedef struct
     // at runtime as part of a handler's actions, normal shutdown exluded
     bool is_mutable;
 
+    // Whether the command is part of a multi-line language construct
+    // that is pushed onto the construct stack.  If so, it must be handled
+    // by dispatch --> exec() regardless of whether we are in the middle
+    // of processing/defining a contruct. Examples are 'routine' and 'end'
+    // and anything that causes a construct stack push or pop.
+    bool is_construct;
+
     // command handler function taking arguments are returning int
     scallop_cmd_handler_f handler;
 
@@ -74,6 +81,7 @@ scallop_cmd_priv_t;
 
 //------------------------------------------------------------------------|
 static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
+                                          bool is_construct,
                                           void * context,
                                           const char * keyword,
                                           const char * arghints,
@@ -112,6 +120,7 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
 
     // Initialize most members
     priv->handler = handler;
+    priv->is_construct = is_construct;
     priv->context = context;
     priv->keyword = bytes_pub.create(keyword,
                                      keyword ? strlen(keyword) : 0);
@@ -174,6 +183,7 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
                        priv->keyword->cstr(priv->keyword));
 
     scallop_cmd_t * alias = scallcmd->create(priv->handler,
+                                             priv->is_construct,
                                              priv->context,
                                              keyword,
                                              priv->arghints->cstr(priv->arghints),
@@ -314,6 +324,13 @@ static inline bool scallop_cmd_is_mutable(scallop_cmd_t * scallcmd)
 }
 
 //------------------------------------------------------------------------|
+static inline bool scallop_cmd_is_construct(scallop_cmd_t * scallcmd)
+{
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    return priv->is_construct;
+}
+
+//------------------------------------------------------------------------|
 static inline const char * scallop_cmd_keyword(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
@@ -432,7 +449,10 @@ bool scallop_cmd_register_cmd(scallop_cmd_t * parent,
         // new command not found in existing chain.  safe to insert
     }
 
-    // Insert the new command link
+    // Insert the new command link.  Let items appear in the order
+    // they were registered
+    priv->cmds->reset(priv->cmds);
+    priv->cmds->spin(priv->cmds, -1);
     priv->cmds->insert(priv->cmds, child);
     return true;
 }
@@ -481,6 +501,7 @@ const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_partial_matches,
     &scallop_cmd_exec,
     &scallop_cmd_is_mutable,
+    &scallop_cmd_is_construct,
     &scallop_cmd_keyword,
     &scallop_cmd_arghints,
     &scallop_cmd_description,

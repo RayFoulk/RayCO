@@ -88,6 +88,7 @@ void hexdump(const void * buf, size_t len, size_t addr)
     }
 }
 
+//------------------------------------------------------------------------|
 int splitstr(char ** tokens, size_t max_tokens,
              char * str, const char * delim)
 {
@@ -111,6 +112,7 @@ int splitstr(char ** tokens, size_t max_tokens,
     return ntok;
 }
 
+//------------------------------------------------------------------------|
 // Very simple helper function to identify delimiters
 static bool isdelim(const char c, const char * delim)
 {
@@ -127,6 +129,7 @@ static bool isdelim(const char c, const char * delim)
     return false;
 }
 
+//------------------------------------------------------------------------|
 int markstr(char ** markers, size_t max_markers,
             const char * str, const char * delim)
 {
@@ -171,6 +174,28 @@ int markstr(char ** markers, size_t max_markers,
     return nmark;
 }
 
+//------------------------------------------------------------------------|
+int ignore_comments(int argc, char ** args, const char * comment)
+{
+    size_t words = 0;
+
+    // Specifically ignore comments by searching through
+    // the list and simply reducing the effective arg count
+    // where comment string is identified
+    for (words = 0; words < argc; words++)
+    {
+        if (!strncmp(args[words], comment, strlen(comment)))
+        {
+            BLAMMO(VERBOSE, "Found comment %s at arg %u",
+                   comment, words);
+            break;
+        }
+    }
+
+    return words;
+}
+
+//------------------------------------------------------------------------|
 bool str_to_bool(const char * str)
 {
     size_t index = 0;

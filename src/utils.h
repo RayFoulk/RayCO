@@ -61,6 +61,10 @@ int splitstr(char ** tokens, size_t max_tokens,
 int markstr(char ** markers, size_t max_markers,
             const char * str, const char * delim);
 
+// Strip comments by effectively reducing the number of args, ignoring
+// those that begin with the comment string.
+int ignore_comments(int argc, char ** args, const char * comment);
+
 // Convert a string to boolean.  Things like "true" and "false", '0' and '1',
 // "on" and "off" should be supported by this.
 bool str_to_bool(const char * str);
