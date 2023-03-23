@@ -307,12 +307,31 @@ TEST_BEGIN("copy")
     b->destroy(b);
 TEST_END
 
-TEST_BEGIN("split")
-    BLAMMO(INFO, "FIXME: TEST NOT IMPLEMENTED");
-TEST_END
+TEST_BEGIN("tokenize")
+    bytes_t * a = bytes_pub.create("one two three", 13);
+    size_t ntokens = 0;
+    char ** tokens = a->tokenize(a, " ", "#", &ntokens);
+    int i = 0;
+    for (i = 0; i < ntokens; i++)
+    {
+        BLAMMO(INFO, "token[%d]: %s", i, tokens[i]);
+    }
 
-TEST_BEGIN("join")
-    BLAMMO(INFO, "FIXME: TEST NOT IMPLEMENTED");
+    a->assign(a, "a b c d e f g h", 15);
+    tokens = a->tokenize(a, " ", "#", &ntokens);
+    for (i = 0; i < ntokens; i++)
+    {
+        BLAMMO(INFO, "token[%d]: %s", i, tokens[i]);
+    }
+
+    a->assign(a, "a b c d e #f g h", 16);
+    tokens = a->tokenize(a, " ", "#", &ntokens);
+    for (i = 0; i < ntokens; i++)
+    {
+        BLAMMO(INFO, "token[%d]: %s", i, tokens[i]);
+    }
+
+    a->destroy(a);
 TEST_END
 
 TEST_BEGIN("hexdump")

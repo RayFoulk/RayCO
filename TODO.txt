@@ -73,6 +73,8 @@ TODO:
   - need to add console() public method, and use commands() instead of priv
   - only need to export one function and that is the register_builtins()
     and pass in the base command tree pointer.  all else can be static.
+- BUG: cannot unregister test alias, says it's immutable!!! 
+    also weird print corrupted string
 
 +-------------------------------------------------------------------------+
 TODOs FROM CODE:

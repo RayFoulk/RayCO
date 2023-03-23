@@ -43,6 +43,11 @@ typedef struct
     // The raw data array
     uint8_t * data;
 
+    // Dynamically sized token pointer array. Used with tokenize/mark
+    // number of token pointer elements in array
+    char ** tokens;
+    size_t token_nelem;
+
     // A report buffer used for hexdump, debugging, tokens? etc...
     // This is only used for certain calls, but otherwise left NULL.
     // it will be re-purposed as necessary and destroyed when the main
@@ -152,6 +157,14 @@ static void bytes_clear(bytes_t * bytes)
         priv->buffer = NULL;
     }
 
+    // Destroy any token pointers if allocated
+    if (priv->tokens)
+    {
+        memset(priv->tokens, 0, sizeof(char *) * priv->token_nelem);
+        free(priv->tokens);
+    }
+
+    // Destroy the actual byte array
     if (priv->data)
     {
         // TODO: Deal with compiler optimization problem
@@ -432,53 +445,57 @@ static bytes_t * bytes_copy(bytes_t * bytes)
 }
 
 //------------------------------------------------------------------------|
-static int bytes_split(bytes_t * bytes,
-                       char ** tokens,
-                       const char * delim,
-                       const char * ignore)
+static char ** bytes_tokenize(bytes_t * bytes,
+                              const char * delim,
+                              const char * ignore,
+                              size_t * numtokens)
 {
-    int ntokens = 0;
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
-    // dynamically reallog tokens array
-    // as necessary.  put this in private
-    // data so it can be cleaned up on destroy.
-    // and just return the pointer to it.
+    // OK, the theoretical maximum number of tokens in a string is
+    // probably something like 1/2 strlen: if every single token was 1
+    // char delimited by 1 space.  It certainly cannot be higher than
+    // strlen itself.  Assuming the typical keyword is probably 3 or 4
+    // chars long, a reasonable guess is 1/4 strlen.  Add some extra
+    // extra padding onto that, say 2 elements.  Then the plan is to
+    // double this size whenever we run out of room.
+    priv->token_nelem = 2 + (priv->size >> 2);
+    priv->tokens = (char **)
+            realloc(priv->tokens, sizeof(char *) * priv->token_nelem);
+    memset(priv->tokens, 0, sizeof(char *) * priv->token_nelem);
+    BLAMMO(DEBUG, "token_nelem: %zu", priv->token_nelem);
 
-    // This approach: 1.) avoids having to
-    // depend on chain_t, and also 2.) avoids
-    // having to convert chain_t into argv-format
-    // for all callbacks!!
+    // Proceed with tokenization
+    char * saveptr = NULL;
+    char * ptr = strtok_r ((char *) bytes->cstr(bytes), delim, &saveptr);
 
-    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+    *numtokens = 0;
+    while (ptr != NULL)
+    {
+        BLAMMO(DEBUG, "ptr: %s", ptr);
 
+        if (!strncmp(ptr, ignore, strlen(ignore)))
+        {
+            BLAMMO(DEBUG, "ignoring: %s", ptr);
+            break;
+        }
 
+        priv->tokens[(*numtokens)++] = ptr;
+        ptr = strtok_r (NULL, delim, &saveptr);
 
-    //chain_t * tokens = chain_pub.create(NULL);
-//    char * saveptr = NULL;
-//    char * ptr = strtok_r ((char *) bytes->cstr(bytes), delim, &saveptr);
-//
-//    while (ptr != NULL)
-//    {
-//        BLAMMO(DEBUG, "ptr: %s", ptr);
-//
-//        if (!strncmp(ptr, ignore, strlen(ignore)))
-//        {
-//            BLAMMO(DEBUG, "ignoring: %s", ptr);
-//            break;
-//        }
-//
-//        tokens->insert(tokens, ptr);
-//        ptr = strtok_r (NULL, delim, &saveptr);
-//    }
-//
-//    tokens->reset(tokens);
-//    return tokens;
+        // Resize up if necessary, zeroing new memory
+        if (*numtokens >= priv->token_nelem)
+        {
+            priv->token_nelem <<= 1;
+            priv->tokens = (char **)
+                    realloc(priv->tokens, sizeof(char *) * priv->token_nelem);
+            memset(&priv->tokens[*numtokens], 0,
+                    sizeof(char *) * (priv->token_nelem - *numtokens));
+            BLAMMO(DEBUG, "resized token_nelem: %zu", priv->token_nelem);
+        }
+    }
 
-
-    return ntokens;
+    return priv->tokens;
 }
 
 //------------------------------------------------------------------------|
@@ -624,7 +641,7 @@ const bytes_t bytes_pub = {
     &bytes_find_right,
     &bytes_fill,
     &bytes_copy,
-    &bytes_split,
+    &bytes_tokenize,
     &bytes_hexdump,
     NULL
 };

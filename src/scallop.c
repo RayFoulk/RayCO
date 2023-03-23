@@ -520,24 +520,20 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     // that have not yet been executed!
 
     bytes_t * bline = bytes_pub.create(line, strlen(line));
-    chain_t * tokens = bline->split(bline,
-                                    scallop_cmd_delim,
-                                    scallop_cmd_comment);
-    do
-    {
-        BLAMMO(INFO, "token: %s", (char *) tokens->data(tokens));
-    }
-    while(tokens->spin(tokens, 1));
-
+    size_t argc = 0;
+    char ** args = bline->tokenize(bline,
+                                   scallop_cmd_delim,
+                                   scallop_cmd_comment,
+                                   &argc);
 
 
     // Clear and split the line into args[]
     // For splitting command line into args[]
-    char * args[SCALLOP_MAX_ARGS];
-    size_t argc = 0;
-    memset(args, 0, sizeof(args));
-    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-    argc = ignore_comments(argc, args, scallop_cmd_comment);
+//    char * args[SCALLOP_MAX_ARGS];
+//    size_t argc = 0;
+//    memset(args, 0, sizeof(args));
+//    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
+//    argc = ignore_comments(argc, args, scallop_cmd_comment);
 
     // Ignore empty input
     if (argc == 0)

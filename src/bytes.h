@@ -115,16 +115,14 @@ typedef struct bytes_t
     // Caller is responsible for destroying the copy.
     struct bytes_t * (*copy)(struct bytes_t * bytes);
 
-    // Split byte array into tokenized string list by delimiters.
-    // Caller is responsible for destroying returned list.
+    // Split byte array into tokenized string array by delimiters.
     // The bytes array is altered in-place, having null bytes inserted.
-//    chain_t * (*split)(struct bytes_t * bytes,
-//                       const char * delim,
-//                       const char * ignore);
-    int * (*split)(struct bytes_t * bytes,
-                   char ** tokens,
-                   const char * delim,
-                   const char * ignore);
+    // The first token that begins with 'ignore' truncates the list.
+    // NULL may be passed for ignore to get all tokens.
+    char ** (*tokenize)(struct bytes_t * bytes,
+                        const char * delim,
+                        const char * ignore,
+                        size_t * numtokens);
 
     // debug, serialization, etc... reorganize later
     const char * const (*hexdump)(struct bytes_t * bytes);
