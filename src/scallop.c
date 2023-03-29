@@ -98,7 +98,7 @@ typedef struct
     // I.E. It's probably the scallop instance itself, or the same
     // thing that was passed as the context pointer to a command
     // handler.
-    void * constructs;
+    void * context;
 
     // The construct object being operated on.  This might be the
     // 'routine' instance, or a 'while loop' instance or some other
@@ -106,8 +106,8 @@ typedef struct
     void * object;
 
     // The function to be called when a line is provided by
-    // the user or a scipt.  If this is NULL then the line
-    // should go directly to dispatch().  If not, then the
+    // the user or a script.  If this is NULL then the line
+    // should go directly to dispatch()or exec().  If not, then the
     // line handler function can decide if it needs to dispatch
     // or cache the line inside the construct object.
     scallop_construct_line_f linefunc;
@@ -324,7 +324,6 @@ static char * scallop_arg_hints(void * object,
     *color = 35;
     *bold = 0;
 
-
     // Trick to avoid memory leak.  Need to deallocate hintbytes
     // but need to return hints.  offset within copy should be the
     // same as within the original.
@@ -389,7 +388,7 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    // Initialize prompt, push prompt_base as initial context
+    // Initialize prompt, push prompt_base as initial 'construct'
     priv->prompt = bytes_pub.create(NULL, 0);
     scallop->construct_push(scallop, prompt_base, NULL, NULL, NULL, NULL);
 
@@ -448,13 +447,13 @@ static void scallop_destroy(void * scallop_ptr)
         priv->cmds->destroy(priv->cmds);
     }
 
-    // Destroy the promp
+    // Destroy the prompt
     if (priv->prompt)
     {
         priv->prompt->destroy(priv->prompt);
     }
 
-    // Destroy context stack
+    // Destroy language construct stack
     if (priv->constructs)
     {
         priv->constructs->destroy(priv->constructs);
@@ -569,8 +568,30 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     // WWWWWWWWWWWWWWW
     // answer: private get_context() struct
 
+    // Select the top item of the construct stack
+    priv->constructs->reset(priv->constructs);
+    priv->constructs->spin(priv->constructs, 1);
 
-    int result = cmd->exec(cmd, argc, args);
+    // Get the current construct
+    scallop_construct_t * construct = (scallop_construct_t *)
+            priv->constructs->data(priv->constructs);
+
+    int result = 0;
+    // if in the middle of defining a routine, while loop,
+    // or other user-registered language construct, then
+    // call that construct's line handler function rather
+    // than executing the line directly. AND if and only
+    // if the command itself is not a construct keyword.
+    if (!cmd->is_construct(cmd) && construct && construct->linefunc)
+    {
+        result = construct->linefunc(construct->context,
+                                     construct->object,
+                                     line);
+    }
+    else
+    {
+        result = cmd->exec(cmd, argc, args);
+    }
 
     linebytes->destroy(linebytes);
     priv->depth--;
@@ -616,8 +637,9 @@ static void scallop_quit(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     priv->quit = true;
-    // TODO: Is it ever necessary to pump a newline into the console
-    // here just to get it off the blocking call?
+    // TODO: Determine if it is ever necessary to pump a newline into
+    // the console here just to get it off the blocking call?
+    // This might not be known until threads are implemented.
 }
 
 //------------------------------------------------------------------------|
@@ -631,6 +653,8 @@ static void scallop_rebuild_prompt(scallop_t * scallop)
     priv->constructs->reset(priv->constructs);
     do
     {
+        // put a visual/syntactical delimiter between constructs
+        // shown within the prompt.
         if (construct)
         {
             priv->prompt->append(priv->prompt,
@@ -638,6 +662,9 @@ static void scallop_rebuild_prompt(scallop_t * scallop)
                                  strlen(scallop_prompt_delim));
         }
 
+        // start at the bottom of the stack (origin)
+        // and work towards the top (origin+1) by
+        // working around backwards.
         construct = (scallop_construct_t *)
                 priv->constructs->data(priv->constructs);
         if (!construct)
@@ -673,7 +700,7 @@ static void scallop_construct_push(scallop_t * scallop,
     scallop_construct_t * construct = (scallop_construct_t *)
             malloc(sizeof(scallop_construct_t));
     construct->name = (char *) name;
-    construct->constructs = context;
+    construct->context = context;
     construct->object = object;
     construct->linefunc = linefunc;
     construct->popfunc = popfunc;
@@ -710,7 +737,7 @@ static int scallop_construct_pop(scallop_t * scallop)
     // Call the pop function if provided
     if (construct->popfunc)
     {
-        result = construct->popfunc(construct->constructs, construct->object);
+        result = construct->popfunc(construct->context, construct->object);
     }
 
     // Remove item from the stack, moving all other links back
