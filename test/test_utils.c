@@ -47,6 +47,7 @@ TEST_BEGIN("test hexdump")
 
 TEST_END
 
+/*
 TEST_BEGIN("test splitstr")
 
     // The string to be parsed MUST be mutable
@@ -70,7 +71,9 @@ TEST_BEGIN("test splitstr")
     free(str);
 
 TEST_END
+*/
 
+/*
 TEST_BEGIN("test markstr")
 
     const char * const_str = "mary had\t\ta  little\tlamb   ";
@@ -105,6 +108,7 @@ TEST_BEGIN("test markstr")
     CHECK(nmark == 2);
 
 TEST_END
+*/
 
 TESTSUITE_END
 

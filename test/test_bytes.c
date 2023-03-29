@@ -334,6 +334,39 @@ TEST_BEGIN("tokenize")
     a->destroy(a);
 TEST_END
 
+TEST_BEGIN("marktokens")
+
+    const char * const_str = "mary had\t\ta  little\tlamb   ";
+    bytes_t * a = bytes_pub.create(const_str, strlen(const_str));
+    size_t nmark = 0;
+    char ** markers = a->marktokens(a, " \t", "#", &nmark);
+
+    CHECK(nmark == 5);
+    CHECK(strncmp(markers[0], "mary", 4) == 0)
+    CHECK(strncmp(markers[1], "had", 3) == 0)
+    CHECK(strncmp(markers[2], "a", 1) == 0)
+    CHECK(strncmp(markers[3], "little", 6) == 0)
+    CHECK(strncmp(markers[4], "lamb", 4) == 0)
+
+    const char * another = " mary had a \t  little lamb";
+    a->assign(a, another, strlen(another));
+    markers = a->marktokens(a, " \t", "#", &nmark);
+
+    CHECK(nmark == 5);
+    CHECK(strncmp(markers[0], "mary", 4) == 0)
+    CHECK(strncmp(markers[1], "had", 3) == 0)
+    CHECK(strncmp(markers[2], "a", 1) == 0)
+    CHECK(strncmp(markers[3], "little", 6) == 0)
+    CHECK(strncmp(markers[4], "lamb", 4) == 0)
+
+    const char * yet_another = " <crash> <happy>";
+    a->assign(a, yet_another, strlen(yet_another));
+    markers = a->marktokens(a, " \t", "#", &nmark);
+
+    CHECK(nmark == 2);
+
+TEST_END
+
 TEST_BEGIN("hexdump")
     bytes_t * bytes = bytes_pub.create(NULL, 37);
     CHECK(bytes != NULL);

@@ -130,20 +130,18 @@ static void scallop_tab_completion(void * object, const char * buffer)
     // fully qualified keywords up to and including incomplete
     // commands that need tab-completion added.  The original
     // buffer cannot be altered or it will break line editing.
-    char * line = strdup(buffer);
-    char * args[SCALLOP_MAX_ARGS];
+    bytes_t * linebytes = bytes_pub.create(buffer, strlen(buffer));
     size_t argc = 0;
-
-    // Clear and split the line into args[]
-    memset(args, 0, sizeof(args));
-    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-    argc = ignore_comments(argc, args, scallop_cmd_comment);
-    BLAMMO(DEBUG, "argc: %u", argc);
+    char ** args = linebytes->tokenize(linebytes,
+                                       scallop_cmd_delim,
+                                       scallop_cmd_comment,
+                                       &argc);
 
     // Ignore empty input
     if (argc == 0)
     {
-        free(line);
+        //free(line);
+        linebytes->destroy(linebytes);
         return;
     }
 
@@ -178,7 +176,8 @@ static void scallop_tab_completion(void * object, const char * buffer)
     // given substring.  I.E. given: "lo" return [logoff, log, local]
     size_t longest = 0;
     chain_t * pmatches = parent->partial_matches(parent, args[nest], &longest);
-    free(line);
+    linebytes->destroy(linebytes);
+
     if (!pmatches || pmatches->length(pmatches) == 0) { return; }
     BLAMMO(DEBUG, "partial_matches length: %u  longest: %u",
                   pmatches->length(pmatches), longest);
@@ -189,40 +188,40 @@ static void scallop_tab_completion(void * object, const char * buffer)
     // back to console.  Just re-use the existing declared variables.
     // Basically strdup() manually, but allow some extra room for tab completed
     // keyword.  Maybe can use strndup() with a big n instead???
-    char * keyword = NULL;
-    size_t length = strlen(buffer);
-    size_t lsize = length + longest;
-    line = (char *) malloc(lsize);
-    memcpy(line, buffer, length);
-    line[length] = 0;
+    linebytes = bytes_pub.create(buffer, strlen(buffer));
+    linebytes->resize(linebytes, linebytes->size(linebytes) + longest);
+
 
     // get markers within unmodified copy of line
-    memset(args, 0, sizeof(args));
-    markstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
+    args = linebytes->marktokens(linebytes,
+                                 scallop_cmd_delim,
+                                 scallop_cmd_comment,
+                                 &argc);
+
+    // Get the offset to where the argument needing tab completion begins
+    ssize_t offset = linebytes->offset(linebytes, args[nest]);
 
     // iterate through partially matched keywords
+    char * keyword = NULL;
     pmatches->reset(pmatches);
     do
     {
         keyword = (char *) pmatches->data(pmatches);
 
-        // This is overkill, but easier to understand and implement than
-        // trying to track where the terminating zero is while iterating
-        // through keywords of varying length.  I'm sure there are tons
-        // of bugs in this code.  TODO: harden it up later with some
-        // static and dynamic analysis and complete unit tests!!!
-        memset(args[nest], 0, strlen(keyword) + 2);
-        memcpy(args[nest], keyword, strlen(keyword));
+        // Add keyword + primary delimiter character at end of completion
+        linebytes->resize(linebytes, offset);
+        linebytes->append(linebytes, keyword, strlen(keyword));
+        linebytes->append(linebytes, scallop_cmd_delim, 1);
 
-        // Add primary delimiter character at end of completion
-        args[nest][strlen(keyword)] = scallop_cmd_delim[0];
+        BLAMMO(DEBUG, "Adding tab completion line: \'%s\'",
+                      linebytes->cstr(linebytes));
 
-        BLAMMO(DEBUG, "Adding tab completion line: \'%s\'", line);
-        priv->console->add_tab_completion(priv->console, line);
+        priv->console->add_tab_completion(priv->console,
+                                          linebytes->cstr(linebytes));
     }
     while (pmatches->spin(pmatches, 1));
 
-    free(line);
+    linebytes->destroy(linebytes);
     pmatches->destroy(pmatches);
 }
 
@@ -242,20 +241,17 @@ static char * scallop_arg_hints(void * object,
     // distinguish which specific command is about to be invoked so that
     // proper hints can be given.  Otherwise this cannot
     // distinguish between 'create' and 'created' for example.
-    char * line = strdup(buffer);
-    char * args[SCALLOP_MAX_ARGS];
+    bytes_t * linebytes = bytes_pub.create(buffer, strlen(buffer));
     size_t argc = 0;
-
-    // Clear and split the line into args[]
-    memset(args, 0, sizeof(args));
-    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-    argc = ignore_comments(argc, args, scallop_cmd_comment);
-    BLAMMO(DEBUG, "argc: %u", argc);
+    char ** args = linebytes->tokenize(linebytes,
+                                       scallop_cmd_delim,
+                                       scallop_cmd_comment,
+                                       &argc);
 
     // Ignore empty input
     if (argc == 0)
     {
-        free(line);
+        linebytes->destroy(linebytes);
         return NULL;
     }
 
@@ -283,10 +279,11 @@ static char * scallop_arg_hints(void * object,
     }
 
     // No longer referencing args, OK to free underlying line
-    free(line);
+    linebytes->destroy(linebytes);
 
     // Return early before processing hints if there are none
-    if (!parent->arghints(parent))
+    const char * arghints = parent->arghints(parent);
+    if (!arghints)
     {
         BLAMMO(DEBUG, "No arg hints to provide");
         return NULL;
@@ -296,15 +293,14 @@ static char * scallop_arg_hints(void * object,
     // Count tokens without modifying the original string, rather than
     // allocating another buffer.   The purpose is to determine which args
     // have been fulfilled and to only show hints for unfulfilled args.
-    char * hints[SCALLOP_MAX_ARGS] = { NULL };
-    int hintc = 0;
-    int hindex = 0;
+    bytes_t * hintbytes = bytes_pub.create(arghints, strlen(arghints));
+    ssize_t hindex = 0;
+    size_t hintc = 0;
+    char ** hints = hintbytes->marktokens(hintbytes,
+                                          scallop_cmd_delim,
+                                          scallop_cmd_comment,
+                                          &hintc);
 
-    memset(hints, 0, sizeof(hints));
-    hintc = markstr(hints,
-                    SCALLOP_MAX_ARGS,
-                    parent->arghints(parent),
-                    scallop_cmd_delim);
     BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d",
             parent->arghints(parent), hintc, argc, nest);
 
@@ -328,8 +324,17 @@ static char * scallop_arg_hints(void * object,
     *color = 35;
     *bold = 0;
 
+
+    // Trick to avoid memory leak.  Need to deallocate hintbytes
+    // but need to return hints.  offset within copy should be the
+    // same as within the original.
     // Backup one character assuming there is a leading space
-    return hints[hindex] - 1;
+    ssize_t offset = hintbytes->offset(hintbytes, hints[hindex] - 1);
+
+    // Destroy the copy of the arghints string
+    hintbytes->destroy(hintbytes);
+
+    return (char *) (arghints + offset);
 }
 
 //------------------------------------------------------------------------|
@@ -488,6 +493,13 @@ static inline chain_t * scallop_routines(scallop_t * scallop)
 //------------------------------------------------------------------------|
 static int scallop_dispatch(scallop_t * scallop, char * line)
 {
+    // Guard block NULL line ptr
+    if (!line)
+    {
+        BLAMMO(VERBOSE, "Ignoring NULL line");
+        return 0;
+    }
+
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     BLAMMO(VERBOSE, "priv: %p depth: %u line: %s",
                     priv, priv->depth, line);
@@ -519,26 +531,19 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     // on it.  I.E. do not store mangled lines in constructs
     // that have not yet been executed!
 
-    bytes_t * bline = bytes_pub.create(line, strlen(line));
+    bytes_t * linebytes = bytes_pub.create(line, strlen(line));
     size_t argc = 0;
-    char ** args = bline->tokenize(bline,
-                                   scallop_cmd_delim,
-                                   scallop_cmd_comment,
-                                   &argc);
-
-
-    // Clear and split the line into args[]
-    // For splitting command line into args[]
-//    char * args[SCALLOP_MAX_ARGS];
-//    size_t argc = 0;
-//    memset(args, 0, sizeof(args));
-//    argc = splitstr(args, SCALLOP_MAX_ARGS, line, scallop_cmd_delim);
-//    argc = ignore_comments(argc, args, scallop_cmd_comment);
+    char ** args = linebytes->tokenize(linebytes,
+                                       scallop_cmd_delim,
+                                       scallop_cmd_comment,
+                                       &argc);
 
     // Ignore empty input
     if (argc == 0)
     {
         BLAMMO(VERBOSE, "Ignoring empty line");
+
+        linebytes->destroy(linebytes);
         priv->depth--;
         return 0;
     }
@@ -550,6 +555,8 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
         priv->console->print(priv->console,
                              "Unknown command \'%s\'.  Try \'help\'",
                              args[0]);
+
+        linebytes->destroy(linebytes);
         priv->depth--;
         return -1;
     }
@@ -564,6 +571,8 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
 
 
     int result = cmd->exec(cmd, argc, args);
+
+    linebytes->destroy(linebytes);
     priv->depth--;
     return result;
 }
@@ -581,10 +590,13 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
         line = priv->console->get_line(priv->console,
                                        priv->prompt->cstr(priv->prompt),
                                        interactive);
-        BLAMMO(DEBUG, "line: %s", line);
+        if (!line)
+        {
+            BLAMMO(DEBUG, "get_line() returned NULL");
+            continue;
+        }
 
-        // WWWWWWWWWWWWWWWWWW
-
+        BLAMMO(DEBUG, "About to dispatch(\'%s\')", line);
         result = scallop->dispatch(scallop, line);
         BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
 

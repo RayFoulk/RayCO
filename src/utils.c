@@ -88,6 +88,7 @@ void hexdump(const void * buf, size_t len, size_t addr)
     }
 }
 
+/*
 //------------------------------------------------------------------------|
 int splitstr(char ** tokens, size_t max_tokens,
              char * str, const char * delim)
@@ -111,24 +112,9 @@ int splitstr(char ** tokens, size_t max_tokens,
 
     return ntok;
 }
+*/
 
-//------------------------------------------------------------------------|
-// Very simple helper function to identify delimiters
-static bool isdelim(const char c, const char * delim)
-{
-    char * d = NULL;
-
-    for (d = (char *) delim; *d != 0; d++)
-    {
-        if (c == *d)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
+/*
 //------------------------------------------------------------------------|
 int markstr(char ** markers, size_t max_markers,
             const char * str, const char * delim)
@@ -145,7 +131,7 @@ int markstr(char ** markers, size_t max_markers,
 
     while ((*ptr != 0) && (nmark < max_markers))
     {
-        if (isdelim(*ptr, delim))
+        if (strchr(delim, *ptr))
         {
             if (!within_delim)
             {
@@ -173,7 +159,9 @@ int markstr(char ** markers, size_t max_markers,
     BLAMMO(VERBOSE, "number of markers: %u", nmark);
     return nmark;
 }
+*/
 
+/*
 //------------------------------------------------------------------------|
 int ignore_comments(int argc, char ** args, const char * comment)
 {
@@ -194,6 +182,7 @@ int ignore_comments(int argc, char ** args, const char * comment)
 
     return words;
 }
+*/
 
 //------------------------------------------------------------------------|
 bool str_to_bool(const char * str)

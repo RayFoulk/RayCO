@@ -124,6 +124,17 @@ typedef struct bytes_t
                         const char * ignore,
                         size_t * numtokens);
 
+    // Get token markers without inserting null terminators or
+    // altering the backing data buffer in any way.
+    char ** (*marktokens)(struct bytes_t * bytes,
+                          const char * delim,
+                          const char * ignore,
+                          size_t * numtokens);
+
+    // Given an absolute pointer into the data, get the relative offset
+    // Returns negative value if there is an error
+    ssize_t (*offset)(struct bytes_t * bytes, void * ptr);
+
     // debug, serialization, etc... reorganize later
     const char * const (*hexdump)(struct bytes_t * bytes);
 

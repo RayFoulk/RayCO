@@ -46,7 +46,7 @@ typedef struct
     // Dynamically sized token pointer array. Used with tokenize/mark
     // number of token pointer elements in array
     char ** tokens;
-    size_t token_nelem;
+    size_t maxtokens;
 
     // A report buffer used for hexdump, debugging, tokens? etc...
     // This is only used for certain calls, but otherwise left NULL.
@@ -160,7 +160,7 @@ static void bytes_clear(bytes_t * bytes)
     // Destroy any token pointers if allocated
     if (priv->tokens)
     {
-        memset(priv->tokens, 0, sizeof(char *) * priv->token_nelem);
+        memset(priv->tokens, 0, sizeof(char *) * priv->maxtokens);
         free(priv->tokens);
     }
 
@@ -445,11 +445,42 @@ static bytes_t * bytes_copy(bytes_t * bytes)
 }
 
 //------------------------------------------------------------------------|
+// Private helper function for dynamically sizing token array
+static void bytes_resize_tokens(bytes_t * bytes,
+                                size_t numtokens,
+                                size_t maxtokens)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    priv->tokens = (char **) realloc(priv->tokens,
+                                     sizeof(char *) * maxtokens);
+    if (!priv->tokens)
+    {
+        BLAMMO(FATAL, "realloc(%zu) failed", sizeof(char *) * maxtokens);
+        return;
+    }
+
+    priv->maxtokens = maxtokens;
+    memset(&priv->tokens[numtokens], 0,
+           sizeof(char *) * (maxtokens - numtokens));
+
+    BLAMMO(DEBUG, "resized maxtokens: %zu", priv->maxtokens);
+}
+
+
+//------------------------------------------------------------------------|
 static char ** bytes_tokenize(bytes_t * bytes,
                               const char * delim,
                               const char * ignore,
                               size_t * numtokens)
 {
+    // Do not attempt to tokenize empty bytes
+    if (bytes->empty(bytes))
+    {
+        BLAMMO(VERBOSE, "Not tokenizing empty bytes!");
+        return NULL;
+    }
+
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
     // OK, the theoretical maximum number of tokens in a string is
@@ -459,11 +490,8 @@ static char ** bytes_tokenize(bytes_t * bytes,
     // chars long, a reasonable guess is 1/4 strlen.  Add some extra
     // extra padding onto that, say 2 elements.  Then the plan is to
     // double this size whenever we run out of room.
-    priv->token_nelem = 2 + (priv->size >> 2);
-    priv->tokens = (char **)
-            realloc(priv->tokens, sizeof(char *) * priv->token_nelem);
-    memset(priv->tokens, 0, sizeof(char *) * priv->token_nelem);
-    BLAMMO(DEBUG, "token_nelem: %zu", priv->token_nelem);
+    size_t maxtokens = 2 + (priv->size >> 2);
+    bytes_resize_tokens(bytes, 0, maxtokens);
 
     // Proceed with tokenization
     char * saveptr = NULL;
@@ -484,18 +512,95 @@ static char ** bytes_tokenize(bytes_t * bytes,
         ptr = strtok_r (NULL, delim, &saveptr);
 
         // Resize up if necessary, zeroing new memory
-        if (*numtokens >= priv->token_nelem)
+        if (*numtokens >= priv->maxtokens)
         {
-            priv->token_nelem <<= 1;
-            priv->tokens = (char **)
-                    realloc(priv->tokens, sizeof(char *) * priv->token_nelem);
-            memset(&priv->tokens[*numtokens], 0,
-                    sizeof(char *) * (priv->token_nelem - *numtokens));
-            BLAMMO(DEBUG, "resized token_nelem: %zu", priv->token_nelem);
+            maxtokens <<= 1;
+            bytes_resize_tokens(bytes, *numtokens, maxtokens);
         }
     }
 
     return priv->tokens;
+}
+
+//------------------------------------------------------------------------|
+static char ** bytes_marktokens(bytes_t * bytes,
+                                const char * delim,
+                                const char * ignore,
+                                size_t * numtokens)
+{
+    // Do not attempt to tokenize empty bytes
+    if (bytes->empty(bytes))
+    {
+        BLAMMO(VERBOSE, "Ignoring empty bytes!");
+        return NULL;
+    }
+
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    size_t maxtokens = 2 + (priv->size >> 2);
+    bytes_resize_tokens(bytes, 0, maxtokens);
+
+    bool within_delim = true;
+    char * ptr = (char *) priv->data;
+
+    *numtokens = 0;
+    while (*ptr != 0)
+    {
+        if (strchr(delim, *ptr))
+        {
+            if (!within_delim)
+            {
+                // transition to whitespace at the end of a token
+                BLAMMO(VERBOSE, "end of token at \'%s\'", ptr);
+            }
+
+            within_delim = true;
+        }
+        else
+        {
+            if (within_delim)
+            {
+                // transition to token at the end of whitespace
+                BLAMMO(VERBOSE, "beginning of token at \'%s\'", ptr);
+                priv->tokens[(*numtokens)++] = ptr;
+            }
+
+            within_delim = false;
+        }
+
+        // Resize up if necessary, zeroing new memory
+        if (*numtokens >= priv->maxtokens)
+        {
+            maxtokens <<= 1;
+            bytes_resize_tokens(bytes, *numtokens, maxtokens);
+        }
+
+        ptr++;
+    }
+
+    BLAMMO(VERBOSE, "number of markers: %u", *numtokens);
+
+    return priv->tokens;
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_offset(bytes_t * bytes, void * ptr)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+    uint8_t * bptr = (uint8_t *) ptr;
+
+    if (bptr < priv->data)
+    {
+        BLAMMO(ERROR, "Pointer is before data in memory");
+        return -1;
+    }
+    else if (bptr > (priv->data + priv->size))
+    {
+        BLAMMO(ERROR, "Pointer is after data in memory");
+        return -2;
+    }
+
+    return (ssize_t) (bptr - priv->data);
 }
 
 //------------------------------------------------------------------------|
@@ -544,7 +649,7 @@ static inline size_t hexaddr(char * hexaddr, size_t addr)
     return posn;
 }
 
-
+//------------------------------------------------------------------------|
 // TODO: merge this with the hexdump in utils
 static const char * const bytes_hexdump(bytes_t * bytes)
 {
@@ -642,6 +747,8 @@ const bytes_t bytes_pub = {
     &bytes_fill,
     &bytes_copy,
     &bytes_tokenize,
+    &bytes_marktokens,
+    &bytes_offset,
     &bytes_hexdump,
     NULL
 };

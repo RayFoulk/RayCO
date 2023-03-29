@@ -76,6 +76,10 @@ TODO:
 - BUG: cannot unregister test alias, says it's immutable!!! 
     also weird print corrupted string
 
+ TODO: harden it up later with some
+        // static and dynamic analysis and complete unit tests!!!
+
+
 +-------------------------------------------------------------------------+
 TODOs FROM CODE:
 

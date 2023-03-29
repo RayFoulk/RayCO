@@ -32,9 +32,6 @@
 #include "scommand.h"
 
 //------------------------------------------------------------------------|
-// Maximum number of individual arguments
-#define SCALLOP_MAX_ARGS          32
-
 // Maximum recursion depth to avoid stack smashing
 #define SCALLOP_MAX_RECURS        64
 
