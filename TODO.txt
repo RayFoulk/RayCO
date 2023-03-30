@@ -23,6 +23,14 @@ DONE:
   * logic is inverted - fix it twice!!
   (problem was original non-alias command was deleted, leaving
    invalid unmanaged pointer to subcmds in aliased cmd)
+* need to introduce a thread-safe console
+  * support input as well as output?  how to support linenoise?
+* BUG: cannot unregister test alias, says it's immutable!!! 
+* BUG: cannot unregister routines!!! says it's immutable!!!
+* break out all builtin commands into scallblt.c/h or scallop_builtin
+  * need to add console() public method, and use commands() instead of priv
+  * only need to export one function and that is the register_builtins()
+    and pass in the base command tree pointer.  all else can be static.
 
 +-------------------------------------------------------------------------+
 MOSTLY DONE / SUPERCEDED:
@@ -46,13 +54,11 @@ TODO:
 - constify return values, pointers functions
 - add install and uninstall phony targets
 - consider other builtin commands: print, (dereference object???)
-- need to introduce a thread-safe console
-  - support input as well as output?  how to support linenoise?
 - need to introduce scallop procedures
-  - these are distinct from scripts, and necessary for specific projects
+  * these are distinct from scripts, and necessary for specific projects
   - will likely need to support variables, probably in string format
   - check if cc65 supports env put/get, make design decision
-  - need an 'alias' command to store routines as type definitions -- semantics
+  * need an 'alias' command to store routines as type definitions -- semantics
 - refactor bytes_t interface to have _raw() versus plain, use bytes with plain.
 - Option in blammo logger for newline style \r\n or \n
   - Maybe require escape/unescape functionality in bytes_t
@@ -61,7 +67,7 @@ TODO:
 - Needed: bytes_t is needed for:
   * dynamic contextual prompt
   * appendable / formatted help report
-  - routine names? / routine lines
+  * routine names? / routine lines
   - dynamic reprint buffers in console
 
 - Rework console->reprint()
@@ -69,15 +75,9 @@ TODO:
   - refactor how it works, writing substrings-at-once
 - Enable command history, with options, when linenoise is available.
 - console to borrow message type enum from blammo, but with it's own strings.
-- break out all builtin commands into scallblt.c/h or scallop_builtin
-  - need to add console() public method, and use commands() instead of priv
-  - only need to export one function and that is the register_builtins()
-    and pass in the base command tree pointer.  all else can be static.
-- BUG: cannot unregister test alias, says it's immutable!!! 
-    also weird print corrupted string
 
- TODO: harden it up later with some
-        // static and dynamic analysis and complete unit tests!!!
+- BUG: weird print corrupted string, how to reproduce?
+- Harden code with static and dynamic analysis (valgrind, others...)
 
 
 +-------------------------------------------------------------------------+

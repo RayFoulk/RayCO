@@ -157,6 +157,10 @@ static int builtin_handler_unregister(void * scmd,
         return -4;
     }
 
+    // FIXME: if command is a construct, then.. do NOT remove it
+    // from the construct stack, but if it is a routine, then
+    // find it in the routine chain, and remove it.
+
     return 0;
 }
 
@@ -182,6 +186,10 @@ static int builtin_handler_log(void * scmd,
         return -2;
     }
 
+    // TODO: The answer to nested help may be staring me in the face here,
+    // versus a complex approach to having parent links in all commands.
+    // either-or, but the to-do is to evaluate approaches here and make
+    // a decision.
     return cmd->exec(cmd, --argc, &args[1]);
 }
 
@@ -305,8 +313,13 @@ static int builtin_linefunc_routine(void * context,
                                     void * object,
                                     char * line)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    // FIXME: Cache the line in the routine
+    scallop_t * scallop = (scallop_t *) context;
+    scallop_rtn_t * routine = (scallop_rtn_t *) object;
+
+    // put the raw line as-is in the routine.  variable substitutions
+    // and tokenization will occur later during routine execution.
+    routine->append(routine, line);
+    (void) scallop;
 
     return 0;
 }
@@ -324,18 +337,27 @@ static int builtin_popfunc_routine(void * context,
 
     // All done defining this routine.  Now register it as a
     // proper command.
-    success = cmds->register_cmd(cmds, cmds->create(
-        routine->handler,
-        false,
-        scallop,
-        routine->name(routine),
-        " [argument-list]",
-        "user-registered routine"));
+    scallop_cmd_t * cmd = cmds->create(
+            routine->handler,
+            scallop,
+            routine->name(routine),
+            " [argument-list]",
+            "user-registered routine");
+
+    // should be allowed to delete/modify routines
+    cmd->set_mutable(cmd);
+
+    success = cmds->register_cmd(cmds, cmd);
 
     return success ? 0 : -1;
 }
 
 //------------------------------------------------------------------------|
+// This routine performs the _definition_ of a routine.  Future incoming
+// lines will be handled by the 'routine' language construct's linefunc
+// callback.  Lines may come from the user interactively or from a script.
+// The actual _execution_ of a routine will occur later after the popfunc
+// is called and the routine is registered.
 static int builtin_handler_routine(void * scmd,
                                    void * context,
                                    int argc,
@@ -357,29 +379,26 @@ static int builtin_handler_routine(void * scmd,
     // pushed inside scallop.c? find/add/finalize_routine() ??
     // seems clunky either way.
 
-    // Create a working copy of a routine object
-    scallop_rtn_t * routine = scallop_rtn_pub.create(args[1]);
-    if (!routine)
-    {
-        BLAMMO(ERROR, "scallop_rtn_pub.create(%s) failed", args[1]);
-        return -2;
-    }
-
     // Check if there is already a routine by the given name
-    scallop_rtn_t * found = (scallop_rtn_t *) routines->find(routines,
-                                                             routine,
-                                                             routine->compare_name);
-    if (found)
+    scallop_rtn_t * routine = scallop->routine_by_name(scallop, args[1]);
+    if (routine)
     {
         console->print(console,
                        "error: routine \'%s\' already exists",
                        args[1]);
-        routine->destroy(routine);
+        return -2;
+    }
+
+    // Create a unique new routine object
+    routine = scallop_rtn_pub.create(args[1]);
+    if (!routine)
+    {
+        BLAMMO(ERROR, "scallop_rtn_pub.create(%s) failed", args[1]);
         return -3;
     }
 
     // Store the new routine in the chain, but do not register
-    // it yet -- until it is finalized.  Order doesn't matter.
+    // it until it is finalized on pop/end.  Order should not matter.
     routines->insert(routines, routine);
 
     // Push the new routine definition onto the language construct
@@ -393,22 +412,6 @@ static int builtin_handler_routine(void * scmd,
                             routine,
                             builtin_linefunc_routine,
                             builtin_popfunc_routine);
-
-
-    // Set a flag so dispatch()??? knows what to do with future lines???
-
-
-    // WWWWWWWWWWWWWWWWW
-    // This is to DEFINE a routine, however we cannot just
-    // use getline to get/store lines as the script does
-    // because a routine might be defined by a script,
-    // or by the user interactively.  So instead we'll have to
-    // create the routine in memory (if it doesn't already exist)
-    // and then append to it somehow from dipatch() or somewhere
-    // until we hit an end statement... THEN it can be registered
-    // once completed.
-
-
 
     return 0;
 }
@@ -438,13 +441,12 @@ static int builtin_handler_quit(void * scmd,
 bool register_builtin_commands(scallop_t * scallop)
 {
     scallop_cmd_t * cmds = scallop->commands(scallop);
+    scallop_cmd_t * cmd = NULL;
     bool success = true;
 
     // TODO: print, routine, eval, invert, jump-if, label?
-
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_help,
-        false,
         scallop,
         "help",
         NULL,
@@ -452,22 +454,16 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_alias,
-        false,
         scallop,
         "alias",
         " <alias-keyword> <original-keyword>",
         "alias one command keyword to another"));
 
-    // TODO: Consider something like 'unregister' for all
-    //  aliases, routines, other things... and just mark
-    //  some things as not-unregisterable.  This would reduce
-    //  the number of root-scope keywords.
     // TODO: Also, removing a thing should ALWAYS remove all
     //  of it's aliases.  otherwise the aliases are present
     //  but invalid and could cause weird crashes/undefined behavior.
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_unregister,
-        false,
         scallop,
         "unregister",
         " <command-keyword>",
@@ -475,7 +471,6 @@ bool register_builtin_commands(scallop_t * scallop)
 
     scallop_cmd_t * log = cmds->create(
         builtin_handler_log,
-        false,
         NULL,
         "log",
         " <log-command> <...>",
@@ -485,7 +480,6 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_level,
-        false,
         NULL,
         "level",
         " <0..5>",
@@ -493,7 +487,6 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_stdout,
-        false,
         NULL,
         "stdout",
         " <true/false>",
@@ -501,7 +494,6 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_file,
-        false,
         NULL,
         "file",
         " <log-file-path>",
@@ -509,7 +501,6 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_print,
-        false,
         scallop,
         "print",
         " [arbitrary-strings-and-variables]",
@@ -517,31 +508,31 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_source,
-        false,
         scallop,
         "source",
         " <script-path>",
         "load and run a command script"));
 
-    success &= cmds->register_cmd(cmds, cmds->create(
+    cmd = cmds->create(
         builtin_handler_routine,
-        true,
         scallop,
         "routine",
-        " <routine-name>", //\r\n. . . . .\r\n. . . . .",
-        "define and register a new routine"));
+        " <routine-name> ...",
+        "define and register a new routine");
+    cmd->set_construct(cmd);
+    success &= cmds->register_cmd(cmds, cmd);
 
-    success &= cmds->register_cmd(cmds, cmds->create(
+    cmd = cmds->create(
         builtin_handler_end,
-        true,
         scallop,
         "end",
         NULL,
-        "finalize a multi-line language construct"));
+        "finalize a multi-line language construct");
+    cmd->set_construct(cmd);
+    success &= cmds->register_cmd(cmds, cmd);
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_quit,
-        false,
         scallop,
         "quit",
         NULL,
@@ -555,7 +546,6 @@ bool register_builtin_commands(scallop_t * scallop)
     //  and add a unit test to verify it remains so.
     scallop_cmd_t * horse = priv->cmds->create(
         NULL,
-        false,
         NULL,
         "horse",
         " <nosir>",
@@ -563,7 +553,6 @@ bool register_builtin_commands(scallop_t * scallop)
 
     success &= horse->register_cmd(horse, horse->create(
         NULL,
-        false,
         NULL,
         "hockey",
         " <walrus>",
@@ -575,5 +564,3 @@ bool register_builtin_commands(scallop_t * scallop)
 
     return success;
 }
-
-

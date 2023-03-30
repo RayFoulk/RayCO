@@ -21,16 +21,12 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-//#include <stdio.h>
-//#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-//#include <stddef.h>
-//#include <errno.h>
 
-//#include "scallop.h"
-//#include "scommand.h"
 #include "sroutine.h"
+#include "scommand.h"
+#include "scallop.h"
 #include "console.h"
 #include "chain.h"
 #include "bytes.h"
@@ -152,25 +148,74 @@ static void scallop_rtn_append(scallop_rtn_t * routine, const char * line)
     scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
 
     // First create the line object
-    bytes_t * bline = bytes_pub.create(line, strlen(line));
+    bytes_t * linebytes = bytes_pub.create(line, strlen(line));
 
     // Make no assumptions about the state of the chain, but always
     // force the insert at the 'end' of the chain, which is always at -1
     // since the chain is circular.
     priv->lines->reset(priv->lines);
     priv->lines->spin(priv->lines, -1);
-    priv->lines->insert(priv->lines, bline);
+    priv->lines->insert(priv->lines, linebytes);
 }
 
 //------------------------------------------------------------------------|
-static int scallop_rtn_handler(void * scmd, void * context, int argc, char ** args)
+static int scallop_rtn_handler(void * scmd,
+                               void * context,
+                               int argc,
+                               char ** args)
 {
     // The command handler function for every routine once registered.
     // get the routine by name, perform substitutions on lines/args,
     // and iterate through the lines calling dispatch on each one
     // until running out and then return.
+    // args[0] happens to be the name of the routine,
+    // But it is more reliably also cmd->name.
+    scallop_cmd_t * cmd = (scallop_cmd_t *) scmd;
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
 
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+    // FIXME: Perform %1%, %2%, %3%, etc... arg substitution
+    // here within lines of the routine as they are dispatched.
+    // I.E. %1% is replaced with args[1] before exec()
+
+    // Find _this_ routine.  TODO: Is there a faster way to
+    // find/get the routine associated with the command we're
+    // executing?  seems like there should be.  revisit this later.
+    scallop_rtn_t * routine = scallop->routine_by_name(scallop,
+                                                       cmd->keyword(cmd));
+    if (!routine)
+    {
+        console->print(console,
+                       "error: routine \'%s\' not found",
+                       cmd->keyword(cmd));
+        return -1;
+    }
+
+    scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
+    bytes_t * linebytes = NULL;
+    int result = 0;
+
+    // Iterate through all lines and dispatch each
+    priv->lines->reset(priv->lines);
+    do
+    {
+        linebytes = (bytes_t *) priv->lines->data(priv->lines);
+        if (linebytes)
+        {
+            BLAMMO(DEBUG, "About to dispatch(\'%s\')",
+                        linebytes->cstr(linebytes));
+
+            result = scallop->dispatch(scallop, (char *)
+                                       linebytes->cstr(linebytes));
+
+            BLAMMO(DEBUG, "Result of dispatch(%s) is %d",
+                          linebytes->cstr(linebytes),
+                          result);
+        }
+    }
+    while(priv->lines->spin(priv->lines, 1));
+
     return 0;
 }
 

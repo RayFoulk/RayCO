@@ -81,7 +81,6 @@ scallop_cmd_priv_t;
 
 //------------------------------------------------------------------------|
 static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
-                                          bool is_construct,
                                           void * context,
                                           const char * keyword,
                                           const char * arghints,
@@ -116,11 +115,11 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
     // of the sub-commands list in register()
     //priv->cmds = NULL;  // redundant due to earlier memset()
 
-    // Also every command created by create() is immutable.
+    // Also every command created by create() is immutable and non-construct
+    // by default until permanently set otherwise.
 
     // Initialize most members
     priv->handler = handler;
-    priv->is_construct = is_construct;
     priv->context = context;
     priv->keyword = bytes_pub.create(keyword,
                                      keyword ? strlen(keyword) : 0);
@@ -183,11 +182,19 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
                        priv->keyword->cstr(priv->keyword));
 
     scallop_cmd_t * alias = scallcmd->create(priv->handler,
-                                             priv->is_construct,
                                              priv->context,
                                              keyword,
                                              priv->arghints->cstr(priv->arghints),
                                              description->cstr(description));
+
+    // All aliases can be unregistered, but construct depends
+    // on the original command.
+    alias->set_mutable(alias);
+    if (priv->is_construct)
+    {
+        alias->set_construct(alias);
+    }
+
 
     // Manually copy the sub-command pointer to the original
     // command being aliased so that things will work properly.
@@ -195,9 +202,8 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
     // impropoerly corrupt the original!  Even this, in principal,
     // should not segfault if gaurd-blocks are in place, but it
     // could lead to some weird unexpected behavior.
-    scallop_cmd_priv_t * alias_priv = alias->priv;
+    scallop_cmd_priv_t * alias_priv = (scallop_cmd_priv_t *) alias->priv;
     alias_priv->cmds = priv->cmds;
-    alias_priv->is_mutable = true;
 
     // Don't need this temporary buffer anymore
     description->destroy(description);
@@ -314,6 +320,20 @@ static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
     return priv->handler ?
            priv->handler(scallcmd, priv->context, argc, args) :
            0;
+}
+
+//------------------------------------------------------------------------|
+static void scallop_set_mutable(scallop_cmd_t * scallcmd)
+{
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    priv->is_mutable = true;
+}
+
+//------------------------------------------------------------------------|
+static void scallop_set_construct(scallop_cmd_t * scallcmd)
+{
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    priv->is_construct = true;
 }
 
 //------------------------------------------------------------------------|
@@ -500,6 +520,8 @@ const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_find_by_keyword,
     &scallop_cmd_partial_matches,
     &scallop_cmd_exec,
+    &scallop_set_mutable,
+    &scallop_set_construct,
     &scallop_cmd_is_mutable,
     &scallop_cmd_is_construct,
     &scallop_cmd_keyword,

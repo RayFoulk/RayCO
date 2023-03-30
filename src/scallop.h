@@ -30,9 +30,10 @@
 
 #include "console.h"
 #include "scommand.h"
+#include "sroutine.h"
 
 //------------------------------------------------------------------------|
-// Maximum recursion depth to avoid stack smashing
+// Arbitrary maximum recursion depth to avoid stack smashing
 #define SCALLOP_MAX_RECURS        64
 
 //------------------------------------------------------------------------|
@@ -64,6 +65,10 @@ typedef struct scallop_t
     // Get access to the list of routines, so that builtins
     // can define new ones or alter existing ones as needed.
     chain_t * (*routines)(struct scallop_t * scallop);
+
+    // Get a routine by name.  Returns NULL if the routine is not found.
+    scallop_rtn_t * (*routine_by_name)(struct scallop_t * scallop,
+                                       const char * name);
 
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.

@@ -74,8 +74,8 @@ typedef struct
     // Current prompt text buffer, rebuilt whenever context changes.
     bytes_t * prompt;
 
-    // master list of top-level context commands
-    scallop_cmd_t * cmds;
+    // Root of the command-tree
+    scallop_cmd_t * commands;
 
     // The list of all defined routines
     chain_t * routines;
@@ -149,22 +149,22 @@ static void scallop_tab_completion(void * object, const char * buffer)
     // may require tab completion.  Match known command keywords
     // as far as possible before making suggestions on incomplete
     // arguments/keywords
-    scallop_cmd_t * parent = priv->cmds;
-    scallop_cmd_t * cmd = NULL;
+    scallop_cmd_t * parent = priv->commands;
+    scallop_cmd_t * command = NULL;
     int nest = 0;
 
     for (nest = 0; nest < argc; nest++)
     {
         // Try to find each nested command by keyword
-        cmd = priv->cmds->find_by_keyword(parent, args[nest]);
-        if (!cmd)
+        command = priv->commands->find_by_keyword(parent, args[nest]);
+        if (!command)
         {
             BLAMMO(DEBUG, "Command %s not found", args[nest]);
             break;
         }
 
         BLAMMO(DEBUG, "Command %s found!", args[nest]);
-        parent = cmd;
+        parent = command;
     }
 
     BLAMMO(DEBUG, "parent keyword: %s  args[%d]: %s",
@@ -260,22 +260,22 @@ static char * scallop_arg_hints(void * object,
     // keyword, then display the hints for the last known matching command.
     // This should fail and return NULL right out of the gate if the first
     // keyord does not match.
-    scallop_cmd_t * parent = priv->cmds;
-    scallop_cmd_t * cmd = NULL;
+    scallop_cmd_t * parent = priv->commands;
+    scallop_cmd_t * command = NULL;
     int nest = 0;
 
     for (nest = 0; nest < argc; nest++)
     {
         // Try to find each nested command by keyword
-        cmd = priv->cmds->find_by_keyword(parent, args[nest]);
-        if (!cmd)
+        command = priv->commands->find_by_keyword(parent, args[nest]);
+        if (!command)
         {
             BLAMMO(DEBUG, "Command %s not found", args[nest]);
             break;
         }
 
         BLAMMO(DEBUG, "Command %s found!", args[nest]);
-        parent = cmd;
+        parent = command;
     }
 
     // No longer referencing args, OK to free underlying line
@@ -393,8 +393,8 @@ static scallop_t * scallop_create(console_t * console,
     scallop->construct_push(scallop, prompt_base, NULL, NULL, NULL, NULL);
 
     // Create the top-level list of commands
-    priv->cmds = scallop_cmd_pub.create(NULL, false, NULL, NULL, NULL, NULL);
-    if (!priv->cmds)
+    priv->commands = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
+    if (!priv->commands)
     {
         BLAMMO(FATAL, "scallop_cmd_pub.create() failed");
         scallop->destroy(scallop);
@@ -442,9 +442,9 @@ static void scallop_destroy(void * scallop_ptr)
     }
 
     // Recursively destroy command tree
-    if (priv->cmds)
+    if (priv->commands)
     {
-        priv->cmds->destroy(priv->cmds);
+        priv->commands->destroy(priv->commands);
     }
 
     // Destroy the prompt
@@ -479,7 +479,7 @@ static inline console_t * scallop_console(scallop_t * scallop)
 static inline scallop_cmd_t * scallop_commands(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    return priv->cmds;
+    return priv->commands;
 }
 
 //------------------------------------------------------------------------|
@@ -487,6 +487,33 @@ static inline chain_t * scallop_routines(scallop_t * scallop)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     return priv->routines;
+}
+
+//------------------------------------------------------------------------|
+static scallop_rtn_t * scallop_routine_by_name(scallop_t * scallop,
+                                               const char * name)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    // Create a temporary working copy of a routine object
+    scallop_rtn_t * routine = scallop_rtn_pub.create(name);
+    if (!routine)
+    {
+        BLAMMO(ERROR, "scallop_rtn_pub.create(%s) failed", name);
+        return NULL;
+    }
+
+    // Check if there is already a routine by the given name
+    scallop_rtn_t * found = (scallop_rtn_t *)
+            priv->routines->find(priv->routines,
+                                 routine,
+                                 routine->compare_name);
+
+    // Destroy temporary working copy
+    routine->destroy(routine);
+
+    // Return the routine if it was found or NULL if not.
+    return found;
 }
 
 //------------------------------------------------------------------------|
@@ -548,8 +575,8 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     }
 
     // Try to find the command being invoked
-    scallop_cmd_t * cmd = priv->cmds->find_by_keyword(priv->cmds, args[0]);
-    if (!cmd)
+    scallop_cmd_t * command = priv->commands->find_by_keyword(priv->commands, args[0]);
+    if (!command)
     {
         priv->console->print(priv->console,
                              "Unknown command \'%s\'.  Try \'help\'",
@@ -560,15 +587,7 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
         return -1;
     }
 
-
-    // TODO: If in the mode of defining a routine, then
-    // the command should not be executed, but instead
-    // should be added to the routine definition UNTIL
-    // an 'immediate' command is encountered.
-    // WWWWWWWWWWWWWWW
-    // answer: private get_context() struct
-
-    // Select the top item of the construct stack
+    // Select the top item of the language construct stack
     priv->constructs->reset(priv->constructs);
     priv->constructs->spin(priv->constructs, 1);
 
@@ -576,13 +595,13 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     scallop_construct_t * construct = (scallop_construct_t *)
             priv->constructs->data(priv->constructs);
 
-    int result = 0;
     // if in the middle of defining a routine, while loop,
     // or other user-registered language construct, then
     // call that construct's line handler function rather
     // than executing the line directly. AND if and only
     // if the command itself is not a construct keyword.
-    if (!cmd->is_construct(cmd) && construct && construct->linefunc)
+    int result = 0;
+    if (!command->is_construct(command) && construct && construct->linefunc)
     {
         result = construct->linefunc(construct->context,
                                      construct->object,
@@ -590,7 +609,7 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
     }
     else
     {
-        result = cmd->exec(cmd, argc, args);
+        result = command->exec(command, argc, args);
     }
 
     linebytes->destroy(linebytes);
@@ -619,7 +638,7 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
 
         BLAMMO(DEBUG, "About to dispatch(\'%s\')", line);
         result = scallop->dispatch(scallop, line);
-        BLAMMO(INFO, "Result of dispatch(%s) is %d", line, result);
+        BLAMMO(DEBUG, "Result of dispatch(%s) is %d", line, result);
 
         // TODO possibly store result in priv, or else report on console
         // TODO: need to implement variables (dict)
@@ -754,6 +773,7 @@ const scallop_t scallop_pub = {
     &scallop_console,
     &scallop_commands,
     &scallop_routines,
+    &scallop_routine_by_name,
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,

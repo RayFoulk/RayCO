@@ -85,6 +85,13 @@ typedef struct console_t
                        const char * prompt,
                        bool interactive);
 
+
+    // TODO: Instead of borrowing BLAMMO message types,
+    //  expose different print method wrappers like
+    //  warning() and error() that will internally call
+    //  vprint and then directly use the BLAMMO enum inline.
+
+
     // Printf-style output function
     int (*print)(struct console_t * console,
                  const char * format, ...);

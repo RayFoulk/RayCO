@@ -28,4 +28,7 @@
 #include "scallop.h"
 
 //------------------------------------------------------------------------|
+// TODO: consider making this a callback.  advantage is greater
+// customization: allowing implementers to replace 'standard'
+// default keywords and constructs.
 bool register_builtin_commands(scallop_t * scallop);

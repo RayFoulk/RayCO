@@ -28,10 +28,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "console.h"
-#include "scallop.h"
-#include "scommand.h"
-
 //------------------------------------------------------------------------|
 // A scallop routine is something like a source script except that it
 // resides in memory, and is defined by the keyword 'routine' and
