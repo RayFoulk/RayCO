@@ -97,16 +97,18 @@ typedef struct bytes_t
     size_t (*trim_right)(struct bytes_t * bytes, const char * whitespace);
     size_t (*trim)(struct bytes_t * bytes, const char * whitespace);
 
-
     // Find instance(s) of subsequence, searching from left or right,
-    // or else all occuring throughout the whole sequence.  negative
-    // return indicates not found.  length of match is same as substring
-    ssize_t (*find_left)(struct bytes_t * bytes,
-                         const void * data,
-                         size_t size);
-    ssize_t (*find_right)(struct bytes_t * bytes,
-                          const void * data,
-                          size_t size);
+    // negative return indicates not found.  length of match is same as substring
+    // TODO: consider find_all by re-using token array
+    ssize_t (*find_forward)(struct bytes_t * bytes,
+                            size_t start_offset,
+                            const void * data,
+                            size_t size);
+
+    ssize_t (*find_reverse)(struct bytes_t * bytes,
+                            size_t start_offset,
+                            const void * data,
+                            size_t size);
 
     // Fill the buffer completely with a given character
     void (*fill)(struct bytes_t * bytes, const char c);
@@ -134,6 +136,19 @@ typedef struct bytes_t
     // Given an absolute pointer into the data, get the relative offset
     // Returns negative value if there is an error
     ssize_t (*offset)(struct bytes_t * bytes, void * ptr);
+
+    // Remove an arbitrary chunk of data, moving higher data
+    // down to fill the gap, and resizing down.  Returns new
+    // size or else negative if error occurs.
+    ssize_t (*remove)(struct bytes_t * bytes, size_t begin, size_t end);
+
+    // Insert new data at an arbitrary offset.  Sparseness is not
+    // supported.  This will move higher data up, and resize up.
+    //  Returns new size or else negative if error occurs.
+    ssize_t (*insert)(struct bytes_t * bytes,
+            size_t offset,
+            const void * data,
+            size_t size);
 
     // debug, serialization, etc... reorganize later
     const char * const (*hexdump)(struct bytes_t * bytes);

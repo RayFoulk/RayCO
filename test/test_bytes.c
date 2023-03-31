@@ -268,21 +268,21 @@ TEST_BEGIN("trim")
     bytes->destroy(bytes);
 TEST_END
 
-TEST_BEGIN("find_left")
+TEST_BEGIN("find_forward")
     bytes_t * bytes = bytes_pub.create("abcdefghijkl", 12);
-    CHECK(bytes->find_left(bytes, "ghi", 3) == 6);
-    CHECK(bytes->find_left(bytes, "zzz", 3) < 0);
-    CHECK(bytes->find_left(bytes, "kl", 2) == 10);
-    CHECK(bytes->find_left(bytes, "abc", 3) == 0);
+    CHECK(bytes->find_forward(bytes, 0, "ghi", 3) == 6);
+    CHECK(bytes->find_forward(bytes, 0, "zzz", 3) < 0);
+    CHECK(bytes->find_forward(bytes, 0, "kl", 2) == 10);
+    CHECK(bytes->find_forward(bytes, 0, "abc", 3) == 0);
     bytes->destroy(bytes);
 TEST_END
 
-TEST_BEGIN("find_right")
+TEST_BEGIN("find_reverse")
     bytes_t * bytes = bytes_pub.create("mnopqrstuvwxyz", 14);
-    CHECK(bytes->find_right(bytes, "pqrs", 4) == 3);
-    CHECK(bytes->find_right(bytes, "mnomnop", 7) < 0);
-    CHECK(bytes->find_right(bytes, "mnop", 4) == 0);
-    CHECK(bytes->find_right(bytes, "xyz", 3) == 11);
+    CHECK(bytes->find_reverse(bytes, 99, "pqrs", 4) == 3);
+    CHECK(bytes->find_reverse(bytes, 99, "mnomnop", 7) < 0);
+    CHECK(bytes->find_reverse(bytes, bytes->size(bytes), "mnop", 4) == 0);
+    CHECK(bytes->find_reverse(bytes, bytes->size(bytes), "xyz", 3) == 11);
     bytes->destroy(bytes);
 TEST_END
 
@@ -365,6 +365,24 @@ TEST_BEGIN("marktokens")
 
     CHECK(nmark == 2);
 
+TEST_END
+
+TEST_BEGIN("remove")
+    const char * data = "abcdefghijklmnop";
+    bytes_t * bytes = bytes_pub.create(data, strlen(data));
+    ssize_t newsize = bytes->remove(bytes, 6, 9);
+
+    BLAMMO(INFO, "newsize: %d", newsize);
+    BLAMMO(INFO, "original size: %zu", strlen(data));
+    BLAMMO(INFO, "new data: %s", bytes->cstr(bytes));
+
+    CHECK(newsize == strlen(data) - 3);
+    CHECK(strcmp(bytes->cstr(bytes), "abcdefjklmnop") == 0);
+    bytes->destroy(bytes);
+TEST_END
+
+TEST_BEGIN("insert")
+    BLAMMO(ERROR, "TEST NOT IMPLEMENTED");
 TEST_END
 
 TEST_BEGIN("hexdump")

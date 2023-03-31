@@ -374,22 +374,23 @@ static size_t bytes_trim(bytes_t * bytes, const char * whitespace)
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_find_left(struct bytes_t * bytes,
-                               const void * data,
-                               size_t size)
+static ssize_t bytes_find_forward(struct bytes_t * bytes,
+                                  size_t start_offset,
+                                  const void * data,
+                                  size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-    ssize_t index = 0;
+    ssize_t offset = (ssize_t) start_offset;
 
     // Return on first match
-    while(index + size <= priv->size)
+    while(offset + size <= priv->size)
     {
-        if (!memcmp(priv->data + index, data, size))
+        if (!memcmp(priv->data + offset, data, size))
         {
-            return index;
+            return offset;
         }
 
-        index++;
+        offset++;
     }
 
     // No match found
@@ -397,22 +398,31 @@ static ssize_t bytes_find_left(struct bytes_t * bytes,
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_find_right(struct bytes_t * bytes,
-                                const void * data,
-                                size_t size)
+static ssize_t bytes_find_reverse(struct bytes_t * bytes,
+                                  size_t start_offset,
+                                  const void * data,
+                                  size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-    ssize_t index = priv->size - size;
+
+    if (start_offset > priv->size)
+    {
+        BLAMMO(WARNING, "start_offset %zu is larger than size %zu",
+                        start_offset, priv->size);
+        start_offset = priv->size;
+    }
+
+    ssize_t offset = start_offset - size;
 
     // Return on first match
-    while(index >= 0)
+    while(offset >= 0)
     {
-        if (!memcmp(priv->data + index, data, size))
+        if (!memcmp(priv->data + offset, data, size))
         {
-            return index;
+            return offset;
         }
 
-        index--;
+        offset--;
     }
 
     // No match found
@@ -466,7 +476,6 @@ static void bytes_resize_tokens(bytes_t * bytes,
 
     BLAMMO(DEBUG, "resized maxtokens: %zu", priv->maxtokens);
 }
-
 
 //------------------------------------------------------------------------|
 static char ** bytes_tokenize(bytes_t * bytes,
@@ -601,6 +610,41 @@ static ssize_t bytes_offset(bytes_t * bytes, void * ptr)
     }
 
     return (ssize_t) (bptr - priv->data);
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_remove(bytes_t * bytes, size_t begin, size_t end)
+{
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    if (begin > (priv->size - 1))
+    {
+        BLAMMO(ERROR, "begin %zu is after data size %zu",
+                      begin, priv->size);
+        return -1;
+    }
+    else if (end > priv->size)
+    {
+        BLAMMO(ERROR, "end %zu is after data size %zu",
+                      end, priv->size);
+        return -2;
+    }
+
+    // Fair game, just move the data down and truncate
+    memmove(priv->data + begin, priv->data + end, priv->size - end);
+    bytes->resize(bytes, priv->size - end + begin);
+
+    return (ssize_t) priv->size;
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_insert(bytes_t * bytes,
+                            size_t offset,
+                            const void * data,
+                            size_t size)
+{
+
+    return -99;
 }
 
 //------------------------------------------------------------------------|
@@ -742,13 +786,15 @@ const bytes_t bytes_pub = {
     &bytes_trim_left,
     &bytes_trim_right,
     &bytes_trim,
-    &bytes_find_left,
-    &bytes_find_right,
+    &bytes_find_forward,
+    &bytes_find_reverse,
     &bytes_fill,
     &bytes_copy,
     &bytes_tokenize,
     &bytes_marktokens,
     &bytes_offset,
+    &bytes_remove,
+    &bytes_insert,
     &bytes_hexdump,
     NULL
 };
