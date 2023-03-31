@@ -45,7 +45,6 @@ typedef struct
 scallop_rtn_priv_t;
 
 //------------------------------------------------------------------------|
-// TODO: fairly certain going to need the console pointer here TBD
 static scallop_rtn_t * scallop_rtn_create(const char * name)
 {
     scallop_rtn_t * routine = (scallop_rtn_t *) malloc(
@@ -80,9 +79,7 @@ static scallop_rtn_t * scallop_rtn_create(const char * name)
 
     // List of raw (mostly) uninterpreted command lines consisting
     // of the body of the routine.  One exception to this is we'll
-    // need to track the nested depth of an 'end' keyword (if multi-use)
-    // or else have a special 'end-routine' keyword.  TODO: figure out
-    // how to cleanly implement this.
+    // need to track the nested depth of an 'end' keyword (multi-use)
     priv->lines = chain_pub.create(bytes_pub.destroy);
     if (!priv->lines)
     {
@@ -212,6 +209,7 @@ static int scallop_rtn_handler(void * scmd,
             BLAMMO(DEBUG, "Result of dispatch(%s) is %d",
                           linebytes->cstr(linebytes),
                           result);
+            (void) result;
         }
     }
     while(priv->lines->spin(priv->lines, 1));

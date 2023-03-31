@@ -31,6 +31,12 @@
 #include <limits.h>
 #include <stdbool.h>
 
+static bool dummy_registration_func(void * scallop)
+{
+    BLAMMO(INFO, "got called!");
+    return true;
+}
+
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
@@ -42,7 +48,9 @@ TEST_BEGIN("test create/destroy")
     console_t * console = console_pub.create(stdin, stdout);
     CHECK(console != NULL);
 
-    scallop_t * scallop = scallop_pub.create(console, "TEST");
+    scallop_t * scallop = scallop_pub.create(console,
+                                             dummy_registration_func,
+                                             "TEST");
     CHECK(scallop != NULL);
 
     scallop->destroy(scallop);
@@ -53,7 +61,7 @@ TEST_BEGIN("test register/unregister")
     CHECK(true);
 TEST_END
 
-TEST_BEGIN("test deep destroy")
+TEST_BEGIN("test destroy")
     CHECK(true);
 TEST_END
 

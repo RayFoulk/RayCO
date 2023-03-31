@@ -501,11 +501,10 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
         return false;
     }
 
-    // Remove the found command link
+    // Remove the found command link -- this also destroys the found command
     priv->cmds->remove(priv->cmds);
 
-    // TODO: Figure out what to do with the allocated 'found' command
-    //  object that is now unregistered.  FIXME: Use extra caution with
+    //  TODO: FIXME: Use extra caution with
     //  unregistereing/destroying alias'ed commands as the sub-command
     //  link may be a duplicate pointer to the original command!
 

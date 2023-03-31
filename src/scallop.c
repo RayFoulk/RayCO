@@ -338,6 +338,7 @@ static char * scallop_arg_hints(void * object,
 
 //------------------------------------------------------------------------|
 static scallop_t * scallop_create(console_t * console,
+                                  scallop_registration_f registration,
                                   const char * prompt_base)
 {
     // Allocate and initialize public interface
@@ -401,8 +402,8 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    // Register all Built-In commands
-    if (!register_builtin_commands(scallop))
+    // Register all initial commands if given a callback on create
+    if (registration && !registration(scallop))
     {
         BLAMMO(FATAL, "register_builtin_commands() failed");
         scallop->destroy(scallop);
@@ -483,13 +484,6 @@ static inline scallop_cmd_t * scallop_commands(scallop_t * scallop)
 }
 
 //------------------------------------------------------------------------|
-static inline chain_t * scallop_routines(scallop_t * scallop)
-{
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    return priv->routines;
-}
-
-//------------------------------------------------------------------------|
 static scallop_rtn_t * scallop_routine_by_name(scallop_t * scallop,
                                                const char * name)
 {
@@ -514,6 +508,43 @@ static scallop_rtn_t * scallop_routine_by_name(scallop_t * scallop,
 
     // Return the routine if it was found or NULL if not.
     return found;
+}
+
+//------------------------------------------------------------------------|
+static scallop_rtn_t * scallop_routine_insert(scallop_t * scallop,
+                                              const char * name)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    // Create a unique new routine object
+    scallop_rtn_t * routine = scallop_rtn_pub.create(name);
+    if (!routine)
+    {
+        BLAMMO(ERROR, "scallop_rtn_pub.create(%s) failed", name);
+        return NULL;
+    }
+
+    // Store the new routine in the chain.
+    priv->routines->insert(priv->routines, routine);
+    return routine;
+}
+
+static void scallop_routine_remove(scallop_t * scallop,
+                                   const char * name)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    scallop_rtn_t * routine = scallop->routine_by_name(scallop, name);
+    if (!routine)
+    {
+        BLAMMO(WARNING, "Routine \'%s\' not found", name);
+        return;
+    }
+
+    // TODO: Consider locking for thread safety.  The routines chain should
+    // be left on the link to remove after the find, but another thread
+    // could conceivably perform an 'insert' in between calls.
+    priv->routines->remove(priv->routines);
 }
 
 //------------------------------------------------------------------------|
@@ -772,8 +803,9 @@ const scallop_t scallop_pub = {
     &scallop_destroy,
     &scallop_console,
     &scallop_commands,
-    &scallop_routines,
     &scallop_routine_by_name,
+    &scallop_routine_insert,
+    &scallop_routine_remove,
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,

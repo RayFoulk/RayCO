@@ -79,8 +79,6 @@ typedef struct console_t
 
     // Get a heap allocated line buffer from user.  This is intentionally
     // simplistic attempting to match linenoise() as closely as possible.
-    // a direct override is not possible due to the object reference.
-    // TODO: OR FROM SCRIPT OR FROM ROUTINE!!!
     char * (*get_line)(struct console_t * console,
                        const char * prompt,
                        bool interactive);

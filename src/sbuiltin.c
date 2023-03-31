@@ -142,13 +142,21 @@ static int builtin_handler_unregister(void * scmd,
 
     if (!cmd->is_mutable(cmd))
     {
-        // FIXME: Borrow message types from blammo
         console->print(console,
                 "error: can't unregister immutable command \'%s\'",
                 cmd->keyword(cmd));
         return -3;
     }
 
+    // NOTE: It is highly unlikely that a command would be both
+    // mutable AND a language construct.  Even if so, the construct
+    // stack should probably be left alone here.
+
+    // remove the associated routine if the command was also a routine.
+    // This will just fail without consequence if the command is not.
+    scallop->routine_remove(scallop, cmd->keyword(cmd));
+
+    // Unregister the command -- this also destroys the command
     if (!scope->unregister_cmd(scope, cmd))
     {
         console->print(console,
@@ -156,10 +164,6 @@ static int builtin_handler_unregister(void * scmd,
                 cmd->keyword(cmd));
         return -4;
     }
-
-    // FIXME: if command is a construct, then.. do NOT remove it
-    // from the construct stack, but if it is a routine, then
-    // find it in the routine chain, and remove it.
 
     return 0;
 }
@@ -367,17 +371,12 @@ static int builtin_handler_routine(void * scmd,
 
     scallop_t * scallop = (scallop_t *) context;
     console_t * console = scallop->console(scallop);
-    chain_t * routines = scallop->routines(scallop);
 
     if (argc < 2)
     {
         BLAMMO(ERROR, "Expected a name for the routine");
         return -1;
     }
-
-    // TODO: Decide if this this routine management code should be
-    // pushed inside scallop.c? find/add/finalize_routine() ??
-    // seems clunky either way.
 
     // Check if there is already a routine by the given name
     scallop_rtn_t * routine = scallop->routine_by_name(scallop, args[1]);
@@ -390,16 +389,12 @@ static int builtin_handler_routine(void * scmd,
     }
 
     // Create a unique new routine object
-    routine = scallop_rtn_pub.create(args[1]);
+    routine = scallop->routine_insert(scallop, args[1]);
     if (!routine)
     {
-        BLAMMO(ERROR, "scallop_rtn_pub.create(%s) failed", args[1]);
+        BLAMMO(ERROR, "scallop->routine_insert(%s) failed", args[1]);
         return -3;
     }
-
-    // Store the new routine in the chain, but do not register
-    // it until it is finalized on pop/end.  Order should not matter.
-    routines->insert(routines, routine);
 
     // Push the new routine definition onto the language construct
     // stack.  This should get popped off when the matching 'end'
@@ -438,13 +433,16 @@ static int builtin_handler_quit(void * scmd,
 }
 
 //------------------------------------------------------------------------|
-bool register_builtin_commands(scallop_t * scallop)
+bool register_builtin_commands(void * scallop_ptr)
 {
+    scallop_t * scallop = (scallop_t *) scallop_ptr;
     scallop_cmd_t * cmds = scallop->commands(scallop);
     scallop_cmd_t * cmd = NULL;
     bool success = true;
 
-    // TODO: print, routine, eval, invert, jump-if, label?
+    // TODO: add 'while' as a language construct
+    // TODO: need to add variables, substitution,
+    //   and an expression evaluator to do this.
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_help,
         scallop,

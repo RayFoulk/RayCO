@@ -46,10 +46,17 @@ typedef int (*scallop_construct_line_f)(void * context,
 typedef int (*scallop_construct_pop_f)(void * context,
                                        void * object);
 
+// Callback for registration of default commands on scallop->create().
+// Normally one would pass in register_builtin_commands() to get all the
+// default functionality.  Alternatively one could create something
+// entirely different and just use the scallop engine.
+typedef bool (*scallop_registration_f)(void * scallop);
+
 //------------------------------------------------------------------------|
 typedef struct scallop_t
 {
     struct scallop_t * (*create)(console_t * console,
+                                 scallop_registration_f registration,
                                  const char * prompt_base);
 
     // Scallop destructor function
@@ -62,13 +69,17 @@ typedef struct scallop_t
     // This is necessary for third-party command registration!
     scallop_cmd_t * (*commands)(struct scallop_t * scallop);
 
-    // Get access to the list of routines, so that builtins
-    // can define new ones or alter existing ones as needed.
-    chain_t * (*routines)(struct scallop_t * scallop);
-
     // Get a routine by name.  Returns NULL if the routine is not found.
     scallop_rtn_t * (*routine_by_name)(struct scallop_t * scallop,
                                        const char * name);
+
+    // Create and add a new routine to the internal list
+    scallop_rtn_t * (*routine_insert)(struct scallop_t * scallop,
+                                      const char * name);
+
+    // Remove routine from the internal list
+    void (*routine_remove)(struct scallop_t * scallop,
+                           const char * name);
 
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.

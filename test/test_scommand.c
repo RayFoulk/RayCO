@@ -48,7 +48,6 @@ TESTSUITE_BEGIN
 
 TEST_BEGIN("test create/destroy")
     scallop_cmd_t * scallcmd = scallop_cmd_pub.create(bogus_scallcmd_handler,
-                                                      false,
                                                       NULL,
                                                       "test",
                                                       " <hint>",
