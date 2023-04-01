@@ -21,8 +21,11 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "sroutine.h"
 #include "scommand.h"
@@ -213,9 +216,9 @@ static int scallop_rtn_handler(void * scmd,
             // on every iteration here since lines can call other
             // routines, and args would be corrupted on return
             // from subroutine.
-            if (!scallop->putenv_args(scallop, argc, args))
+            if (!scallop->store_args(scallop, argc, args))
             {
-                BLAMMO(WARNING, "scallop->putenv_args() failed");
+                BLAMMO(WARNING, "scallop->store_args() failed");
             }
 
             BLAMMO(DEBUG, "About to dispatch(\'%s\')",

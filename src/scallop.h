@@ -87,7 +87,7 @@ typedef struct scallop_t
     // unrelated environment variables.
 
     // AAAAAAAAAAAAAAAAAAAA
-    bool (*putenv_args)(struct scallop_t * scallop,
+    bool (*store_args)(struct scallop_t * scallop,
                         int argc,
                         char ** args);
 

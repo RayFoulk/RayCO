@@ -60,7 +60,6 @@ static const char * scallop_cmd_comment = "#";
 // brackets may produce unexpected behavior!
 static const char * scallop_var_begin = "[";
 static const char * scallop_var_end = "]";
-static const char * scallop_var_delim = "_";
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -71,6 +70,18 @@ typedef struct
 
     // Recursion depth for when executing scripts/procedures
     size_t depth;
+
+    // There is intent to port this code to cc65 to target the C64
+    // and possibly the Commander X16.  The cc65 compiler does have
+    // putenv() and getenv(), which I was tempted to use for all
+    // variables, however putenv() has the limitation that it does not
+    // copy the data, leaving the application to manage memory.  So
+    // then if we're going to have to maintain a list of pointers
+    // anyway, we might as well do variable management ourselves and
+    // remain more portable that way.
+#if 0
+    collect_t variables;
+#endif
 
     // Language construct stack used to keep track of nested routine
     // definitions, while loops, if-else and any other construct that
@@ -556,49 +567,8 @@ static void scallop_routine_remove(scallop_t * scallop,
 }
 
 //------------------------------------------------------------------------|
-static bool scallop_putenv_args(scallop_t * scallop, int argc, char ** args)
+static bool scallop_store_args(scallop_t * scallop, int argc, char ** args)
 {
-    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-    bytes_t * env = bytes_pub.create(NULL, 0);
-    scallop_construct_t * construct = NULL;
-
-    // Get base element language contruct stack as prefix name
-    priv->constructs->reset(priv->constructs);
-    construct = (scallop_construct_t *)
-            priv->constructs->data(priv->constructs);
-    if (!construct)
-    {
-        BLAMMO(ERROR, "NULL construct in stack!");
-        env->destroy(env);
-        return false;
-    }
-
-    while (--argc)
-    {
-        env->print(env,
-                   "%s%s%d=%s",
-                   construct->name,
-                   scallop_var_delim,
-                   argc,
-                   args[argc]);
-
-        BLAMMO(DEBUG, "about to putenv(%s)", env->cstr(env));
-
-        if (putenv((char *) env->cstr(env)) != 0)
-        {
-            BLAMMO(ERROR, "putenv(%s) failed with errno %d strerror %s",
-                   errno, strerror(errno));
-            env->destroy(env);
-            return false;
-        }
-    }
-
-    // setenv() is better (makes a copy) but cc65 does not have it
-    // only putenv.
-    //putenv("derpy=herpderp");
-    //printf("getenv: %s", getenv("raytl_debug_1"));
-    // DEBUG HACK
-    //system("env");
 
     // WWWWWWWWWWWWWWWWWW
     // OK, it's starting to look more attractive to just use a
@@ -607,8 +577,6 @@ static bool scallop_putenv_args(scallop_t * scallop, int argc, char ** args)
     // even track heap usage and requires us to tiptoe around
     // other variables.
 
-
-    env->destroy(env);
     return true;
 }
 
@@ -884,7 +852,7 @@ const scallop_t scallop_pub = {
     &scallop_routine_by_name,
     &scallop_routine_insert,
     &scallop_routine_remove,
-    &scallop_putenv_args,
+    &scallop_store_args,
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,
