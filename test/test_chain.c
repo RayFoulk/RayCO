@@ -213,6 +213,29 @@ TEST_BEGIN("clear")
     chain->destroy(chain);
 TEST_END
 
+TEST_BEGIN("spin")
+    chain_t * chain = chain_pub.create(NULL);
+    chain->insert(chain, (void *) 1);
+    chain->insert(chain, (void *) 2);
+    chain->insert(chain, (void *) 3);
+
+    chain->reset(chain);
+    do
+    {
+        BLAMMO(INFO, "do/while data: %ld", (long) chain->data(chain));
+    }
+    while(chain->spin(chain, 1));
+
+    chain->reset(chain);
+    chain->spin(chain, -1);
+    while(chain->spin(chain, 1))
+    {
+        BLAMMO(INFO, "while data: %ld", (long) chain->data(chain));
+    }
+
+    chain->destroy(chain);
+TEST_END
+
 TEST_BEGIN("trim")
     chain_t * chain = chain_pub.create(NULL);
     CHECK(chain != NULL);

@@ -140,7 +140,7 @@ typedef struct bytes_t
     // Remove an arbitrary chunk of data, moving higher data
     // down to fill the gap, and resizing down.  Returns new
     // size or else negative if error occurs.
-    ssize_t (*remove)(struct bytes_t * bytes, size_t begin, size_t end);
+    ssize_t (*remove)(struct bytes_t * bytes, size_t begin, size_t size);
 
     // Insert new data at an arbitrary offset.  Sparseness is not
     // supported.  This will move higher data up, and resize up.

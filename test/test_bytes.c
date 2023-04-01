@@ -370,7 +370,7 @@ TEST_END
 TEST_BEGIN("remove")
     const char * data = "abcdefghijklmnop";
     bytes_t * bytes = bytes_pub.create(data, strlen(data));
-    ssize_t newsize = bytes->remove(bytes, 6, 9);
+    ssize_t newsize = bytes->remove(bytes, 6, 3);
 
     BLAMMO(INFO, "newsize: %d", newsize);
     BLAMMO(INFO, "original size: %zu", strlen(data));
@@ -382,7 +382,17 @@ TEST_BEGIN("remove")
 TEST_END
 
 TEST_BEGIN("insert")
-    BLAMMO(ERROR, "TEST NOT IMPLEMENTED");
+    const char * data = "aaaaccccc";
+    bytes_t * bytes = bytes_pub.create(data, strlen(data));
+    ssize_t newsize = bytes->insert(bytes, 4, "bbbbbbb", 7);
+
+    BLAMMO(INFO, "newsize: %d", newsize);
+    BLAMMO(INFO, "original size: %zu", strlen(data));
+    BLAMMO(INFO, "new data: %s", bytes->cstr(bytes));
+
+    CHECK(newsize == strlen(data) + 7);
+    CHECK(strcmp(bytes->cstr(bytes), "aaaabbbbbbbccccc") == 0);
+    bytes->destroy(bytes);
 TEST_END
 
 TEST_BEGIN("hexdump")

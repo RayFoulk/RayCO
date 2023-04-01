@@ -40,7 +40,7 @@
 // Language construct line handler function signature
 typedef int (*scallop_construct_line_f)(void * context,
                                         void * object,
-                                        char * line);
+                                        const char * line);
 
 // Language construct stack pop handler function signature.
 typedef int (*scallop_construct_pop_f)(void * context,
@@ -81,9 +81,19 @@ typedef struct scallop_t
     void (*routine_remove)(struct scallop_t * scallop,
                            const char * name);
 
+    // Put a set of routine arguments into the environment to be
+    // picked up later on evaluation/substritution.  This will
+    // intrinsically prefix everything to avoid trampling on other
+    // unrelated environment variables.
+
+    // AAAAAAAAAAAAAAAAAAAA
+    bool (*putenv_args)(struct scallop_t * scallop,
+                        int argc,
+                        char ** args);
+
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.
-    int (*dispatch)(struct scallop_t * scallop, char * line);
+    int (*dispatch)(struct scallop_t * scallop, const char * line);
 
     // Main interactive prompt loop
     int (*loop)(struct scallop_t * scallop, bool interactive);

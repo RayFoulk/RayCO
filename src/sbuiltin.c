@@ -315,7 +315,7 @@ static int builtin_handler_source(void * scmd,
 //------------------------------------------------------------------------|
 static int builtin_linefunc_routine(void * context,
                                     void * object,
-                                    char * line)
+                                    const char * line)
 {
     scallop_t * scallop = (scallop_t *) context;
     scallop_rtn_t * routine = (scallop_rtn_t *) object;

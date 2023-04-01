@@ -55,6 +55,13 @@ static const char * scallop_cmd_delim = " \t\n";
 // The string that designates everything to the right as a comment.
 static const char * scallop_cmd_comment = "#";
 
+// The begin/end markers for variable and argument substitution in
+// unparsed command lines and routine arguments.  Whitespace between
+// brackets may produce unexpected behavior!
+static const char * scallop_var_begin = "[";
+static const char * scallop_var_end = "]";
+static const char * scallop_var_delim = "_";
+
 //------------------------------------------------------------------------|
 // scallop private implementation data
 typedef struct
@@ -529,6 +536,7 @@ static scallop_rtn_t * scallop_routine_insert(scallop_t * scallop,
     return routine;
 }
 
+//------------------------------------------------------------------------|
 static void scallop_routine_remove(scallop_t * scallop,
                                    const char * name)
 {
@@ -548,7 +556,73 @@ static void scallop_routine_remove(scallop_t * scallop,
 }
 
 //------------------------------------------------------------------------|
-static int scallop_dispatch(scallop_t * scallop, char * line)
+static bool scallop_putenv_args(scallop_t * scallop, int argc, char ** args)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    bytes_t * env = bytes_pub.create(NULL, 0);
+    scallop_construct_t * construct = NULL;
+
+    // Get base element language contruct stack as prefix name
+    priv->constructs->reset(priv->constructs);
+    construct = (scallop_construct_t *)
+            priv->constructs->data(priv->constructs);
+    if (!construct)
+    {
+        BLAMMO(ERROR, "NULL construct in stack!");
+        env->destroy(env);
+        return false;
+    }
+
+    while (--argc)
+    {
+        env->print(env,
+                   "%s%s%d=%s",
+                   construct->name,
+                   scallop_var_delim,
+                   argc,
+                   args[argc]);
+
+        BLAMMO(DEBUG, "about to putenv(%s)", env->cstr(env));
+
+        if (putenv((char *) env->cstr(env)) != 0)
+        {
+            BLAMMO(ERROR, "putenv(%s) failed with errno %d strerror %s",
+                   errno, strerror(errno));
+            env->destroy(env);
+            return false;
+        }
+    }
+
+    // setenv() is better (makes a copy) but cc65 does not have it
+    // only putenv.
+    //putenv("derpy=herpderp");
+    //printf("getenv: %s", getenv("raytl_debug_1"));
+    // DEBUG HACK
+    //system("env");
+
+    // WWWWWWWWWWWWWWWWWW
+    // OK, it's starting to look more attractive to just use a
+    // self-contained dictionary object that can be controlled
+    // rather than relying on kludgy getenv/putenv that can't
+    // even track heap usage and requires us to tiptoe around
+    // other variables.
+
+
+    env->destroy(env);
+    return true;
+}
+
+//------------------------------------------------------------------------|
+// Private helper function to perform variable substitution????
+// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+// WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+//static void
+
+
+//------------------------------------------------------------------------|
+static int scallop_dispatch(scallop_t * scallop, const char * line)
 {
     // Guard block NULL line ptr
     if (!line)
@@ -571,24 +645,28 @@ static int scallop_dispatch(scallop_t * scallop, char * line)
         return -1;
     }
 
-     // FIXME / TODO : preprocessor-like variable substitution
-    //  probably needs to happen here BEFORE calling split.
-    //  Also strongly consider re-implementing this part inside
-    //  bytes_t, since replacement will generally be a different
-    //  size than original.
-
-    // ORDER MATTERS HERE
-    // 1.) need to know the command to be executed
-    // AND have the unaltered line SIMULTANEOUSLY
-    // because the command->is_construct needs to be known
-    // in order to disposition the RAW LINE.
-    //  therefore it cannot be chopped up destructively.
-    // 2.) THEN, if and only if the line is to be executed,
-    // should it have variable substitution/evaluation performed
-    // on it.  I.E. do not store mangled lines in constructs
-    // that have not yet been executed!
-
     bytes_t * linebytes = bytes_pub.create(line, strlen(line));
+
+    // NOTE: Need to know the command to be executed AND have the unaltered
+    // line SIMULTANEOUSLY because the command->is_construct needs to be
+    // known in order to disposition the RAW LINE.
+    // NOTE: If and only if the line is to be executed, should it have
+    // variable substitution/evaluation performed on it.  I.E. do not store
+    // mangled lines in constructs that have not yet been executed!
+
+    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+
+    // FIXME / TODO : preprocessor-like variable substitution
+    //  probably needs to happen here BEFORE calling split.
+    // TODO: In the rare case where a line is dispatched directly from
+    // the application's command-line (piped from stdin or given an option)
+    // it's conceivable that extra unparsed argc/argv given to main() could
+    // be overflowed into 'routine' style argument substitution, in addition
+    // to variable-sustitution. -- TBD at a later time.
+
     size_t argc = 0;
     char ** args = linebytes->tokenize(linebytes,
                                        scallop_cmd_delim,
@@ -806,6 +884,7 @@ const scallop_t scallop_pub = {
     &scallop_routine_by_name,
     &scallop_routine_insert,
     &scallop_routine_remove,
+    &scallop_putenv_args,
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,

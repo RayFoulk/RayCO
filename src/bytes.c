@@ -276,8 +276,8 @@ static void bytes_append(bytes_t * bytes, const void * data, size_t size)
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
     size_t prev_size = priv->size;
 
-    // TODO: Impose some reasonable size checks here?  get available free
-    // memory?  Return bool failure/success?
+    // Simply add data to end, resizing up.  Note this is functionally
+    // the same as insert() at the end.
     bytes->resize(bytes, priv->size + size);
 
     // buffer was already terminated in resize
@@ -613,26 +613,30 @@ static ssize_t bytes_offset(bytes_t * bytes, void * ptr)
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_remove(bytes_t * bytes, size_t begin, size_t end)
+static ssize_t bytes_remove(bytes_t * bytes, size_t begin, size_t size)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
+    // Check boundaries on all offsets
     if (begin > (priv->size - 1))
     {
-        BLAMMO(ERROR, "begin %zu is after data size %zu",
-                      begin, priv->size);
+        BLAMMO(ERROR, "begin %zu is after data final offset %zu",
+                      begin, priv->size - 1);
         return -1;
     }
-    else if (end > priv->size)
+    else if ((begin + size) > priv->size)
     {
-        BLAMMO(ERROR, "end %zu is after data size %zu",
-                      end, priv->size);
+        BLAMMO(ERROR, "begin + size %zu is after data size %zu",
+                      begin + size, priv->size);
         return -2;
     }
 
     // Fair game, just move the data down and truncate
-    memmove(priv->data + begin, priv->data + end, priv->size - end);
-    bytes->resize(bytes, priv->size - end + begin);
+    memmove(priv->data + begin,
+            priv->data + begin + size,
+            priv->size - begin - size);
+
+    bytes->resize(bytes, priv->size - size);
 
     return (ssize_t) priv->size;
 }
@@ -643,8 +647,29 @@ static ssize_t bytes_insert(bytes_t * bytes,
                             const void * data,
                             size_t size)
 {
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
-    return -99;
+    // Check boundaries on offsets.  do not allow sparse inserts
+    if (offset > priv->size)
+    {
+        BLAMMO(ERROR, "offset %zu is after data size %zu",
+                      offset, priv->size);
+        return -1;
+    }
+
+    // Size up to hold new data
+    size_t oldsize = priv->size;
+    bytes->resize(bytes, priv->size + size);
+
+    // Move higher data up
+    memmove(priv->data + offset + size,
+            priv->data + offset,
+            oldsize - offset);
+
+    // Copy in new data
+    memcpy(priv->data + offset, data, size);
+
+    return (ssize_t) priv->size;
 }
 
 //------------------------------------------------------------------------|
