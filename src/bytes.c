@@ -208,28 +208,36 @@ static void bytes_resize(bytes_t * bytes, size_t size)
 }
 
 //------------------------------------------------------------------------|
-static ssize_t bytes_print(bytes_t * bytes, const char * format, ...)
+ssize_t bytes_vprint(bytes_t * bytes, const char * format, va_list args)
 {
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
     ssize_t nchars = 0;
     bool redo = false;
-    va_list args;
+    va_list args_copy;
 
+    // Guard-block against NULL format string
     if (!format)
     {
         BLAMMO(ERROR, "Format string is NULL");
         return -1;
     }
 
-    // First try should be successful if there is enough room
-    va_start (args, format);
-    nchars = vsnprintf((char *) priv->data, priv->size, format, args);
-    va_end (args);
+    // Need to copy the arg list due to the nature of this potentially
+    // 2-pass approach to sizing the string.  Since this is a "vprint"
+    // style function, it is not allowed to call va_start or va_end on
+    // the original va_list.  We'll use the copy to determine size, and
+    // if a second pass is necessary: use the original
+    va_copy(args_copy, args);
+
+    // First pass will be successful if the current size is large enough.
+    // It is OK (and should be done) to call va_end() on the copy.
+    nchars = vsnprintf((char *) priv->data, priv->size, format, args_copy);
+    va_end (args_copy);
 
     // Return early if error occurred
     if (nchars < 0)
     {
-        BLAMMO(ERROR, "vsnprintf(%p, %zu, %s, ...) returned %d",
+        BLAMMO(ERROR, "vsnprintf(%p, %zu, %s, va_list) returned %d",
             priv->data, priv->size, format, nchars);
         return nchars;
     }
@@ -239,16 +247,27 @@ static ssize_t bytes_print(bytes_t * bytes, const char * format, ...)
     // grow to fit.  If the two are the same then resize checks for that.
     // FIX: vsnprintf() apparently returns length including null terminator.
     // This leads to all sorts of weird behavior when appending and trimming.
-    redo = (nchars > priv->size); 
+    redo = (nchars > priv->size);
     bytes->resize(bytes, (size_t) nchars);
 
     if (redo)
     {
         // Second pass will pick up the full formatted buffer
-        va_start (args, format);
         nchars = vsnprintf((char *) priv->data, priv->size + 1, format, args);
-        va_end (args);
-    }    
+    }
+
+    return nchars;
+}
+
+//------------------------------------------------------------------------|
+static ssize_t bytes_print(bytes_t * bytes, const char * format, ...)
+{
+    va_list args;
+    ssize_t nchars = 0;
+
+    va_start (args, format);
+    nchars = bytes->vprint(bytes, format, args);
+    va_end (args);
 
     return nchars;
 }
@@ -803,6 +822,7 @@ const bytes_t bytes_pub = {
     &bytes_empty,
     &bytes_clear,
     &bytes_resize,
+    &bytes_vprint,
     &bytes_print,
     &bytes_assign,
     &bytes_append,

@@ -91,12 +91,12 @@ typedef struct console_t
 
 
     // Printf-style output function
-    int (*print)(struct console_t * console,
-                 const char * format, ...);
+    ssize_t (*print)(struct console_t * console,
+                     const char * format, ...);
 
     // Update a previously printed string in-place
-    int (*reprint)(struct console_t * console,
-                   const char * format, ...);
+    ssize_t (*reprint)(struct console_t * console,
+                       const char * format, ...);
 
     // Private data
     void * priv;

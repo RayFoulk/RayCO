@@ -31,6 +31,7 @@
 
 #include "blammo.h"
 #include "console.h"
+#include "bytes.h"
 
 #ifdef LINENOISE_ENABLE
 #include "linenoise.h"
@@ -51,6 +52,15 @@ typedef struct
     // TODO: make this dynamic heap allocated
     char newbuffer[CONSOLE_BUFFER_SIZE];
     char oldbuffer[CONSOLE_BUFFER_SIZE];
+
+    // General-use message buffer
+    bytes_t * buffer;
+
+    // TODO: Assume ownership of the input line buffer
+    // as well, rather than relying on the caller to free()
+    // Problem of how to manage linenoise's allocation
+    // versus our own buffer: answer copy it immediately
+    // and free() the linenoise buffer here.
 
     // Callbacks for tab completion and argument hints if supported
     console_tab_completion_f tab_completion_callback;
@@ -154,6 +164,9 @@ static console_t * console_create(FILE * input, FILE * output)
     priv->input = input;
     priv->output = output;
 
+    // Initialize the message buffer(s)
+    priv->buffer = bytes_pub.create(NULL, 0);
+
 #ifdef LINENOISE_ENABLE
     // Set the completion callback, for when <tab> is pressed
     linenoiseSetCompletionCallback(surrogate_linenoise_completion);
@@ -183,6 +196,7 @@ static void console_destroy(void * console_ptr)
 
     // tear down internal data...
     console_priv_t * priv = (console_priv_t *) console->priv;
+    priv->buffer->destroy(priv->buffer);
     pthread_mutex_destroy(&priv->lock);
 
     // zero out and destroy the private data
@@ -339,14 +353,11 @@ static char * console_get_line(console_t * console,
 }
 
 //------------------------------------------------------------------------|
-static int console_print(console_t * console, const char * format, ...)
+static ssize_t console_print(console_t * console, const char * format, ...)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
-
-    int nchars = 0;
-    size_t size = 0;
-    char * message = NULL;
     va_list args;
+    ssize_t nchars = 0;
 
     if (!console->lock(console))
     {
@@ -354,59 +365,36 @@ static int console_print(console_t * console, const char * format, ...)
         return -1;
     }
 
-    // Determine message size
     va_start(args, format);
-    nchars = vsnprintf(message, size, format, args);
+    nchars = priv->buffer->vprint(priv->buffer, format, args);
     va_end(args);
 
-    // Bail out if something went wrong
     if (nchars < 0)
     {
-        BLAMMO(ERROR, "vsnprintf() returned %d on first pass", nchars);
+        BLAMMO(ERROR, "bytes->vprint() returned %d", nchars);
         return nchars;
     }
 
-    // Prepare memory: extra byte for terminator
-    // Extra two bytes for implied \r\n at end.
-    size = (size_t) nchars + 3;
-    message = (char *) malloc(size);
-    if (!message)
-    {
-        BLAMMO(FATAL, "malloc(%u) returned %d", size, nchars);
-        return -2;
-    }
-
-    // Format the message
-    va_start(args, format);
-    nchars = vsnprintf(message, size, format, args);
-    va_end(args);
-
-    // Bail out if something went wrong
-    if (nchars < 0)
-    {
-        BLAMMO(ERROR, "vsnprintf() returned %d on second pass", nchars);
-        free(message);
-        return nchars;
-    }
-
-    message[nchars++] = '\r';
-    message[nchars++] = '\n';
-    message[nchars++] = '\0';
+    priv->buffer->append(priv->buffer, "\r\n\0", 3);
 
     // Send the formatted message over the output pipe
-    size = fwrite(message, sizeof(char), size, priv->output);
+    nchars = fwrite(priv->buffer->data(priv->buffer),
+                    sizeof(char),
+                    priv->buffer->size(priv->buffer),
+                    priv->output);
 
     // Also send it to blammo if enabled
-    BLAMMO(DEBUG, "message: \'%s\'", message);
+    BLAMMO(DEBUG, "message: \'%s\'",
+                  priv->buffer->cstr(priv->buffer));
 
-    free(message);
     console->unlock(console);
 
-    return 0;
+    return nchars;
 }
 
 //------------------------------------------------------------------------|
-static int console_reprint(console_t * console, const char * format, ...)
+// TODO: use bytes->vprint in console->reprint()/print()
+static ssize_t console_reprint(console_t * console, const char * format, ...)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
 

@@ -24,6 +24,7 @@
 #pragma once
 
 #include <sys/types.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -60,9 +61,12 @@ typedef struct bytes_t
     // Resize the buffer, keeping existing data intact
     void (*resize)(struct bytes_t * bytes, size_t size);
 
-    // Printf-style string formatter
+    // vprintf()-style string formatter.  resizes as necessary.
+    // Does not call va_start or va_end!!!
+    ssize_t (*vprint)(struct bytes_t * bytes, const char * format, va_list args);
+
+    // printf-style string formatter.  resizes as necessary
     ssize_t (*print)(struct bytes_t * bytes, const char * format, ...);
-    // TODO: vprint() and then use it in console->reprint()/print()
 
     // Assign data directly to buffer, replacing any existing data,
     // and sizing the buffer as necessary.  strncpy/memcpy analog.
