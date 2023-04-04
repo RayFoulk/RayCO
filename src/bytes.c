@@ -122,25 +122,56 @@ static int bytes_compare(const void * bytes, const void * other)
 }
 
 //------------------------------------------------------------------------|
-static inline const uint8_t * bytes_data(bytes_t * bytes)
+ssize_t bytes_diff_byte(const bytes_t * bytes, const bytes_t * other)
+{
+    size_t offset = 0;
+    size_t smallest = MIN(bytes->size(bytes), other->size(other));
+
+    if (bytes->empty(bytes) || other->empty(other))
+    {
+        BLAMMO(WARNING, "empty data in comparison");
+        return 0;
+    }
+
+    while ((bytes->data(bytes)[offset] == other->data(other)[offset])
+           && (offset < smallest))
+    {
+        offset++;
+    }
+
+    // Check if no difference was found
+    if (bytes->size(bytes) == other->size(other)
+        && offset == smallest)
+    {
+        BLAMMO(VERBOSE, "buffers are identical");
+        return -1;
+    }
+
+    // Either there was a different byte found, or the buffers are
+    // different sizes, and therefore necessarily contain different data.
+    return (ssize_t) offset;
+}
+
+//------------------------------------------------------------------------|
+static inline const uint8_t * bytes_data(const bytes_t * bytes)
 {
     return (const uint8_t *) ((bytes_priv_t *) bytes->priv)->data;
 }
 
 //------------------------------------------------------------------------|
-static inline const char * bytes_cstr(bytes_t * bytes)
+static inline const char * bytes_cstr(const bytes_t * bytes)
 {
     return (const char *) ((bytes_priv_t *) bytes->priv)->data;
 }
 
 //------------------------------------------------------------------------|
-static inline size_t bytes_size(bytes_t * bytes)
+static inline size_t bytes_size(const bytes_t * bytes)
 {
     return ((bytes_priv_t *) bytes->priv)->size;
 }
 
 //------------------------------------------------------------------------|
-static inline bool bytes_empty(bytes_t * bytes)
+static inline bool bytes_empty(const bytes_t * bytes)
 {
     return (NULL == ((bytes_priv_t *) bytes->priv)->data);
 }
@@ -242,12 +273,13 @@ ssize_t bytes_vprint(bytes_t * bytes, const char * format, va_list args)
         return nchars;
     }
 
-    // If vsnprintf returns larger than existing size, then another pass
-    // is necessary.  Either way, we'll resize to either shrink down or
+    // If vsnprintf returns larger than (OR EQUAL TO) existing size, then another
+    // pass is necessary.  Either way, we'll resize to either shrink down or
     // grow to fit.  If the two are the same then resize checks for that.
     // FIX: vsnprintf() apparently returns length including null terminator.
     // This leads to all sorts of weird behavior when appending and trimming.
-    redo = (nchars > priv->size);
+    // This is why a redo is necessary when nchars == size.
+    redo = (nchars >= priv->size);
     bytes->resize(bytes, (size_t) nchars);
 
     if (redo)
@@ -816,6 +848,7 @@ const bytes_t bytes_pub = {
     &bytes_create,
     &bytes_destroy,
     &bytes_compare,
+    &bytes_diff_byte,
     &bytes_data,
     &bytes_cstr,
     &bytes_size,

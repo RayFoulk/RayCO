@@ -58,7 +58,22 @@ TEST_END
 TEST_BEGIN("test get line")
 TEST_END
 
+TEST_BEGIN("test warning")
+    console_t * console = console_pub.create(stdin, stdout);
+    console->warning(console, "something could be wrong! %d", 777);
+    console->destroy(console);
+TEST_END
+
+TEST_BEGIN("test error")
+    console_t * console = console_pub.create(stdin, stdout);
+    console->error(console, "something is definitely wrong! %d", 5555);
+    console->destroy(console);
+TEST_END
+
 TEST_BEGIN("test print")
+    console_t * console = console_pub.create(stdin, stdout);
+    console->print(console, "howdy doody %d", 99);
+    console->destroy(console);
 TEST_END
 
 TEST_BEGIN("test reprint")

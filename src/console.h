@@ -29,9 +29,6 @@
 #include <stdbool.h>    // bool
 
 //------------------------------------------------------------------------|
-#define CONSOLE_BUFFER_SIZE     4096
-
-//------------------------------------------------------------------------|
 // Contextual callback functions for tab completion and arg hints.
 // currently only linenoise is optionally supported.
 typedef void (*console_tab_completion_f)(void * object, const char * buffer);
@@ -66,16 +63,16 @@ typedef struct console_t
     // Opt for this approach rather than push/pop because
     // either we manage the stack or use the OS's call stack
     // within the script handling callback.
-    FILE * (*get_input)(struct console_t * console);
-    FILE * (*get_output)(struct console_t * console);
+    FILE * (*get_inputf)(struct console_t * console);
+    FILE * (*get_outputf)(struct console_t * console);
 
     // Directly set either of the pipes.  Caller is
     // responsible for not putting the console in a bad state.
-    bool (*set_input)(struct console_t * console, FILE * input);
-    bool (*set_output)(struct console_t * console, FILE * output);
+    bool (*set_inputf)(struct console_t * console, FILE * input);
+    bool (*set_outputf)(struct console_t * console, FILE * output);
 
     // Check for EOF on input file (typically end of script)
-    bool (*input_eof)(struct console_t * console);
+    bool (*inputf_eof)(struct console_t * console);
 
     // Get a heap allocated line buffer from user.  This is intentionally
     // simplistic attempting to match linenoise() as closely as possible.
@@ -83,12 +80,13 @@ typedef struct console_t
                        const char * prompt,
                        bool interactive);
 
+    // Print (and log) a warning message
+    ssize_t (*warning)(struct console_t * console,
+                       const char * format, ...);
 
-    // TODO: Instead of borrowing BLAMMO message types,
-    //  expose different print method wrappers like
-    //  warning() and error() that will internally call
-    //  vprint and then directly use the BLAMMO enum inline.
-
+    // Print (and log) an error message
+    ssize_t (*error)(struct console_t * console,
+                     const char * format, ...);
 
     // Printf-style output function
     ssize_t (*print)(struct console_t * console,

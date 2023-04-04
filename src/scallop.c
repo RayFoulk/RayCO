@@ -39,9 +39,11 @@
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
-// String constants that define the syntax/dialect of scallop's "language"
-// These could be made options if necessary, but I don't anticipate having
-// a need to do so.
+// Various constants that define the syntax/dialect/behavior of scallop's
+// "language" and environment.  Any of these could be made into factory
+// options if necessary, but I don't anticipate having a need to do so.
+static const int scallop_arg_hints_color = 35;
+static const int scallop_arg_hints_bold = 0;
 
 // The 'end-cap' that goes on the command line prompt
 static const char * scallop_prompt_finale = " > ";
@@ -58,8 +60,8 @@ static const char * scallop_cmd_comment = "#";
 // The begin/end markers for variable and argument substitution in
 // unparsed command lines and routine arguments.  Whitespace between
 // brackets may produce unexpected behavior!
-static const char * scallop_var_begin = "[";
-static const char * scallop_var_end = "]";
+//static const char * scallop_var_begin = "[";
+//static const char * scallop_var_end = "]";
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -338,9 +340,11 @@ static char * scallop_arg_hints(void * object,
         return NULL;
     }
 
-    // TODO: Make these constants or defines
-    *color = 35;
-    *bold = 0;
+    // Set color/bold for hints.  Currently this is just a constant,
+    // but could potentially be made contextual, perhaps reflicting
+    // the type of argument expected.
+    *color = scallop_arg_hints_color;
+    *bold = scallop_arg_hints_bold;
 
     // Trick to avoid memory leak.  Need to deallocate hintbytes
     // but need to return hints.  offset within copy should be the
@@ -655,8 +659,8 @@ static int scallop_dispatch(scallop_t * scallop, const char * line)
     scallop_cmd_t * command = priv->commands->find_by_keyword(priv->commands, args[0]);
     if (!command)
     {
-        priv->console->print(priv->console,
-                             "Unknown command \'%s\'.  Try \'help\'",
+        priv->console->error(priv->console,
+                             "unknown command \'%s\'.  try \'help\'",
                              args[0]);
 
         linebytes->destroy(linebytes);
@@ -701,7 +705,7 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
     char * line = NULL;
     int result = 0;
 
-    while (!priv->console->input_eof(priv->console) && !priv->quit)
+    while (!priv->console->inputf_eof(priv->console) && !priv->quit)
     {
         // Get a line of raw user input
         line = priv->console->get_line(priv->console,
@@ -817,7 +821,7 @@ static int scallop_construct_pop(scallop_t * scallop)
     // Do not allow popping the final element, which is the base prompt
     if (priv->constructs->length(priv->constructs) <= 1)
     {
-        priv->console->print(priv->console, "error: construct stack is empty");
+        priv->console->error(priv->console, "construct stack is empty");
         return -1;
     }
 

@@ -43,17 +43,25 @@ typedef struct bytes_t
     // as qsort()'s 'compar' argument, for that purpose.
     int (*compare)(const void * bytes, const void * other);
 
+    // Comparator that finds the index of the first byte that is
+    // different between the two buffers, searching from the beginning
+    // (offset 0) up to the end of the shortest byte buffer.
+    // Returns the index of the first different byte or negative
+    // value if the buffers are identical (size and content)
+    ssize_t (*diff_byte)(const struct bytes_t * bytes,
+                         const struct bytes_t * other);
+
     // Get the data as a byte array pointer
-    const uint8_t * (*data)(struct bytes_t * bytes);
+    const uint8_t * (*data)(const struct bytes_t * bytes);
 
     // Get the data as a C string
-    const char * (*cstr)(struct bytes_t * bytes);
+    const char * (*cstr)(const struct bytes_t * bytes);
 
     // Get the bytes's current length
-    size_t (*size)(struct bytes_t * bytes);
+    size_t (*size)(const struct bytes_t * bytes);
 
     // Returns true if the bytes is empty and false otherwise
-    bool (*empty)(struct bytes_t * bytes);
+    bool (*empty)(const struct bytes_t * bytes);
 
     // Effectively brings the bytes back to factory condition.
     void (*clear)(struct bytes_t * bytes);

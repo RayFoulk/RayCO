@@ -375,50 +375,116 @@ static inline const char * scallop_cmd_description(scallop_cmd_t * scallcmd)
 }
 
 //------------------------------------------------------------------------|
-static int scallop_cmd_help(scallop_cmd_t * scallcmd,
+static void scallop_cmd_longest(scallop_cmd_t * pcmd,
+                                size_t * keyword_plus_arghints_longest,
+                                size_t * keyword_longest,
+                                size_t * arghints_longest,
+                                size_t * description_longest)
+{
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
+    scallop_cmd_t * scmd = NULL;
+
+
+    // Get lengths for this command node
+    size_t keyword_len = priv->keyword->size(priv->keyword);
+    size_t arghints_len = priv->arghints->size(priv->arghints);
+    size_t keyword_plus_arghints_len = keyword_len + arghints_len;
+    size_t description_len = priv->description->size(priv->description);
+
+    // update longest where necessary
+    if (keyword_plus_arghints_longest &&
+        (keyword_plus_arghints_len > *keyword_plus_arghints_longest))
+    {
+        *keyword_plus_arghints_longest = keyword_plus_arghints_len;
+    }
+
+    if (keyword_longest && (keyword_len > *keyword_longest))
+    {
+        *keyword_longest = keyword_len;
+    }
+
+    if (arghints_longest && (arghints_len > *arghints_longest))
+    {
+        *arghints_longest = arghints_len;
+    }
+
+    if (description_longest && (description_len > *description_longest))
+    {
+        *description_longest = description_len;
+    }
+
+    // Done when we hit a terminal command node
+    if (!priv->cmds || !priv->cmds->priv)
+    {
+        return;
+    }
+
+    // Now recursively descend on all sub-commands
+    priv->cmds->reset(priv->cmds);
+    do
+    {
+        scmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
+
+        scmd->longest(scmd, keyword_plus_arghints_longest,
+                            keyword_longest,
+                            arghints_longest,
+                            description_longest);
+    }
+    while (priv->cmds->spin(priv->cmds, 1));
+
+}
+//------------------------------------------------------------------------|
+static int scallop_cmd_help(scallop_cmd_t * pcmd,
                             bytes_t * help,
                             size_t depth)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    scallop_cmd_t * cmd = NULL;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
+    scallop_cmd_t * scmd = NULL;
+    bytes_t * keyword = priv->keyword;
     bytes_t * subhelp = NULL;
     bytes_t * pad = NULL;
 
-    // Done if no sub-commands
-    // Fix-it-twice:
+    // Done if no sub-commands. Fix-it-twice
     if (!priv->cmds || !priv->cmds->priv)
     {
         return 0;
     }
 
+
+    // Find the longest of everything we care about for this.
+    size_t keyword_plus_arghints_longest = 0;
+    pcmd->longest(pcmd, &keyword_plus_arghints_longest,
+                        NULL, NULL, NULL);
+
     // Recursively get help for all sub-commands
     pad = bytes_pub.create(NULL, depth * 4);
     pad->fill(pad, ' ');
 
-    // show explicit context: parent command
+    // show full nested context: parent command
     // FIXME: Does not build up a complete string including
     //  grandparents -- does not always show complete context!
-    if (scallcmd->keyword(scallcmd))
+    //  would probably need to put parent links in all commands
+    if (!keyword->empty(keyword))
     {
-        pad->append(pad, scallcmd->keyword(scallcmd),
-                    strlen(scallcmd->keyword(scallcmd)));
+        pad->append(pad, keyword->data(keyword),
+                         keyword->size(keyword));
         pad->append(pad, " ", 1);
     }
 
     priv->cmds->reset(priv->cmds);
     do
     {
-        cmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
+        scmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
         subhelp = bytes_pub.create(NULL, 0);
 
         subhelp->print(subhelp,
-                       "%s%s  %s  %s\r\n",
+                       "%s%s%s  [[[pad]]]  %s\r\n",
                        pad->cstr(pad) ? pad->cstr(pad) : "",
-                       cmd->keyword(cmd),
-                       cmd->arghints(cmd),
-                       cmd->description(cmd));
+                       scmd->keyword(scmd),
+                       scmd->arghints(scmd),
+                       scmd->description(scmd));
 
-        cmd->help(cmd, subhelp, ++depth);
+        scmd->help(scmd, subhelp, ++depth);
         depth--;
 
         help->append(help,
@@ -526,6 +592,7 @@ const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_keyword,
     &scallop_cmd_arghints,
     &scallop_cmd_description,
+    &scallop_cmd_longest,
     &scallop_cmd_help,
     &scallop_cmd_register_cmd,
     &scallop_cmd_unregister_cmd,

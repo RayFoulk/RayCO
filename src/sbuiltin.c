@@ -50,7 +50,7 @@ static int builtin_handler_help(void * scmd,
     console_t * console = scallop->console(scallop);
     bytes_t * help = bytes_pub.create(NULL, 0);
 
-    help->print(help, "commands:\r\n");
+    help->print(help, "\r\ncommands:\r\n\r\n");
 
     int result = cmds->help(cmds, help, 0);
     if (result < 0)
@@ -142,8 +142,8 @@ static int builtin_handler_unregister(void * scmd,
 
     if (!cmd->is_mutable(cmd))
     {
-        console->print(console,
-                "error: can't unregister immutable command \'%s\'",
+        console->error(console,
+                "can't unregister immutable command \'%s\'",
                 cmd->keyword(cmd));
         return -3;
     }
@@ -159,8 +159,8 @@ static int builtin_handler_unregister(void * scmd,
     // Unregister the command -- this also destroys the command
     if (!scope->unregister_cmd(scope, cmd))
     {
-        console->print(console,
-                "error: unregister_cmd(%s) failed",
+        console->error(console,
+                "unregister_cmd(%s) failed",
                 cmd->keyword(cmd));
         return -4;
     }
@@ -266,7 +266,9 @@ static int builtin_handler_print(void * scmd,
     // TODO: use bytes_t append() to avoid all the unwanted newlines
     //  and also perform variable lookup / substitution here also
     //  so that the user can view variable values interactively.
-
+    // TODO: also evaluate expressions here, as well as 'while <expr>'
+    //  and 'if <expr>'.  This would allow things like 'print <expr>'
+    //  where <expr> can contain arguments or variables
     for (argnum = 1; argnum < argc; argnum++)
     {
         console->print(console, "%s ", args[argnum]);
@@ -298,14 +300,14 @@ static int builtin_handler_source(void * scmd,
     }
 
     // Stash the current console input source & swap to source file
-    FILE * input = console->get_input(console);
-    console->set_input(console, source);
+    FILE * input = console->get_inputf(console);
+    console->set_inputf(console, source);
 
     // Now get an dispatch commands from the script until EOF
     int result = scallop->loop(scallop, false);
 
     // Put console back to original state
-    console->set_input(console, input);
+    console->set_inputf(console, input);
 
     // Done with script file -- TODO: return status of script run?
     fclose(source);
@@ -382,8 +384,8 @@ static int builtin_handler_routine(void * scmd,
     scallop_rtn_t * routine = scallop->routine_by_name(scallop, args[1]);
     if (routine)
     {
-        console->print(console,
-                       "error: routine \'%s\' already exists",
+        console->error(console,
+                       "routine \'%s\' already exists",
                        args[1]);
         return -2;
     }

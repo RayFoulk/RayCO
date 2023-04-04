@@ -48,13 +48,10 @@ typedef struct
     FILE * input;
     FILE * output;
 
-    // reprint buffers
-    // TODO: make this dynamic heap allocated
-    char newbuffer[CONSOLE_BUFFER_SIZE];
-    char oldbuffer[CONSOLE_BUFFER_SIZE];
-
-    // General-use message buffer
-    bytes_t * buffer;
+    // Double-buffer for reprinting messages,
+    // or for general use in other message printing.
+    bytes_t * buffer[2];
+    int which;
 
     // TODO: Assume ownership of the input line buffer
     // as well, rather than relying on the caller to free()
@@ -150,9 +147,6 @@ static console_t * console_create(FILE * input, FILE * output)
     memset(console->priv, 0, sizeof(console_priv_t));
     console_priv_t * priv = (console_priv_t *) console->priv;
 
-    // Reset the reprint buffers
-    console->reprint(console, NULL);
-
     // Use a recursive lock
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -164,8 +158,11 @@ static console_t * console_create(FILE * input, FILE * output)
     priv->input = input;
     priv->output = output;
 
-    // Initialize the message buffer(s)
-    priv->buffer = bytes_pub.create(NULL, 0);
+    // Initialize the message buffer(s).  Both should be initially
+    // clear()ed, so no need to do a reprint(NULL) here.
+    priv->buffer[0] = bytes_pub.create(NULL, 0);
+    priv->buffer[1] = bytes_pub.create(NULL, 0);
+    priv->which = 0;
 
 #ifdef LINENOISE_ENABLE
     // Set the completion callback, for when <tab> is pressed
@@ -196,7 +193,8 @@ static void console_destroy(void * console_ptr)
 
     // tear down internal data...
     console_priv_t * priv = (console_priv_t *) console->priv;
-    priv->buffer->destroy(priv->buffer);
+    priv->buffer[0]->destroy(priv->buffer[0]);
+    priv->buffer[1]->destroy(priv->buffer[1]);
     pthread_mutex_destroy(&priv->lock);
 
     // zero out and destroy the private data
@@ -257,21 +255,21 @@ void console_add_tab_completion(console_t * console, const char * line)
 }
 
 //------------------------------------------------------------------------|
-static inline FILE * console_get_input(console_t * console)
+static inline FILE * console_get_inputf(console_t * console)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
     return priv->input;
 }
 
 //------------------------------------------------------------------------|
-static inline FILE * console_get_output(console_t * console)
+static inline FILE * console_get_outputf(console_t * console)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
     return priv->output;
 }
 
 //------------------------------------------------------------------------|
-static bool console_set_input(console_t * console, FILE * input)
+static bool console_set_inputf(console_t * console, FILE * input)
 {
     if (!console->lock(console))
     {
@@ -287,7 +285,7 @@ static bool console_set_input(console_t * console, FILE * input)
 }
 
 //------------------------------------------------------------------------|
-static bool console_set_output(console_t * console, FILE * output)
+static bool console_set_outputf(console_t * console, FILE * output)
 {
     if (!console->lock(console))
     {
@@ -304,7 +302,7 @@ static bool console_set_output(console_t * console, FILE * output)
 }
 
 //------------------------------------------------------------------------|
-bool console_input_eof(console_t * console)
+bool console_inputf_eof(console_t * console)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
     return (bool) feof(priv->input);
@@ -353,11 +351,100 @@ static char * console_get_line(console_t * console,
 }
 
 //------------------------------------------------------------------------|
+static ssize_t console_warning(console_t * console, const char * format, ...)
+{
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    bytes_t * buffer = priv->buffer[0];
+    bytes_t * wformat = priv->buffer[1];
+    const char * warning = "warning: ";
+    ssize_t nchars = 0;
+    va_list args;
+
+    if (!console->lock(console))
+    {
+        BLAMMO(ERROR, "console->lock() failed");
+        return -1;
+    }
+
+    // Re-use secondary buffer as a modified/prepended format string
+    wformat->assign(wformat, warning, strlen(warning));
+    wformat->append(wformat, format, strlen(format));
+
+    va_start(args, format);
+    nchars = buffer->vprint(buffer, wformat->cstr(wformat), args);
+    va_end(args);
+
+    if (nchars < 0)
+    {
+        BLAMMO(ERROR, "bytes->vprint() returned %d", nchars);
+        console->unlock(console);
+        return nchars;
+    }
+
+    // Send the formatted message over the output pipe
+    buffer->append(buffer, "\r\n\0", 3);
+    nchars = fwrite(buffer->data(buffer),
+                    sizeof(char),
+                    buffer->size(buffer),
+                    priv->output);
+
+    // Also send it to blammo if enabled
+    BLAMMO(WARNING, "\'%s\'", buffer->cstr(buffer));
+    console->unlock(console);
+    return nchars;
+}
+
+//------------------------------------------------------------------------|
+static ssize_t console_error(console_t * console, const char * format, ...)
+{
+    console_priv_t * priv = (console_priv_t *) console->priv;
+    bytes_t * buffer = priv->buffer[0];
+    bytes_t * eformat = priv->buffer[1];
+    const char * error = "error: ";
+    ssize_t nchars = 0;
+    va_list args;
+
+    if (!console->lock(console))
+    {
+        BLAMMO(ERROR, "console->lock() failed");
+        return -1;
+    }
+
+    // Re-use secondary buffer as a modified/prepended format string
+    eformat->assign(eformat, error, strlen(error));
+    eformat->append(eformat, format, strlen(format));
+
+    va_start(args, format);
+    nchars = buffer->vprint(buffer, eformat->cstr(eformat), args);
+    va_end(args);
+
+    if (nchars < 0)
+    {
+        BLAMMO(ERROR, "bytes->vprint() returned %d", nchars);
+        console->unlock(console);
+        return nchars;
+    }
+
+    // Send the formatted message over the output pipe
+    buffer->append(buffer, "\r\n\0", 3);
+    nchars = fwrite(buffer->data(buffer),
+                    sizeof(char),
+                    buffer->size(buffer),
+                    priv->output);
+
+    // Also send it to blammo if enabled
+    BLAMMO(ERROR, "\'%s\'", buffer->cstr(buffer));
+    console->unlock(console);
+    return nchars;
+}
+
+//------------------------------------------------------------------------|
 static ssize_t console_print(console_t * console, const char * format, ...)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
-    va_list args;
+    bytes_t * buffer = priv->buffer[0];
     ssize_t nchars = 0;
+    va_list args;
 
     if (!console->lock(console))
     {
@@ -366,115 +453,125 @@ static ssize_t console_print(console_t * console, const char * format, ...)
     }
 
     va_start(args, format);
-    nchars = priv->buffer->vprint(priv->buffer, format, args);
+    nchars = buffer->vprint(buffer, format, args);
     va_end(args);
 
     if (nchars < 0)
     {
         BLAMMO(ERROR, "bytes->vprint() returned %d", nchars);
+        console->unlock(console);
         return nchars;
     }
 
-    priv->buffer->append(priv->buffer, "\r\n\0", 3);
-
     // Send the formatted message over the output pipe
-    nchars = fwrite(priv->buffer->data(priv->buffer),
+    buffer->append(buffer, "\r\n\0", 3);
+    nchars = fwrite(buffer->data(buffer),
                     sizeof(char),
-                    priv->buffer->size(priv->buffer),
+                    buffer->size(buffer),
                     priv->output);
 
     // Also send it to blammo if enabled
-    BLAMMO(DEBUG, "message: \'%s\'",
-                  priv->buffer->cstr(priv->buffer));
-
+    BLAMMO(DEBUG, "\'%s\'", buffer->cstr(buffer));
     console->unlock(console);
-
     return nchars;
 }
 
 //------------------------------------------------------------------------|
-// TODO: use bytes->vprint in console->reprint()/print()
 static ssize_t console_reprint(console_t * console, const char * format, ...)
 {
     console_priv_t * priv = (console_priv_t *) console->priv;
-
-    // TODO: Consider finally making this dynamic heap alloc
-    // beyond what librmf refprintf() does
-    pthread_mutex_lock(&priv->lock);
-
+    bytes_t * swap = NULL;
+    bytes_t * backspaces = NULL;
+    bytes_t * spaces = NULL;
+    ssize_t nchars = 0;
+    ssize_t diff_offset = 0;
     va_list args;
-    int count = 0;
-    int address = 0;
 
-    // Null format string indicates a buffer reset
+    if (!console->lock(console))
+    {
+        BLAMMO(ERROR, "console->lock() failed");
+        return -1;
+    }
+
+    // Passing a NULL format string resets both buffers
     if (!format)
     {
-        priv->newbuffer[0] = 0;
-        priv->oldbuffer[0] = 0;
-        pthread_mutex_unlock(&priv->lock);
+        priv->buffer[0]->clear(priv->buffer[0]);
+        priv->buffer[1]->clear(priv->buffer[1]);
+        console->unlock(console);
         return 0;
-
     }
 
     // map arguments into 'new' buffer
-    va_start (args, format);
-    vsnprintf (priv->newbuffer, CONSOLE_BUFFER_SIZE, format, args);
-    va_end (args);
+    va_start(args, format);
+    nchars = priv->buffer[0]->vprint(priv->buffer[0], format, args);
+    va_end(args);
 
-    // Check for first call after a reset
-    if (priv->oldbuffer[0] == 0)
+    // On the first call after a reset, the 'old' buffer
+    // will be empty.  In this case just write the full new
+    // buffer to the output pipe.
+    if (priv->buffer[1]->empty(priv->buffer[1]))
     {
-        // this is the first call _after_ a reset
-        // XXXXXXXXXXXXXXXXXX
-        //console->print(console, "%s", priv->newbuffer);
-        fprintf(priv->output, "%s", priv->newbuffer);
+        nchars = fwrite(priv->buffer[0]->data(priv->buffer[0]),
+                        sizeof(char),
+                        priv->buffer[0]->size(priv->buffer[0]),
+                        priv->output);
     }
     else
     {
-        // Update the output terminal with new information.
-        // We need to find where the first byte that's changed is.
-        while ((priv->newbuffer[address] == priv->oldbuffer[address])
-                && (priv->newbuffer[address] != 0))
-        {
-            address ++;
-        }
+        // Need to update the output terminal with any new information.
+        // First need to find where the first different byte is.
+        diff_offset = priv->buffer[0]->diff_byte(priv->buffer[0],
+                                                 priv->buffer[1]);
 
         // Only print something if buffers differ somehow
-        if (!((priv->newbuffer[address] == 0)
-                && (priv->oldbuffer[address] == 0)))
+        if (diff_offset >= 0)
         {
-            // First delete what's differenent, working backwards
-            // from the end of old buffer down to the 1st changed byte
-            for (count = strnlen(priv->oldbuffer, CONSOLE_BUFFER_SIZE); count > address; count --)
+            // First delete what's different by overwriting old
+            // data working backwards down to the 1st different byte
+            nchars = priv->buffer[1]->size(priv->buffer[1]) - diff_offset;
+            if (nchars > 0)
             {
-                // delete a character: delete-space-delete
-                // FIXME: USING CONSOLE PRINT IS BROKEN
-                //  DUE TO IMPLICIT CARRIAGE-RETURN-NEWLINE
-                // XXXXXXXXXXXXXXXXXX
-                //console->print(console, "%c%c%c", (char) 8, (char) 32, (char) 8);
-                fprintf(priv->output, "%c%c%c", (char) 8, (char) 32, (char) 8);
+                backspaces = bytes_pub.create(NULL, 0);
+                spaces = bytes_pub.create(NULL, 0);
 
+                backspaces->resize(backspaces, nchars);
+                backspaces->fill(backspaces, 0x08);
+                spaces->resize(spaces, nchars);
+                spaces->fill(spaces, 0x20);
+
+                fwrite(backspaces->data(backspaces), sizeof(char),
+                       nchars, priv->output);
+                fwrite(spaces->data(spaces), sizeof(char),
+                       nchars, priv->output);
+                fwrite(backspaces->data(backspaces), sizeof(char),
+                       nchars, priv->output);
+
+                spaces->destroy(spaces);
+                backspaces->destroy(backspaces);
             }
 
-            // Next print out the updated part of the new buffer
-            // from where we left off working forwards
-            address = strnlen(priv->newbuffer, CONSOLE_BUFFER_SIZE);
-            while (count < address)
+            // Now write out the updated part of the new buffer,
+            // from the point of difference to the end of new data.
+            nchars = priv->buffer[0]->size(priv->buffer[0]) - diff_offset;
+            if (nchars > 0)
             {
-                // XXXXXXXXXXXX
-                //console->print(console, "%c", priv->newbuffer[count]);
-                fprintf(priv->output, "%c", priv->newbuffer[count]);
-                count ++;
+                nchars = fwrite(&priv->buffer[0]->data(priv->buffer[0])[diff_offset],
+                                sizeof(char), nchars, priv->output);
             }
         }
     }
 
-    // New buffer becomes old, and always fflush the output stream
-    strncpy (priv->oldbuffer, priv->newbuffer, CONSOLE_BUFFER_SIZE);
+    // Swap 'old' and 'new' buffers
+    swap = priv->buffer[1];
+    priv->buffer[1] = priv->buffer[0];
+    priv->buffer[0] = swap;
+
+    // Always fflush() to keep terminal in sync
     fflush (priv->output);
 
-    pthread_mutex_unlock(&priv->lock);
-    return 0;
+    console->unlock(console);
+    return nchars;
 }
 
 //------------------------------------------------------------------------|
@@ -485,12 +582,14 @@ const console_t console_pub = {
     &console_unlock,
     &console_set_line_callbacks,
     &console_add_tab_completion,
-    &console_get_input,
-    &console_get_output,
-    &console_set_input,
-    &console_set_output,
-    &console_input_eof,
+    &console_get_inputf,
+    &console_get_outputf,
+    &console_set_inputf,
+    &console_set_outputf,
+    &console_inputf_eof,
     &console_get_line,
+    &console_warning,
+    &console_error,
     &console_print,
     &console_reprint,
     NULL

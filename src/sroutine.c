@@ -181,8 +181,8 @@ static int scallop_rtn_handler(void * scmd,
                                                        cmd->keyword(cmd));
     if (!routine)
     {
-        console->print(console,
-                       "error: routine \'%s\' not found",
+        console->error(console,
+                       "routine \'%s\' not found",
                        cmd->keyword(cmd));
         return -1;
     }

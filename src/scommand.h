@@ -92,6 +92,13 @@ typedef struct scallop_cmd_t
     // Get description for _this_ command
     const char * (*description)(struct scallop_cmd_t * scallcmd);
 
+    // Find the longest length fields in the command tree
+    void (*longest)(struct scallop_cmd_t * pcmd,
+                    size_t * keyword_plus_arghints_longest,
+                    size_t * keyword_longest,
+                    size_t * arghints_longest,
+                    size_t * description_longest);
+
     // Recursively get full help text for _this_ and all sub-commands
     int (*help)(struct scallop_cmd_t * scallcmd,
                 bytes_t * help,
