@@ -439,9 +439,11 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
                             size_t depth)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
+    scallop_cmd_priv_t * spriv = NULL;
     scallop_cmd_t * scmd = NULL;
     bytes_t * keyword = priv->keyword;
     bytes_t * subhelp = NULL;
+    bytes_t * indent = NULL;
     bytes_t * pad = NULL;
 
     // Done if no sub-commands. Fix-it-twice
@@ -450,15 +452,14 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
         return 0;
     }
 
-
     // Find the longest of everything we care about for this.
     size_t keyword_plus_arghints_longest = 0;
     pcmd->longest(pcmd, &keyword_plus_arghints_longest,
                         NULL, NULL, NULL);
 
-    // Recursively get help for all sub-commands
-    pad = bytes_pub.create(NULL, depth * 4);
-    pad->fill(pad, ' ');
+    indent = bytes_pub.create(NULL, depth * 4);
+    indent->fill(indent, ' ');
+    pad = bytes_pub.create(NULL, 0);
 
     // show full nested context: parent command
     // FIXME: Does not build up a complete string including
@@ -466,22 +467,32 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
     //  would probably need to put parent links in all commands
     if (!keyword->empty(keyword))
     {
-        pad->append(pad, keyword->data(keyword),
-                         keyword->size(keyword));
-        pad->append(pad, " ", 1);
+        indent->append(indent, keyword->data(keyword),
+                               keyword->size(keyword));
+        indent->append(indent, " ", 1);
     }
 
+    // Recursively get help for all sub-commands
     priv->cmds->reset(priv->cmds);
     do
     {
         scmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
-        subhelp = bytes_pub.create(NULL, 0);
+        spriv = (scallop_cmd_priv_t *) scmd->priv;
 
+        // align the description column by the longest keyword+args
+        pad->resize(pad, keyword_plus_arghints_longest
+                - spriv->keyword->size(spriv->keyword)
+                - spriv->arghints->size(spriv->arghints)
+                + 4);
+        pad->fill(pad, ' ');
+
+        subhelp = bytes_pub.create(NULL, 0);
         subhelp->print(subhelp,
-                       "%s%s%s  [[[pad]]]  %s\r\n",
-                       pad->cstr(pad) ? pad->cstr(pad) : "",
+                       "%s%s%s%s%s\r\n",
+                       indent->cstr(indent) ? indent->cstr(indent) : "",
                        scmd->keyword(scmd),
                        scmd->arghints(scmd),
+                       pad->cstr(pad),
                        scmd->description(scmd));
 
         scmd->help(scmd, subhelp, ++depth);
@@ -496,6 +507,7 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
     while (priv->cmds->spin(priv->cmds, 1));
 
     pad->destroy(pad);
+    indent->destroy(indent);
     return 0;
 }
 
