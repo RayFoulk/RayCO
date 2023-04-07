@@ -192,6 +192,7 @@ void blammo(const char * fpath, int line, const char * func,
         vfprintf(stdout, format, args);
         va_end(args);
         fprintf(stdout, "\r\n");
+        fflush(stdout);
     }
 
     // Log to file if available
@@ -214,6 +215,12 @@ void blammo(const char * fpath, int line, const char * func,
             fflush(file);
             fclose(file);
         }
+    }
+
+    // Abort program on FATAL errors - raises SIGABRT
+    if (FATAL == type)
+    {
+        abort();
     }
 
     pthread_mutex_unlock(&blammo_data.lock);

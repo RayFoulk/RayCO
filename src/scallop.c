@@ -33,6 +33,7 @@
 #include "sbuiltin.h"
 #include "sroutine.h"
 #include "console.h"
+#include "collect.h"
 #include "chain.h"
 #include "bytes.h"
 #include "utils.h"
@@ -81,9 +82,7 @@ typedef struct
     // then if we're going to have to maintain a list of pointers
     // anyway, we might as well do variable management ourselves and
     // remain more portable that way.
-#if 0
     collect_t variables;
-#endif
 
     // Language construct stack used to keep track of nested routine
     // definitions, while loops, if-else and any other construct that

@@ -23,28 +23,82 @@
 
 #pragma once
 
-// Python's Dictionary Methods (for reference)
-// Method  Description
-// clear() Removes all the elements from the dictionary
-// copy()  Returns a copy of the dictionary
-// fromkeys()  Returns a dictionary with the specified keys and value
-// get()   Returns the value of the specified key
-// items() Returns a list containing a tuple for each key value pair
-// keys()  Returns a list containing the dictionary's keys
-// pop()   Removes the element with the specified key
-// popitem()   Removes the last inserted key-value pair
-// setdefault()    Returns the value of the specified key. If the key does not exist: insert the key, with the specified value
-// update()    Updates the dictionary with the specified key-value pairs
-// values()    Returns a list of all the values in the dictionary
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+//------------------------------------------------------------------------|
+// A collection consists of a set of heterogeneous objects.  Regardless of
+// the type of payload an individual object may be, the function signatures
+// for performing operations on the payloads must be the same.  For each
+// collection object type the caller will need to provide an
+// for data deep-copy, and destructor.
+typedef void * (*object_data_copy_f) (const void *);
+typedef void (*object_data_destroy_f) (void *);
 
 //------------------------------------------------------------------------|
 typedef struct collect_t
 {
+    // Collection factory function
+    // TODO: consider char **, void ** initializers
     struct collect_t * (*create)();
 
+    // Collection destructor function
     void (*destroy)(void * collect);
 
+    // Empty the collection: Removes all items and destroys their data.
+    void (*clear)(struct collect_t * collect);
 
+    // Whether the collection is empty or not
+    bool (*empty)(struct collect_t * collect);
+
+    // Gets the length of the collection: the number of objects stored.
+    size_t (*length)(struct collect_t * collect);
+
+    // Produce a full deep copy of the collection, including individual
+    // objects within the collection.
+    struct collect_t * (*copy)(struct collect_t * collect);
+
+    // Get an object by keyword.  Returns NULL if it doesn't exist.
+    void * (*get)(struct collect_t * collect, const char * key);
+
+    // Set an object.  Adds it to the collection if it does not exist,
+    // or else destroys and overwrites the previous object instance
+    // if it does.
+    void (*set)(struct collect_t * collect,
+                const char * key,
+                void * object,
+                object_data_copy_f object_copy,
+                object_data_destroy_f object_destroy);
+
+    // Remove a specific object entry by key.
+    // returns true if the object was found and removed,
+    // or false if the object was not found
+    bool (*remove)(struct collect_t * collect, const char * key);
+
+    // Starting iterator for the collection.  Returns an iterator pointer
+    // to be used in subsequent calls to 'next', and sets the
+    // 'key' and 'object' pointers to the first key/object in the collection
+    void * (*first)(struct collect_t * collect,
+                    char ** key, void ** object);
+
+    // Regular forward iterator function for the collection.  Pass in
+    // the iterator pointer from first or a previous call to next.
+    // key/object are set to the current item in the collection
+    void * (*next)(void * iterator,
+                   char ** key, void ** object);
+
+    // Returns a linear array of all keys associated with objects, NULL
+    // terminated.  Order is top-first, bottom-last.
+    const char ** (*keys)(struct collect_t * collect);
+
+    // Returns a linear array of all object pointers, NULL terminated.
+    // Order is top-first, bottom-last.
+    void ** (*objects)(struct collect_t * collect);
+
+    // Private data
+    void * priv;
 }
 collect_t;
 

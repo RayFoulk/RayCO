@@ -50,9 +50,16 @@ static int builtin_handler_help(void * scmd,
     console_t * console = scallop->console(scallop);
     bytes_t * help = bytes_pub.create(NULL, 0);
 
+    // Getting the longest command has to occur before diving into
+    // recursive help, because the top level help must be told.
+    // otherwise, recursive help will only determine the longest
+    // for each sub-branch.
+    size_t longest_kw_and_hints = 0;
+    cmds->longest(cmds, &longest_kw_and_hints, NULL, NULL, NULL);
+
     help->print(help, "\r\ncommands:\r\n\r\n");
 
-    int result = cmds->help(cmds, help, 0);
+    int result = cmds->help(cmds, help, 0, longest_kw_and_hints);
     if (result < 0)
     {
         BLAMMO(ERROR, "cmds->help() returned %d", result);

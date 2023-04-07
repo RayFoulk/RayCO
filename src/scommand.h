@@ -102,7 +102,8 @@ typedef struct scallop_cmd_t
     // Recursively get full help text for _this_ and all sub-commands
     int (*help)(struct scallop_cmd_t * scallcmd,
                 bytes_t * help,
-                size_t depth);
+                size_t depth,
+                size_t longest_kw_and_hints);
 
     // Register a sub-command within the context of this command.
     // If this is serving as the root-level command, then this

@@ -44,7 +44,8 @@ typedef struct
     chain_t * cmds;
 
     // Whether the command can be dynamically unregistered or altered
-    // at runtime as part of a handler's actions, normal shutdown exluded
+    // at runtime as part of a handler's actions, excluding normal
+    // destructor / teardown.
     bool is_mutable;
 
     // Whether the command is part of a multi-line language construct
@@ -195,7 +196,6 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
         alias->set_construct(alias);
     }
 
-
     // Manually copy the sub-command pointer to the original
     // command being aliased so that things will work properly.
     // Be cautious when destroying/unregistering objects to not
@@ -259,6 +259,7 @@ static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * scallcmd,
     return cmd;
 }
 
+//------------------------------------------------------------------------|
 static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
                                              const char * substring,
                                              size_t * longest)
@@ -384,7 +385,6 @@ static void scallop_cmd_longest(scallop_cmd_t * pcmd,
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
     scallop_cmd_t * scmd = NULL;
 
-
     // Get lengths for this command node
     size_t keyword_len = priv->keyword->size(priv->keyword);
     size_t arghints_len = priv->arghints->size(priv->arghints);
@@ -436,7 +436,8 @@ static void scallop_cmd_longest(scallop_cmd_t * pcmd,
 //------------------------------------------------------------------------|
 static int scallop_cmd_help(scallop_cmd_t * pcmd,
                             bytes_t * help,
-                            size_t depth)
+                            size_t depth,
+                            size_t longest_kw_and_hints)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
     scallop_cmd_priv_t * spriv = NULL;
@@ -452,13 +453,13 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
         return 0;
     }
 
-    // Find the longest of everything we care about for this.
-    size_t keyword_plus_arghints_longest = 0;
-    pcmd->longest(pcmd, &keyword_plus_arghints_longest,
-                        NULL, NULL, NULL);
-
     indent = bytes_pub.create(NULL, depth * 4);
     indent->fill(indent, ' ');
+
+    // FIXME: Padding for nested sub-commands does not factor into
+    // the calculation for longest kw+hints, so the descriptions
+    // are mis-aligned in the help screen.  this somehow needs
+    // to be intrinsic behavior within recursive 'longest'.
     pad = bytes_pub.create(NULL, 0);
 
     // show full nested context: parent command
@@ -467,6 +468,7 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
     //  would probably need to put parent links in all commands
     if (!keyword->empty(keyword))
     {
+        BLAMMO(VERBOSE, "indentation for command: %s", keyword->cstr(keyword));
         indent->append(indent, keyword->data(keyword),
                                keyword->size(keyword));
         indent->append(indent, " ", 1);
@@ -478,9 +480,10 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
     {
         scmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
         spriv = (scallop_cmd_priv_t *) scmd->priv;
+        BLAMMO(VERBOSE, "getting help for sub-command: %s", scmd->keyword(scmd));
 
         // align the description column by the longest keyword+args
-        pad->resize(pad, keyword_plus_arghints_longest
+        pad->resize(pad, longest_kw_and_hints
                 - spriv->keyword->size(spriv->keyword)
                 - spriv->arghints->size(spriv->arghints)
                 + 4);
@@ -494,8 +497,9 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
                        scmd->arghints(scmd),
                        pad->cstr(pad),
                        scmd->description(scmd));
+        BLAMMO(VERBOSE, "subhelp->cstr: %s", subhelp->cstr(subhelp));
 
-        scmd->help(scmd, subhelp, ++depth);
+        scmd->help(scmd, subhelp, ++depth, longest_kw_and_hints);
         depth--;
 
         help->append(help,
@@ -534,14 +538,15 @@ bool scallop_cmd_register_cmd(scallop_cmd_t * parent,
     {
         // command chain already exists.  must search before insert.
         // ensure that the requested keyword is unique within the given context.
-        scallop_cmd_t * found = (scallop_cmd_t *) priv->cmds->find(priv->cmds,
-                                                                   child,
-                                                                   scallop_cmd_keyword_compare);
+        scallop_cmd_t * found = (scallop_cmd_t *)
+                priv->cmds->find(priv->cmds,
+                                 child,
+                                 scallop_cmd_keyword_compare);
 
         if (found)
         {
-            BLAMMO_DECLARE(scallop_cmd_priv_t * found_priv = (scallop_cmd_priv_t *) found->priv);
-            BLAMMO(ERROR, "Command \'%s\' already registered", found_priv->keyword);
+            BLAMMO(ERROR, "Command \'%s\' already registered",
+                    ((scallop_cmd_priv_t *) found->priv)->keyword);
             return false;
         }
         // new command not found in existing chain.  safe to insert
@@ -568,23 +573,29 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
     }
 
     // Do the search for the child command
-    scallop_cmd_t * found = (scallop_cmd_t *) priv->cmds->find(priv->cmds,
-                                                              child,
-                                                              scallop_cmd_keyword_compare);
+    scallop_cmd_t * found = (scallop_cmd_t *)
+            priv->cmds->find(priv->cmds,
+                             child,
+                             scallop_cmd_keyword_compare);
 
     if (!found)
     {
-        BLAMMO_DECLARE(scallop_cmd_priv_t * child_priv = (scallop_cmd_priv_t *) child->priv)
-        BLAMMO(ERROR, "Command \'%s\' not found", child_priv->keyword);
+        // TODO: Get a handle to console here.  Cannot guarantee
+        // that the parent->context is going to be the grandparent
+        // scallop instance.  Probably another reason to consider
+        // putting parent links in every command. (see _help)
+        BLAMMO(ERROR, "Command \'%s\' not found",
+                ((scallop_cmd_priv_t *) child->priv)->keyword);
         return false;
     }
 
+    // FIXME: When unregistering ANY command, search through the list
+    // of all registered commands (within this scope) and also unregister
+    // any and all aliases to that command.  Need to extract from 'found'
+    // enough information to identify them in the list of commands.
+
     // Remove the found command link -- this also destroys the found command
     priv->cmds->remove(priv->cmds);
-
-    //  TODO: FIXME: Use extra caution with
-    //  unregistereing/destroying alias'ed commands as the sub-command
-    //  link may be a duplicate pointer to the original command!
 
     return true;
 }
