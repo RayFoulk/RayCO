@@ -39,7 +39,7 @@ TESTSUITE_BEGIN
     // because these aren't always used, some warning eaters:
     (void) fixture_reset;
     (void) fixture_report;
-    (void) fixture_payload;
+    (void) fixture_payload_one;
 
 TEST_BEGIN("create")
     chain_t * chain = chain_pub.create(NULL);
@@ -267,27 +267,31 @@ TEST_BEGIN("trim")
     chain->destroy(chain);
 TEST_END
 
-TEST_BEGIN("sort")
+TEST_BEGIN("sort, insert (heap object)")
     int i = 0;
     const size_t ids[] =        { 11, 77, 97, 22, 88, 99, 33, 55, 44, 66 };
     const size_t ids_sorted[] = { 11, 22, 33, 44, 55, 66, 77, 88, 97, 99 };
-    chain_t * chain = chain_pub.create(payload_destroy);
+    chain_t * chain = chain_pub.create(payload_one_destroy);
+
+    // This has to be true for fixture to work properly
+    CHECK((sizeof(size_t) * FIXTURE_PAYLOADS_PER_TYPE) == sizeof(ids));
+    CHECK(sizeof(ids_sorted) == sizeof(ids));
 
     fixture_reset();
     //fixture_report();
 
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE; i++)
     {
-        chain->insert(chain, payload_create(ids[i]));
+        chain->insert(chain, payload_one_create(ids[i]));
     }
 
-    chain->sort(chain, payload_compare);
+    chain->sort(chain, payload_one_compare);
     
-    payload_t * p = NULL;
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    payload_one_t * p = NULL;
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE; i++)
     {
-        p = (payload_t *) chain->data(chain);
-        //payload_report(p, i);
+        p = (payload_one_t *) chain->data(chain);
+        //payload_one_report(p, i);
         CHECK(p->id == ids_sorted[i]);
         CHECK(p->is_created == true);
         CHECK(p->is_destroyed == false);
@@ -303,23 +307,23 @@ TEST_END
 
 TEST_BEGIN("destroy")
     int i = 0;
-    payload_t * p = NULL;
-    chain_t * chain = chain_pub.create(payload_destroy);
+    payload_one_t * p = NULL;
+    chain_t * chain = chain_pub.create(payload_one_destroy);
 
     fixture_reset();
 
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE; i++)
     {
-        chain->insert(chain, payload_create(100 - i));
+        chain->insert(chain, payload_one_create(100 - i));
     }
 
     //fixture_report();
     chain->destroy(chain);
     //fixture_report();
     
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE; i++)
     {
-        p = (payload_t *) fixture_payload(i);
+        p = (payload_one_t *) fixture_payload_one(i);
         CHECK(p->id == (100 - i));
         CHECK(p->is_created == true);
         CHECK(p->is_destroyed == true);
@@ -329,29 +333,29 @@ TEST_END
 
 TEST_BEGIN("copy")
     int i = 0;
-    payload_t * p = NULL;
-    chain_t * chain = chain_pub.create(payload_destroy);
+    payload_one_t * p = NULL;
+    chain_t * chain = chain_pub.create(payload_one_destroy);
 
     fixture_reset();
 
-    for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE / 2; i++)
     { 
-        chain->insert(chain, payload_create(i * 2));
+        chain->insert(chain, payload_one_create(i * 2));
     }
     
-    payload_t * optr, * cptr;
-    chain_t * mycopy = chain->copy(chain, payload_copy);
+    payload_one_t * optr, * cptr;
+    chain_t * mycopy = chain->copy(chain, payload_one_copy);
     //fixture_report();
     CHECK(mycopy != NULL)
     CHECK(mycopy != chain)
 
     chain->reset(chain);
     mycopy->reset(mycopy);
-    for (i = 0; i < FIXTURE_PAYLOADS / 2; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE / 2; i++)
     {
         //CHECK(chain->link != mycopy->link);
-        optr = (payload_t *) chain->data(chain);
-        cptr = (payload_t *) mycopy->data(mycopy);
+        optr = (payload_one_t *) chain->data(chain);
+        cptr = (payload_one_t *) mycopy->data(mycopy);
         CHECK(optr != NULL);
         CHECK(cptr != NULL);
         CHECK(optr != cptr);
@@ -359,8 +363,8 @@ TEST_BEGIN("copy")
         CHECK(optr->is_created == cptr->is_created);
         CHECK(optr->is_destroyed == cptr->is_destroyed);
 
-        //payload_report(i, optr);
-        //payload_report(i, cptr);
+        //payload_one_report(i, optr);
+        //payload_one_report(i, cptr);
 
         chain->spin(chain, 1);
         chain->spin(mycopy, 1);
@@ -369,9 +373,9 @@ TEST_BEGIN("copy")
     chain->destroy(chain);
     mycopy->destroy(mycopy);
 
-    for (i = 0; i < FIXTURE_PAYLOADS; i++)
+    for (i = 0; i < FIXTURE_PAYLOADS_PER_TYPE; i++)
     {
-        p = (payload_t *) fixture_payload(i);
+        p = (payload_one_t *) fixture_payload_one(i);
         CHECK(p->is_created == true);
         CHECK(p->is_destroyed == true);
     }

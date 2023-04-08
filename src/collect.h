@@ -61,6 +61,24 @@ typedef struct collect_t
     struct collect_t * (*copy)(struct collect_t * collect);
 
     // Get an object by keyword.  Returns NULL if it doesn't exist.
+    // NOTE: Payload type determining information has been left ENTIRELY
+    // up the user.  C has no typeof() or reflection, which presents a
+    // challenge, but there are a few solutions.  For example:
+    //   1.) Holding off the necessity of doing so for as long as possible,
+    //   such as by using type-specific callbacks or subscriptions.  This
+    //   is the approach generally used throughout RayCO.
+    //   2.) Putting a type identifier/signature at the beginning of each
+    //   structure to be used within a collection (or a certain API).
+    //   This is the approach taken by the legacy C socket library), and
+    //   then just handle the rest with type-casting.
+    //   2.b.) With an object that has methods in a public interface,
+    //   the first method could be a "get_type()" with a consistent
+    //   signature, for example.
+    //   3.) Going back to making all payloads appear to be homogeneous,
+    //   but then use an internal type identifier with a union payload.
+    // Objects may also be made quasi-polymorphic through composition,
+    // ownership of parent objects, and then manually overriding
+    // certain interface methods.
     void * (*get)(struct collect_t * collect, const char * key);
 
     // Set an object.  Adds it to the collection if it does not exist,

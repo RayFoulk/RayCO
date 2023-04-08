@@ -32,7 +32,7 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(DEBUG);
+    BLAMMO_LEVEL(INFO);
     BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
 
@@ -314,21 +314,21 @@ TEST_BEGIN("tokenize")
     int i = 0;
     for (i = 0; i < ntokens; i++)
     {
-        BLAMMO(INFO, "token[%d]: %s", i, tokens[i]);
+        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
     }
 
     a->assign(a, "a b c d e f g h", 15);
     tokens = a->tokenize(a, " ", "#", &ntokens);
     for (i = 0; i < ntokens; i++)
     {
-        BLAMMO(INFO, "token[%d]: %s", i, tokens[i]);
+        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
     }
 
     a->assign(a, "a b c d e #f g h", 16);
     tokens = a->tokenize(a, " ", "#", &ntokens);
     for (i = 0; i < ntokens; i++)
     {
-        BLAMMO(INFO, "token[%d]: %s", i, tokens[i]);
+        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
     }
 
     a->destroy(a);
@@ -372,9 +372,9 @@ TEST_BEGIN("remove")
     bytes_t * bytes = bytes_pub.create(data, strlen(data));
     ssize_t newsize = bytes->remove(bytes, 6, 3);
 
-    BLAMMO(INFO, "newsize: %d", newsize);
-    BLAMMO(INFO, "original size: %zu", strlen(data));
-    BLAMMO(INFO, "new data: %s", bytes->cstr(bytes));
+    BLAMMO(DEBUG, "newsize: %d", newsize);
+    BLAMMO(DEBUG, "original size: %zu", strlen(data));
+    BLAMMO(DEBUG, "new data: %s", bytes->cstr(bytes));
 
     CHECK(newsize == strlen(data) - 3);
     CHECK(strcmp(bytes->cstr(bytes), "abcdefjklmnop") == 0);
@@ -386,9 +386,9 @@ TEST_BEGIN("insert")
     bytes_t * bytes = bytes_pub.create(data, strlen(data));
     ssize_t newsize = bytes->insert(bytes, 4, "bbbbbbb", 7);
 
-    BLAMMO(INFO, "newsize: %d", newsize);
-    BLAMMO(INFO, "original size: %zu", strlen(data));
-    BLAMMO(INFO, "new data: %s", bytes->cstr(bytes));
+    BLAMMO(DEBUG, "newsize: %d", newsize);
+    BLAMMO(DEBUG, "original size: %zu", strlen(data));
+    BLAMMO(DEBUG, "new data: %s", bytes->cstr(bytes));
 
     CHECK(newsize == strlen(data) + 7);
     CHECK(strcmp(bytes->cstr(bytes), "aaaabbbbbbbccccc") == 0);

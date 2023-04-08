@@ -104,7 +104,9 @@ static collect_item_t * collect_item_find(collect_t * collect,
 }
 
 //------------------------------------------------------------------------|
-// Private helper function for clear(), remove()
+// Private helper function for clear(), remove().  Removes an arbitrary
+// item from the stack.  MUST be given then previous item in the list if
+// it exists (which is not the case for the first item).
 static void collect_item_remove(collect_t * collect,
                                 collect_item_t * item,
                                 collect_item_t * prev)
@@ -142,6 +144,36 @@ static void collect_item_remove(collect_t * collect,
 
     // Size is now one fewer
     priv->length--;
+}
+
+//------------------------------------------------------------------------|
+// Private helper function that creates and inserts an empty container
+// item, always at the top of the stack, and with the given key.  Does NOT
+// check if the key already exists in the collection.  Returns a pointer
+// to the new item or NULL if an error occurred.
+static collect_item_t * collect_item_insert(collect_t * collect,
+                                            const char * key)
+{
+    collect_priv_t * priv = (collect_priv_t *) collect->priv;
+
+    collect_item_t * item = (collect_item_t *) malloc(sizeof(collect_item_t));
+    if (!item)
+    {
+        BLAMMO(FATAL, "malloc(sizeof(collect_item_t)) failed!");
+        return NULL;
+    }
+
+    // Wipe all memory, link in the new container
+    memset(item, 0, sizeof(collect_item_t));
+    item->next = priv->first;
+    priv->first = item;
+
+    // New key is the one provided, and length is incremented
+    // to reflect the new item.
+    item->key = bytes_pub.create(key, strlen(key));
+    priv->length++;
+
+    return item;
 }
 
 //------------------------------------------------------------------------|
@@ -236,9 +268,16 @@ static inline size_t collect_length(collect_t * collect)
 //------------------------------------------------------------------------|
 static collect_t * collect_copy(collect_t * collect)
 {
-    //collect_priv_t * priv = (collect_priv_t *) collect->priv;
+    collect_priv_t * priv = (collect_priv_t *) collect->priv;
 
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    // the copy's contents should be in the same order,
+    // but the natural inclination when transferring between
+    // two stacks would be to end up in reverse order.
+    // so that's why this might seem a little odd.
+
+
+
+
     return NULL;
 }
 
@@ -256,42 +295,30 @@ static void collect_set(collect_t * collect,
                         object_data_copy_f object_copy,
                         object_data_destroy_f object_destroy)
 {
-    collect_priv_t * priv = (collect_priv_t *) collect->priv;
-
     // Search through collection and try to find object with the given key.
     // The whole container is needed, not just the object.
     collect_item_t * item = collect_item_find(collect, key, NULL);
     if (item)
     {
         // If found, destroy the object (if allocated/valid).
-        // To make way for the new replacement object.
+        // To make way for the replacement object.
         if (item->object && item->object_destroy)
         {
             item->object_destroy(item->object);
         }
 
-        // Object and function pointers are left in an assigned non-null
-        // state here, but it is now OK to overwrite them, as will be done.
+        // Object and function pointers are left in an invalid non-null
+        // state here, but they will be overwritten below.
     }
     else
     {
         // If not found, create a new container to hold the object
-        item = (collect_item_t *) malloc(sizeof(collect_item_t));
+        item = collect_item_insert(collect, key);
         if (!item)
         {
-            BLAMMO(FATAL, "malloc(sizeof(collect_item_t)) failed!");
+            BLAMMO(FATAL, "collect_item_insert(%s) failed!", key);
             return;
         }
-
-        // The object assignment portions below cannot fail,
-        // so go ahead and link in the new container
-        item->next = priv->first;
-        priv->first = item;
-
-        // New key is the one provided, and length is incremented
-        // to reflect the new item.
-        item->key = bytes_pub.create(key, strlen(key));
-        priv->length++;
     }
 
     // Put the provided object in the container,
@@ -325,17 +352,15 @@ static void * collect_first(collect_t * collect,
 {
     collect_priv_t * priv = (collect_priv_t *) collect->priv;
 
-    if (priv->first)
-    {
-        *key = (char *) priv->first->key->cstr(priv->first->key);
-        *object = priv->first->object;
-    }
-    else
+    if (!priv->first)
     {
         *key = NULL;
         *object = NULL;
+        return NULL;
     }
 
+    *key = (char *) priv->first->key->cstr(priv->first->key);
+    *object = priv->first->object;
     return (void *) priv->first;
 }
 
@@ -345,18 +370,17 @@ static void * collect_next(void * iterator,
 {
     collect_item_t * item = (collect_item_t *) iterator;
 
-    if (item)
-    {
-        *key = (char *) item->key->cstr(item->key);
-        *object = item->object;
-    }
-    else
+    if (!item || !item->next)
     {
         *key = NULL;
         *object = NULL;
+        return NULL;
     }
 
-    return (void *) item->next;
+    item = item->next;
+    *key = (char *) item->key->cstr(item->key);
+    *object = item->object;
+    return (void *) item;
 }
 
 //------------------------------------------------------------------------|

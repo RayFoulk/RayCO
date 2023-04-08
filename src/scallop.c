@@ -75,7 +75,7 @@ typedef struct
     size_t depth;
 
     // There is intent to port this code to cc65 to target the C64
-    // and possibly the Commander X16.  The cc65 compiler does have
+    // and possibly the Commander X16.  The cc65 compiler _does_ have
     // putenv() and getenv(), which I was tempted to use for all
     // variables, however putenv() has the limitation that it does not
     // copy the data, leaving the application to manage memory.  So

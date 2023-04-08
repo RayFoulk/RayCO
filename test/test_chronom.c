@@ -95,13 +95,13 @@ TEST_BEGIN("test elapsed timespec")
     // chronom 1 elapsed should be about 1 increment
     test_seconds = timespec_to_seconds(&e1);
     test_error = fabs(test_increment - test_seconds);
-    BLAMMO(INFO, "chronom 1 elapsed %.9lf error %.9lf", test_seconds, test_error);
+    BLAMMO(DEBUG, "chronom 1 elapsed %.9lf error %.9lf", test_seconds, test_error);
     CHECK(test_error <= test_tolerance);
 
     // chronom 2 elapsed should be about 2 increments
     test_seconds = timespec_to_seconds(&e2);
     test_error = fabs((2 * test_increment) - test_seconds);
-    BLAMMO(INFO, "chronom 2 elapsed %.9lf error %.9lf", test_seconds, test_error);
+    BLAMMO(DEBUG, "chronom 2 elapsed %.9lf error %.9lf", test_seconds, test_error);
     CHECK(test_error <= test_tolerance);
  
     // let chm1 continue...
@@ -117,13 +117,13 @@ TEST_BEGIN("test elapsed timespec")
     // chronom 1 elapsed should be about 2 increments
     test_seconds = timespec_to_seconds(&e1);
     test_error = fabs((2 * test_increment) - test_seconds);
-    BLAMMO(INFO, "chronom 1 elapsed %.9lf error %.9lf", test_seconds, test_error);
+    BLAMMO(DEBUG, "chronom 1 elapsed %.9lf error %.9lf", test_seconds, test_error);
     CHECK(test_error <= test_tolerance);
 
     // chronom 2 elapsed should be about 3 increments
     test_seconds = timespec_to_seconds(&e2);
     test_error = fabs((3 * test_increment) - test_seconds);
-    BLAMMO(INFO, "chronom 2 elapsed %.9lf error %.9lf", test_seconds, test_error);
+    BLAMMO(DEBUG, "chronom 2 elapsed %.9lf error %.9lf", test_seconds, test_error);
     CHECK(test_error <= test_tolerance);
     
     // reset all back to 0

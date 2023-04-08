@@ -32,14 +32,14 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(INFO);
+    BLAMMO_LEVEL(DEBUG);
     BLAMMO_FILE("test_collect.log");
     BLAMMO(INFO, "collect tests...");
 
     // because these aren't always used, some warning eaters:
     (void) fixture_reset;
     (void) fixture_report;
-    (void) fixture_payload;
+    (void) fixture_payload_one;
 
 TEST_BEGIN("create")
     collect_t * collect = collect_pub.create();
@@ -50,7 +50,7 @@ TEST_BEGIN("create")
     collect->destroy(collect);
 TEST_END
 
-TEST_BEGIN("clear")
+TEST_BEGIN("empty, clear")
     collect_t * collect = collect_pub.create();
     CHECK(collect->empty(collect));
 
@@ -66,7 +66,7 @@ TEST_BEGIN("clear")
     collect->destroy(collect);
 TEST_END
 
-TEST_BEGIN("length")
+TEST_BEGIN("length, set (scalar)")
     collect_t * collect = collect_pub.create();
     CHECK(collect->empty(collect));
 
@@ -81,28 +81,174 @@ TEST_BEGIN("length")
     collect->destroy(collect);
 TEST_END
 
+TEST_BEGIN("get (scalar), set (scalar)")
+    collect_t * collect = collect_pub.create();
+    collect->set(collect, "one", (void *) 1, NULL, NULL);
+    collect->set(collect, "two", (void *) 2, NULL, NULL);
+    collect->set(collect, "three", (void *) 3, NULL, NULL);
+
+    CHECK(collect->get(collect, "two") == (void *) 2);
+
+    collect->destroy(collect);
+TEST_END
+
+TEST_BEGIN("set & get (heterogeneous heap objects)")
+
+    fixture_reset();
+
+    collect_t * collect = collect_pub.create();
+    collect->set(collect, "one", payload_one_create(1),
+                                 payload_one_copy,
+                                 payload_one_destroy);
+
+    collect->set(collect, "two", payload_two_create("bravo"),
+                                 payload_two_copy,
+                                 payload_two_destroy);
+
+    collect->set(collect, "three", payload_one_create(3),
+                                   payload_one_copy,
+                                   payload_one_destroy);
+
+    collect->set(collect, "four", payload_two_create("delta"),
+                                  payload_two_copy,
+                                  payload_two_destroy);
+    CHECK(collect->length(collect) == 4);
+
+    // Dummy payload used to identify the real payload type
+    typedef struct
+    {
+        int type;
+    }
+    dummy_t;
+
+    CHECK(collect->get(collect, "two") != NULL);
+    dummy_t * dummy = collect->get(collect, "two");
+    CHECK(dummy->type == 2);
+    payload_two_t * p2 = (payload_two_t *) dummy;
+    CHECK(strcmp(p2->name, "bravo") == 0);
+
+    CHECK(collect->get(collect, "three") != NULL);
+    dummy = collect->get(collect, "three");
+    CHECK(dummy->type == 1);
+    payload_one_t * p1 = (payload_one_t *) dummy;
+    CHECK(p1->id == 3);
+
+    collect->destroy(collect);
+
+    //fixture_report();
+
+TEST_END
+
 TEST_BEGIN("copy")
     BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
-TEST_END
-
-TEST_BEGIN("get")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
-TEST_END
-
-TEST_BEGIN("set")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+//    fixture_reset();
+//    fixture_report();
 TEST_END
 
 TEST_BEGIN("remove")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+
+    fixture_reset();
+
+    const char * keys[] = {
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        NULL
+    };
+
+    collect_t * collect = collect_pub.create();
+    int i = 0;
+
+    for (i = 0; i < 5; i++)
+    {
+        collect->set(collect, keys[i], payload_one_create(i),
+                                       payload_one_copy,
+                                       payload_one_destroy);
+    }
+
+    CHECK(collect->get(collect, "three") != NULL);
+    collect->remove(collect, "three");
+    CHECK(collect->get(collect, "three") == NULL);
+    CHECK(collect->length(collect) == 4);
+    //fixture_report();
+
+    payload_one_t * p1 = fixture_payload_one(2);
+    CHECK(p1->is_destroyed == true);
+    collect->destroy(collect);
+
 TEST_END
 
 TEST_BEGIN("first")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+
+    const char * keys[] = {
+        "one",
+        "two",
+        "three",
+        NULL
+    };
+
+    collect_t * collect = collect_pub.create();
+    size_t i = 0;
+
+    char * key = NULL;
+    void * object = NULL;
+    void * iterator = collect->first(collect, &key, &object);
+    CHECK(key == NULL);
+    CHECK(object == NULL);
+    CHECK(iterator == NULL);
+
+    while (keys[i])
+    {
+        collect->set(collect, keys[i], (void *) (i + 1), NULL, NULL);
+        i++;
+    }
+
+    iterator = collect->first(collect, &key, &object);
+    CHECK(strcmp(key, "three") == 0);
+    CHECK(object == (void *) 3);
+    CHECK(iterator != NULL);
+
+    collect->destroy(collect);
 TEST_END
 
 TEST_BEGIN("next")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+
+    const char * keys[] = {
+        "one",
+        "two",
+        "three",
+        NULL
+    };
+
+    collect_t * collect = collect_pub.create();
+    size_t i = 0;
+
+    while (keys[i])
+    {
+        collect->set(collect, keys[i], (void *) (i + 1), NULL, NULL);
+        i++;
+    }
+
+    char * key = NULL;
+    void * object = NULL;
+    void * iterator = collect->first(collect, &key, &object);
+
+    i = 2;
+    while (iterator)
+    {
+        BLAMMO(DEBUG, "iterator: %p  key: %s  object: %p",
+                iterator, key, object);
+
+        CHECK(strcmp(key, keys[i]) == 0);
+        CHECK(object == (void *) (i + 1));
+        i--;
+
+        iterator = collect->next(iterator, &key, &object);
+    }
+
+    collect->destroy(collect);
 TEST_END
 
 TEST_BEGIN("keys")
