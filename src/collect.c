@@ -269,16 +269,39 @@ static inline size_t collect_length(collect_t * collect)
 static collect_t * collect_copy(collect_t * collect)
 {
     collect_priv_t * priv = (collect_priv_t *) collect->priv;
+    collect_item_t * item = NULL;
+    collect_t * copy = collect_pub.create();
 
-    // the copy's contents should be in the same order,
-    // but the natural inclination when transferring between
-    // two stacks would be to end up in reverse order.
-    // so that's why this might seem a little odd.
+    // the copy's contents should end up in the same order,  but the
+    // natural tendency when transferring between two stacks would be to
+    // end up in reverse order, so that's why this seems a little odd.
+    // Essentially this is cobbling together an inefficient reverse
+    // iterator on a forward-link-only list.
+    const char ** keys = collect->keys(collect);
+    ssize_t i = (ssize_t) priv->length - 1;
 
+    while(i >= 0)
+    {
+        item = collect_item_find(collect, keys[i], NULL);
+        if (!item)
+        {
+            BLAMMO(ERROR, "NULL item in collection!");
+            copy->destroy(copy);
+            return NULL;
+        }
 
+        // copy the object and everything else in the container.
+        // set it in the copy collection
+        copy->set(copy,
+                  keys[i],
+                  item->object_copy ?
+                          item->object_copy(item->object) :
+                          item->object,
+                  item->object_copy,
+                  item->object_destroy);
+    }
 
-
-    return NULL;
+    return copy;
 }
 
 //------------------------------------------------------------------------|
@@ -386,15 +409,57 @@ static void * collect_next(void * iterator,
 //------------------------------------------------------------------------|
 static const char ** collect_keys(collect_t * collect)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    return NULL;
+    collect_priv_t * priv = (collect_priv_t *) collect->priv;
+    collect_item_t * item = priv->first;
+
+    // size the string pointer array appropriately
+    // allow 1 extra to NULL terminate the array.
+    size_t size = sizeof(char *) * (priv->length + 1);
+    priv->keys = (char **) realloc(priv->keys, size);
+    if (!priv->keys)
+    {
+        BLAMMO(FATAL, "realloc(%zu) failed", size);
+        return NULL;
+    }
+
+    memset(priv->keys, 0, size);
+
+    size_t i = 0;
+    while (item)
+    {
+        priv->keys[i++] = (char *) item->key->cstr(item->key);
+        item = item->next;
+    }
+
+    return (const char **) priv->keys;
 }
 
 //------------------------------------------------------------------------|
 static void ** collect_objects(collect_t * collect)
 {
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
-    return NULL;
+    collect_priv_t * priv = (collect_priv_t *) collect->priv;
+    collect_item_t * item = priv->first;
+
+    // size the object pointer array appropriately
+    // allow 1 extra to NULL terminate the array.
+    size_t size = sizeof(void *) * (priv->length + 1);
+    priv->objects = (void **) realloc(priv->objects, size);
+    if (!priv->objects)
+    {
+        BLAMMO(FATAL, "realloc(%zu) failed", size);
+        return NULL;
+    }
+
+    memset(priv->objects, 0, size);
+
+    size_t i = 0;
+    while (item)
+    {
+        priv->objects[i++] = item->object;
+        item = item->next;
+    }
+
+    return priv->objects;
 }
 
 //------------------------------------------------------------------------|

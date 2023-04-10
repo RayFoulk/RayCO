@@ -139,13 +139,17 @@ TEST_BEGIN("set & get (heterogeneous heap objects)")
 
 TEST_END
 
+TEST_BEGIN("set overwrite/update")
+BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+TEST_END
+
 TEST_BEGIN("copy")
     BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
 //    fixture_reset();
 //    fixture_report();
 TEST_END
 
-TEST_BEGIN("remove")
+TEST_BEGIN("remove, specific item")
 
     fixture_reset();
 
@@ -178,6 +182,10 @@ TEST_BEGIN("remove")
     CHECK(p1->is_destroyed == true);
     collect->destroy(collect);
 
+TEST_END
+
+TEST_BEGIN("remove, nonexisting item")
+    BLAMMO(ERROR, "NOT IMPLEMENTED");
 TEST_END
 
 TEST_BEGIN("first")
@@ -251,12 +259,25 @@ TEST_BEGIN("next")
     collect->destroy(collect);
 TEST_END
 
-TEST_BEGIN("keys")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
-TEST_END
+TEST_BEGIN("keys & objects")
+    collect_t * collect = collect_pub.create();
 
-TEST_BEGIN("objects")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+    collect->set(collect, "one", (void *) 1, NULL, NULL);
+    collect->set(collect, "two", (void *) 2, NULL, NULL);
+    collect->set(collect, "three", (void *) 3, NULL, NULL);
+
+    const char ** keys = collect->keys(collect);
+    CHECK(strcmp("three", keys[0]) == 0);
+    CHECK(strcmp("two", keys[1]) == 0);
+    CHECK(strcmp("one", keys[2]) == 0);
+
+    void ** objects = collect->objects(collect);
+    CHECK((void *) 3 == objects[0]);
+    CHECK((void *) 2 == objects[1]);
+    CHECK((void *) 1 == objects[2]);
+
+    collect->destroy(collect);
+
 TEST_END
 
 TESTSUITE_END
