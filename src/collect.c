@@ -293,7 +293,7 @@ static collect_t * collect_copy(collect_t * collect)
         // copy the object and everything else in the container.
         // set it in the copy collection
         copy->set(copy,
-                  keys[i],
+                  keys[i--],
                   item->object_copy ?
                           item->object_copy(item->object) :
                           item->object,

@@ -85,6 +85,33 @@ static bytes_t * bytes_create(const void * data, size_t size)
 }
 
 //------------------------------------------------------------------------|
+static bytes_t * bytes_print_create(const char * format, ...)
+{
+    bytes_t * bytes = bytes_create(NULL, 0);
+    if (!bytes)
+    {
+        BLAMMO(ERROR, "bytes->create() failed\n");
+        return NULL;
+    }
+
+    va_list args;
+    ssize_t nchars = 0;
+
+    va_start (args, format);
+    nchars = bytes->vprint(bytes, format, args);
+    va_end (args);
+
+    if (nchars < 0)
+    {
+        BLAMMO(ERROR, "bytes->vprint() returned %d", nchars);
+        bytes->destroy(bytes);
+        return NULL;
+    }
+
+    return bytes;
+}
+
+//------------------------------------------------------------------------|
 static void bytes_destroy(void * bytes_ptr)
 {
     bytes_t * bytes = (bytes_t *) bytes_ptr;
@@ -494,15 +521,16 @@ static inline void bytes_fill(bytes_t * bytes, const char c)
 }
 
 //------------------------------------------------------------------------|
-static bytes_t * bytes_copy(bytes_t * bytes)
+static void * bytes_copy(const void * bytes_ptr)
 {
     // This should be an exact copy of the bytes object
     // except for any differences in the state of the report string.
     // The caller of copy() assumes responsibility for destroying the copy
+    bytes_t * bytes = (bytes_t *) bytes_ptr;
     bytes_t * copy = bytes->create(bytes->data(bytes),
                                    bytes->size(bytes));
 
-    return copy;
+    return (void *) copy;
 }
 
 //------------------------------------------------------------------------|
@@ -846,6 +874,7 @@ static const char * const bytes_hexdump(bytes_t * bytes)
 //------------------------------------------------------------------------|
 const bytes_t bytes_pub = {
     &bytes_create,
+    &bytes_print_create,
     &bytes_destroy,
     &bytes_compare,
     &bytes_diff_byte,

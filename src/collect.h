@@ -32,8 +32,11 @@
 // A collection consists of a set of heterogeneous objects.  Regardless of
 // the type of payload an individual object may be, the function signatures
 // for performing operations on the payloads must be the same.  For each
-// collection object type the caller will need to provide an
-// for data deep-copy, and destructor.
+// collection object type the caller will need to provide a callback
+// for data deep-copy, and destructor.  For brevity, comparators are not
+// supported with this object, and also since payloads are heterogeneous
+// this is a simplified approach.  This may be re-evaluated at a later
+// time if it ever becomes necessary to sort().
 typedef void * (*object_data_copy_f) (const void *);
 typedef void (*object_data_destroy_f) (void *);
 

@@ -32,7 +32,7 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(INFO);
+    BLAMMO_LEVEL(DEBUG);
     BLAMMO_FILE("test_chain.log");
     BLAMMO(INFO, "chain tests...");
 

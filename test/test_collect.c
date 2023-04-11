@@ -32,7 +32,7 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(DEBUG);
+    BLAMMO_LEVEL(INFO);
     BLAMMO_FILE("test_collect.log");
     BLAMMO(INFO, "collect tests...");
 
@@ -134,19 +134,72 @@ TEST_BEGIN("set & get (heterogeneous heap objects)")
     CHECK(p1->id == 3);
 
     collect->destroy(collect);
-
     //fixture_report();
 
 TEST_END
 
 TEST_BEGIN("set overwrite/update")
-BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
 TEST_END
 
 TEST_BEGIN("copy")
-    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
-//    fixture_reset();
-//    fixture_report();
+    fixture_reset();
+
+    const char * keys[] = {
+        "one",
+        "two",
+        "three",
+        "four",
+        NULL
+    };
+
+    collect_t * collect = collect_pub.create();
+    int i = 0;
+
+    for (i = 0; i < 4; i++)
+    {
+        collect->set(collect, keys[i], payload_one_create(i),
+                                       payload_one_copy,
+                                       payload_one_destroy);
+    }
+
+    collect_t * copy = collect->copy(collect);
+    CHECK(copy->length(copy) == collect->length(collect));
+
+    char * orig_key = NULL;
+    void * orig_object = NULL;
+    void * orig_iter = collect->first(collect, &orig_key, &orig_object);
+
+    char * copy_key = NULL;
+    void * copy_object = NULL;
+    void * copy_iter = copy->first(copy, &copy_key, &copy_object);
+
+    while (orig_iter && copy_iter)
+    {
+        // basic validity and uniqueness checks
+        CHECK(orig_key != NULL);
+        CHECK(orig_object != NULL);
+        CHECK(orig_iter != NULL);
+
+        CHECK(copy_key != NULL);
+        CHECK(copy_object != NULL);
+        CHECK(copy_iter != NULL);
+
+        CHECK(orig_key != copy_key);
+        CHECK(orig_object != copy_object);
+        CHECK(orig_iter != copy_iter);
+
+        // Content comparison checks
+        CHECK(strcmp(orig_key, copy_key) == 0);
+        CHECK(payload_one_compare(&orig_object, &copy_object) == 0);
+
+        orig_iter = collect->next(orig_iter, &orig_key, &orig_object);
+        copy_iter = copy->next(copy_iter, &copy_key, &copy_object);
+    }
+
+    copy->destroy(copy);
+    collect->destroy(collect);
+    //fixture_report();
 TEST_END
 
 TEST_BEGIN("remove, specific item")
@@ -185,7 +238,17 @@ TEST_BEGIN("remove, specific item")
 TEST_END
 
 TEST_BEGIN("remove, nonexisting item")
-    BLAMMO(ERROR, "NOT IMPLEMENTED");
+    collect_t * collect = collect_pub.create();
+    CHECK(collect->empty(collect));
+
+    collect->set(collect, "one", (void *) 1, NULL, NULL);
+    collect->set(collect, "two", (void *) 2, NULL, NULL);
+    collect->set(collect, "three", (void *) 3, NULL, NULL);
+
+    CHECK(collect->remove(collect, "two"));
+    CHECK(!collect->remove(collect, "four"));
+
+    collect->destroy(collect);
 TEST_END
 
 TEST_BEGIN("first")

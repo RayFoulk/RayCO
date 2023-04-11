@@ -273,6 +273,7 @@ static int builtin_handler_print(void * scmd,
     // TODO: use bytes_t append() to avoid all the unwanted newlines
     //  and also perform variable lookup / substitution here also
     //  so that the user can view variable values interactively.
+    //  MAYBE NOT -- rather support quoted strings in tokenize.
     // TODO: also evaluate expressions here, as well as 'while <expr>'
     //  and 'if <expr>'.  This would allow things like 'print <expr>'
     //  where <expr> can contain arguments or variables
@@ -280,6 +281,31 @@ static int builtin_handler_print(void * scmd,
     {
         console->print(console, "%s ", args[argnum]);
     }
+
+    return 0;
+}
+
+//------------------------------------------------------------------------|
+static int builtin_handler_assign(void * scmd,
+                                  void * context,
+                                  int argc,
+                                  char ** args)
+{
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
+
+    if (argc < 2)
+    {
+        console->error(console, "expected a variable name");
+        return -1;
+    }
+    else if (argc < 3)
+    {
+        console->error(console, "expected a variable value");
+        return -2;
+    }
+
+    scallop->assign_variable(scallop, args[1], args[2]);
 
     return 0;
 }
@@ -295,14 +321,14 @@ static int builtin_handler_source(void * scmd,
 
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected a file path argument");
+        console->error(console, "expected a file path argument");
         return -1;
     }
 
     FILE * source = fopen(args[1], "r");
     if (!source)
     {
-        BLAMMO(ERROR, "Could not open %s for reading", args[1]);
+        console->error(console, "could not open %s for reading", args[1]);
         return -2;
     }
 
@@ -341,8 +367,6 @@ static int builtin_linefunc_routine(void * context,
 static int builtin_popfunc_routine(void * context,
                                    void * object)
 {
-    BLAMMO(VERBOSE, "");
-
     scallop_t * scallop = (scallop_t *) context;
     scallop_rtn_t * routine = (scallop_rtn_t *) object;
     scallop_cmd_t * cmds = scallop->commands(scallop);
@@ -383,7 +407,7 @@ static int builtin_handler_routine(void * scmd,
 
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected a name for the routine");
+        console->error(console, "expected a routine name");
         return -1;
     }
 
@@ -401,7 +425,7 @@ static int builtin_handler_routine(void * scmd,
     routine = scallop->routine_insert(scallop, args[1]);
     if (!routine)
     {
-        BLAMMO(ERROR, "scallop->routine_insert(%s) failed", args[1]);
+        console->error(console, "create routine \'%s\' failed", args[1]);
         return -3;
     }
 
@@ -472,7 +496,7 @@ bool register_builtin_commands(void * scallop_ptr)
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_unregister,
         scallop,
-        "unregister",
+        "unreg",
         " <command-keyword>",
         "unregister a mutable command"));
 
@@ -511,7 +535,14 @@ bool register_builtin_commands(void * scallop_ptr)
         scallop,
         "print",
         " [arbitrary-strings-and-variables]",
-        "print strings and (TODO: variables)"));
+        "print strings, variables, and (TODO) expressions"));
+
+    success &= cmds->register_cmd(cmds, cmds->create(
+        builtin_handler_assign,
+        scallop,
+        "assign",
+        " <var-name> <value>",
+        "assign a value to a variable"));
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_source,

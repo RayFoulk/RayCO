@@ -61,8 +61,10 @@ static const char * scallop_cmd_comment = "#";
 // The begin/end markers for variable and argument substitution in
 // unparsed command lines and routine arguments.  Whitespace between
 // brackets may produce unexpected behavior!
-//static const char * scallop_var_begin = "[";
-//static const char * scallop_var_end = "]";
+static const char * scallop_var_begin = "[";
+static const char * scallop_var_end = "]";
+static const char * scallop_arg_prefix = "%";
+static const char * scallop_arg_count = "N";
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -82,7 +84,7 @@ typedef struct
     // then if we're going to have to maintain a list of pointers
     // anyway, we might as well do variable management ourselves and
     // remain more portable that way.
-    collect_t variables;
+    collect_t * variables;
 
     // Language construct stack used to keep track of nested routine
     // definitions, while loops, if-else and any other construct that
@@ -401,6 +403,15 @@ static scallop_t * scallop_create(console_t * console,
                                 scallop_arg_hints,
                                 scallop);
 
+    // Create variables collection
+    priv->variables = collect_pub.create();
+    if (!priv->variables)
+    {
+        BLAMMO(FATAL, "collect_pub.create() failed");
+        scallop->destroy(scallop);
+        return NULL;
+    }
+
     // Create context stack
     priv->constructs = chain_pub.create(free);
     if (!priv->constructs)
@@ -481,6 +492,12 @@ static void scallop_destroy(void * scallop_ptr)
         priv->constructs->destroy(priv->constructs);
     }
 
+    // Destroy variables collection
+    if (priv->variables)
+    {
+        priv->variables->destroy(priv->variables);
+    }
+
     // zero out and destroy the private data
     memset(scallop->priv, 0, sizeof(scallop_priv_t));
     free(scallop->priv);
@@ -555,7 +572,6 @@ static void scallop_routine_remove(scallop_t * scallop,
                                    const char * name)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
-
     scallop_rtn_t * routine = scallop->routine_by_name(scallop, name);
     if (!routine)
     {
@@ -570,27 +586,148 @@ static void scallop_routine_remove(scallop_t * scallop,
 }
 
 //------------------------------------------------------------------------|
-static bool scallop_store_args(scallop_t * scallop, int argc, char ** args)
+static void scallop_store_args(scallop_t * scallop, int argc, char ** args)
 {
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
-    // WWWWWWWWWWWWWWWWWW
-    // OK, it's starting to look more attractive to just use a
-    // self-contained dictionary object that can be controlled
-    // rather than relying on kludgy getenv/putenv that can't
-    // even track heap usage and requires us to tiptoe around
-    // other variables.
+    // First clear out any old args, but this is only necessary if
+    // there were previously more than there are now, since collect->set()
+    // overwrites old entries.
 
-    return true;
+    // Format of args in scallop 'code' will be: [%1] [%2] [%3] etc...
+    // The literal name of the variables will be "%1" "%2" "%3" etc...
+    // The number of total arguments is stored as "%N"
+
+    bytes_t * varname = bytes_pub.print_create("%s%s",
+                                               scallop_arg_prefix,
+                                               scallop_arg_count);
+
+    bytes_t * varvalue = priv->variables->get(priv->variables,
+                                              varname->cstr(varname));
+
+    // Having a "%N" stored is synonymous with having args stored,
+    // but it is only necessary to clear excess previous args.
+    int argc_stored = varvalue ? atoi(varvalue->cstr(varvalue)) : 0;
+    int arg_num = 0;
+
+    if (varvalue && (argc_stored > argc))
+    {
+        for (arg_num = argc; arg_num < argc_stored; arg_num++)
+        {
+            varname->print(varname, "%s%d", scallop_arg_prefix, arg_num);
+            priv->variables->remove(priv->variables, varname->cstr(varname));
+        }
+    }
+
+    // Store new arg count.  Collection takes ownership of object memory.
+    // All scallop variables are stored as bytes_t instances.
+    varname->print(varname, "%s%s", scallop_arg_prefix, scallop_arg_count);
+    varvalue = bytes_pub.print_create("%d", argc);
+
+    // Store the new argument count
+    priv->variables->set(priv->variables,
+                         varname->cstr(varname),
+                         varvalue,
+                         bytes_pub.copy,
+                         bytes_pub.destroy);
+
+    // Store all arguments
+    for (arg_num = 0; arg_num < argc; arg_num++)
+    {
+        varname->print(varname, "%s%d", scallop_arg_prefix, arg_num);
+        varvalue = bytes_pub.create(args[arg_num], strlen(args[arg_num]));
+
+        priv->variables->set(priv->variables,
+                             varname->cstr(varname),
+                             varvalue,
+                             bytes_pub.copy,
+                             bytes_pub.destroy);
+    }
 }
 
 //------------------------------------------------------------------------|
-// Private helper function to perform variable substitution????
-// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-// AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-// WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-//static void
+static void scallop_assign_variable(scallop_t * scallop,
+                                    const char * varname,
+                                    const char * varvalue)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    bytes_t * valuebytes = bytes_pub.create(varvalue,
+                                            strlen(varvalue));
 
+    priv->variables->set(priv->variables,
+                         varname,
+                         valuebytes,
+                         bytes_pub.copy,
+                         bytes_pub.destroy);
+}
+
+//------------------------------------------------------------------------|
+// Private helper function to perform variable substitution
+static void scallop_variable_substitution(scallop_t * scallop,
+                                          bytes_t * linebytes)
+{
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+    ssize_t offset_begin = 0;
+    ssize_t offset_end = 0;
+    bytes_t * varname = bytes_pub.create(NULL, 0);
+    bytes_t * varvalue = NULL;
+
+    // work through the entire raw line, replacing variable references
+    // "[variable_name]" with the string value of each variable.
+    while (offset_begin >= 0)
+    {
+        offset_begin = linebytes->find_forward(linebytes,
+                                               offset_end,
+                                               scallop_var_begin,
+                                               strlen(scallop_var_begin));
+        if(offset_begin < 0)
+        {
+            BLAMMO(DEBUG, "No further variable references found.  begin: %ld",
+                          offset_begin);
+            break;
+        }
+
+        offset_end = linebytes->find_forward(linebytes,
+                                             offset_begin,
+                                             scallop_var_end,
+                                             strlen(scallop_var_end));
+        if(offset_end < 0)
+        {
+            BLAMMO(DEBUG, "No variable reference ending token found.  end: %ld",
+                          offset_end);
+            break;
+        }
+
+        // Extract variable name out of line
+        varname->assign(varname, &linebytes->data(linebytes)[offset_begin + 1],
+                                 offset_end - offset_begin - 1);
+        BLAMMO(DEBUG, "varname: \'%s\'", varname->cstr(varname));
+
+        // Get the variable referenced
+        varvalue = (bytes_t *) priv->variables->get(priv->variables,
+                                                    varname->cstr(varname));
+        if (!varvalue)
+        {
+            priv->console->warning(priv->console,
+                                   "variable \'%s\' not found",
+                                   varname->cstr(varname));
+            continue;
+        }
+
+        linebytes->remove(linebytes,
+                          offset_begin,
+                          offset_end - offset_begin + 1);
+        BLAMMO(DEBUG, "modified linebytes: %s", linebytes->cstr(linebytes));
+
+        linebytes->insert(linebytes,
+                          offset_begin,
+                          varvalue->data(varvalue),
+                          varvalue->size(varvalue));
+        BLAMMO(DEBUG, "modified linebytes: %s", linebytes->cstr(linebytes));
+    }
+
+    varname->destroy(varname);
+}
 
 //------------------------------------------------------------------------|
 static int scallop_dispatch(scallop_t * scallop, const char * line)
@@ -617,26 +754,25 @@ static int scallop_dispatch(scallop_t * scallop, const char * line)
     }
 
     bytes_t * linebytes = bytes_pub.create(line, strlen(line));
-
-    // NOTE: Need to know the command to be executed AND have the unaltered
+    // Need to know the command to be executed AND have the unaltered
     // line SIMULTANEOUSLY because the command->is_construct needs to be
     // known in order to disposition the RAW LINE.
-    // NOTE: If and only if the line is to be executed, should it have
-    // variable substitution/evaluation performed on it.  I.E. do not store
-    // mangled lines in constructs that have not yet been executed!
+    // NOTE: If and only if the line is to be tokenized & executed, should
+    // it have variable substitution/evaluation performed on it.  I.E. do
+    // not store mangled lines in constructs that have not yet been executed!
 
-    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-
-    // FIXME / TODO : preprocessor-like variable substitution
-    //  probably needs to happen here BEFORE calling split.
     // TODO: In the rare case where a line is dispatched directly from
     // the application's command-line (piped from stdin or given an option)
     // it's conceivable that extra unparsed argc/argv given to main() could
     // be overflowed into 'routine' style argument substitution, in addition
     // to variable-sustitution. -- TBD at a later time.
+    // This would require a call to scallop_store_args() from main().
+
+    // Preprocessor-like variable substitution needs to happen
+    // before calling tokenize, to allow for supporting spaces
+    // in variables, multiple variables inside arguments, and
+    // complex expression evaluation.
+    scallop_variable_substitution(scallop, linebytes);
 
     size_t argc = 0;
     char ** args = linebytes->tokenize(linebytes,
@@ -856,6 +992,7 @@ const scallop_t scallop_pub = {
     &scallop_routine_insert,
     &scallop_routine_remove,
     &scallop_store_args,
+    &scallop_assign_variable,
     &scallop_dispatch,
     &scallop_loop,
     &scallop_quit,

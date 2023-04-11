@@ -36,6 +36,9 @@ typedef struct bytes_t
     // Factory function that creates a 'bytes' object.
     struct bytes_t * (*create)(const void * data, size_t size);
 
+    // Alternative printf-style factory function
+    struct bytes_t * (*print_create)(const char * format, ...);
+
     // Bytes destructor function
     void (*destroy)(void * bytes);
 
@@ -127,7 +130,7 @@ typedef struct bytes_t
 
     // Create a copy of the given bytes object.
     // Caller is responsible for destroying the copy.
-    struct bytes_t * (*copy)(struct bytes_t * bytes);
+    void * (*copy)(const void * bytes);
 
     // Split byte array into tokenized string array by delimiters.
     // The bytes array is altered in-place, having null bytes inserted.

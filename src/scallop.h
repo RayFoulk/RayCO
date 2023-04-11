@@ -82,14 +82,17 @@ typedef struct scallop_t
                            const char * name);
 
     // Put a set of routine arguments into the environment to be
-    // picked up later on evaluation/substritution.  This will
+    // picked up later on evaluation/substitution.  This will
     // intrinsically prefix everything to avoid trampling on other
     // unrelated environment variables.
+    void (*store_args)(struct scallop_t * scallop,
+                       int argc,
+                       char ** args);
 
-    // AAAAAAAAAAAAAAAAAAAA
-    bool (*store_args)(struct scallop_t * scallop,
-                        int argc,
-                        char ** args);
+    // Assign a variable value to scallop's environment
+    void (*assign_variable)(struct scallop_t * scallop,
+                            const char * varname,
+                            const char * varvalue);
 
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.

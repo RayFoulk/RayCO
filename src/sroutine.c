@@ -198,28 +198,9 @@ static int scallop_rtn_handler(void * scmd,
         linebytes = (bytes_t *) priv->lines->data(priv->lines);
         if (linebytes)
         {
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            // WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-            // FIXME: Perform %1%, %2%, %3%, etc... arg substitution
-            // here within lines of the routine as they are dispatched.
-            // I.E. %1% is replaced with args[1] before exec()
-            // {1} {2} {9999}  are all direct argument references
-            // {something} {varname1} {cr4zyv4r} are variable references
-            // consider this program running on 6-bit machine with constrained
-            // character sets... might not have all of []{}()
-            // [1] [2] [3]  [how] [does] [this] [look]
-            // or else just stuff/overwrite arguments in environment
-            // on every iteration, allowing dispatch to pull them
-            // back out again under some alias.  This must occur
-            // on every iteration here since lines can call other
-            // routines, and args would be corrupted on return
-            // from subroutine.
-            if (!scallop->store_args(scallop, argc, args))
-            {
-                BLAMMO(WARNING, "scallop->store_args() failed");
-            }
+            // Store subroutine arguments in scallop's variable
+            // collection so dispatch can perform substitution.
+            scallop->store_args(scallop, argc, args);
 
             BLAMMO(DEBUG, "About to dispatch(\'%s\')",
                           linebytes->cstr(linebytes));

@@ -49,6 +49,7 @@ payload_one_t * payload_one_create(size_t id)
     // glimpse of future refactoring.
     payload->destroy = payload_one_destroy;
 
+    BLAMMO(DEBUG, "created payload_one_t %p", payload);
     return payload;
 }
 
@@ -85,6 +86,7 @@ int payload_one_compare(const void * a, const void * b)
         return INT_MIN;
     }
 
+    BLAMMO(DEBUG, "comparing ptr %p to %p, payload_one_t %p to %p", a, b, ap, bp);
     return (int) ap->id - (int) bp->id;
 }
 
@@ -103,6 +105,8 @@ void * payload_one_copy(const void * p)
 
     memcpy(copy, orig, sizeof(payload_one_t));
     copy->copy_of = orig;
+
+    BLAMMO(DEBUG, "copied payload_one_t %p to %p", p, copy);
     return copy;
 }
 

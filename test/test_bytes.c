@@ -59,6 +59,16 @@ TEST_BEGIN("create/size/empty")
     bytes->destroy(bytes);
 TEST_END
 
+TEST_BEGIN("print_create")
+    bytes_t * bytes = bytes_pub.print_create("%s %s %d", "yankee", "doodle", 76);
+    CHECK(bytes != NULL);
+    CHECK(bytes->priv != NULL);
+    CHECK(!bytes->empty(bytes));
+    CHECK(strcmp(bytes->cstr(bytes), "yankee doodle 76") == 0);
+    bytes->destroy(bytes);
+TEST_END
+
+
 TEST_BEGIN("destroy")
     // Would need to mock malloc/free for this.
     // Maybe by LD_PRELOAD voodoo TBD later.
