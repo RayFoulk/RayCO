@@ -45,7 +45,7 @@ TESTSUITE_BEGIN
     BLAMMO(INFO, "scallop tests...");
 
 TEST_BEGIN("test create/destroy")
-    console_t * console = console_pub.create(stdin, stdout);
+    console_t * console = console_pub.create(stdin, stdout, "test-history.txt");
     CHECK(console != NULL);
 
     scallop_t * scallop = scallop_pub.create(console,

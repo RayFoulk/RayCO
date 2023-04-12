@@ -46,8 +46,8 @@ static int builtin_handler_help(void * scmd,
                                 char ** args)
 {
     scallop_t * scallop = (scallop_t *) context;
-    scallop_cmd_t * cmds = scallop->commands(scallop);
     console_t * console = scallop->console(scallop);
+    scallop_cmd_t * cmds = scallop->commands(scallop);
     bytes_t * help = bytes_pub.create(NULL, 0);
 
     // Getting the longest command has to occur before diving into
@@ -59,17 +59,15 @@ static int builtin_handler_help(void * scmd,
 
     help->print(help, "\r\ncommands:\r\n\r\n");
 
+    // TODO: Improve help column formatting so that indented sub-commands
+    //  align consistently with base level help.
     int result = cmds->help(cmds, help, 0, longest_kw_and_hints);
     if (result < 0)
     {
-        BLAMMO(ERROR, "cmds->help() returned %d", result);
+        console->error(console, "help for commands failed with %d", result);
         help->destroy(help);
         return result;
     }
-
-    //BLAMMO(DEBUG, "help hexdump:\n%s\n", help->hexdump(help));
-    // TODO: run help text through a column formatter
-    //  potentially build this functionality into bytes_t
 
     console->print(console, "%s", help->cstr(help));
     help->destroy(help);
@@ -83,6 +81,7 @@ static int builtin_handler_alias(void * scmd,
                                  char ** args)
 {
     scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
 
     // TODO: Consider supporting aliasing nested commands
     //  via some syntax like 'alias stuff log.file'.  or else
@@ -96,11 +95,15 @@ static int builtin_handler_alias(void * scmd,
     // NOTE: this is distinct from bash's alias which can
     // encompass pretty much anything.
     // this will be saved for the 'routine' keyword
-
-    if (argc < 3)
+    if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected new and original keyword for alias");
+        console->error(console, "expected an alias keyword");
         return -1;
+    }
+    else if (argc < 3)
+    {
+        console->error(console, "expected a command to be aliased");
+        return -2;
     }
 
     // Find the command that is referenced
@@ -108,17 +111,17 @@ static int builtin_handler_alias(void * scmd,
     scallop_cmd_t * cmd = scope->find_by_keyword(scope, args[2]);
     if (!cmd)
     {
-        BLAMMO(WARNING, "Command %s not found", args[2]);
-        return -2;
+        console->error(console, "command %s not found", args[2]);
+        return -3;
     }
 
     // re-register the same command under a different keyword
     scallop_cmd_t * alias = scope->alias(cmd, args[1]);
     if (!scope->register_cmd(scope, alias))
     {
-        BLAMMO(ERROR, "Failed to register alias %s to %s",
-                      args[1], args[2]);
-        return -3;
+        console->error(console, "failed to register alias %s to %s",
+                                args[1], args[2]);
+        return -4;
     }
 
     return 0;
@@ -135,7 +138,7 @@ static int builtin_handler_unregister(void * scmd,
 
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected keyword to unregister");
+        console->error(console, "expected a command keyword to unregister");
         return -1;
     }
 
@@ -143,15 +146,15 @@ static int builtin_handler_unregister(void * scmd,
     scallop_cmd_t * cmd = scope->find_by_keyword(scope, args[1]);
     if (!cmd)
     {
-        BLAMMO(WARNING, "Command %s not found", args[1]);
+        console->error(console, "command %s not found", args[1]);
         return -2;
     }
 
     if (!cmd->is_mutable(cmd))
     {
         console->error(console,
-                "can't unregister immutable command \'%s\'",
-                cmd->keyword(cmd));
+                       "can't unregister immutable command \'%s\'",
+                       cmd->keyword(cmd));
         return -3;
     }
 
@@ -167,8 +170,8 @@ static int builtin_handler_unregister(void * scmd,
     if (!scope->unregister_cmd(scope, cmd))
     {
         console->error(console,
-                "unregister_cmd(%s) failed",
-                cmd->keyword(cmd));
+                       "unregister_cmd(%s) failed",
+                       cmd->keyword(cmd));
         return -4;
     }
 
@@ -181,10 +184,12 @@ static int builtin_handler_log(void * scmd,
                                int argc,
                                char ** args)
 {
-    // Everyone needs a log.  You're gonna love it, log.
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
+
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Not enough arguments for log command");
+        console->error(console, "expected a log sub-command");
         return -1;
     }
 
@@ -193,7 +198,7 @@ static int builtin_handler_log(void * scmd,
     scallop_cmd_t * cmd = log->find_by_keyword(log, args[1]);
     if (!cmd)
     {
-        BLAMMO(WARNING, "Sub-command %s not found", args[1]);
+        console->error(console, "log sub-command %s not found", args[1]);
         return -2;
     }
 
@@ -210,9 +215,12 @@ static int builtin_handler_log_level(void * scmd,
                                      int argc,
                                      char ** args)
 {
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
+
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected a numeric argument for level");
+        console->error(console, "expected a numeric log level 0-5");
         return -1;
     }
 
@@ -229,9 +237,12 @@ static int builtin_handler_log_stdout(void * scmd,
                                       int argc,
                                       char ** args)
 {
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
+
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected a boolean flag");
+        console->error(console, "expected a boolean value");
         return -1;
     }
 
@@ -248,9 +259,12 @@ static int builtin_handler_log_file(void * scmd,
                                     int argc,
                                     char ** args)
 {
+    scallop_t * scallop = (scallop_t *) context;
+    console_t * console = scallop->console(scallop);
+
     if (argc < 2)
     {
-        BLAMMO(ERROR, "Expected a file path argument");
+        console->error(console, "expected a file path/name");
         return -1;
     }
 
@@ -268,20 +282,19 @@ static int builtin_handler_print(void * scmd,
 {
     scallop_t * scallop = (scallop_t *) context;
     console_t * console = scallop->console(scallop);
+    bytes_t * message = bytes_pub.create(NULL, 0);
     int argnum = 1;
 
-    // TODO: use bytes_t append() to avoid all the unwanted newlines
-    //  and also perform variable lookup / substitution here also
-    //  so that the user can view variable values interactively.
-    //  MAYBE NOT -- rather support quoted strings in tokenize.
     // TODO: also evaluate expressions here, as well as 'while <expr>'
     //  and 'if <expr>'.  This would allow things like 'print <expr>'
     //  where <expr> can contain arguments or variables
     for (argnum = 1; argnum < argc; argnum++)
     {
-        console->print(console, "%s ", args[argnum]);
+        message->append(message, args[argnum], strlen(args[argnum]));
     }
 
+    console->print(console, "%s", message->cstr(message));
+    message->destroy(message);
     return 0;
 }
 
@@ -382,7 +395,7 @@ static int builtin_popfunc_routine(void * context,
             "user-registered routine");
 
     // should be allowed to delete/modify routines
-    cmd->set_mutable(cmd);
+    cmd->set_attributes(cmd, SCALLOP_CMD_ATTR_MUTABLE);
 
     success = cmds->register_cmd(cmds, cmd);
 
@@ -473,9 +486,8 @@ bool register_builtin_commands(void * scallop_ptr)
     scallop_cmd_t * cmd = NULL;
     bool success = true;
 
-    // TODO: add 'while' as a language construct
-    // TODO: need to add variables, substitution,
-    //   and an expression evaluator to do this.
+    // TODO: add 'while' as a language construct.
+    //  need to add an expression evaluator to do this.
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_help,
         scallop,
@@ -502,7 +514,7 @@ bool register_builtin_commands(void * scallop_ptr)
 
     scallop_cmd_t * log = cmds->create(
         builtin_handler_log,
-        NULL,
+        scallop,
         "log",
         " <log-command> <...>",
         "change blammo logger options");
@@ -511,21 +523,21 @@ bool register_builtin_commands(void * scallop_ptr)
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_level,
-        NULL,
+        scallop,
         "level",
         " <0..5>",
         "change the blammo log message level (0=VERBOSE, 5=FATAL)"));
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_stdout,
-        NULL,
+        scallop,
         "stdout",
         " <true/false>",
         "enable or disable logging to stdout"));
 
     success &= log->register_cmd(log, log->create(
         builtin_handler_log_file,
-        NULL,
+        scallop,
         "file",
         " <log-file-path>",
         "change the blammo log file path"));
@@ -557,7 +569,7 @@ bool register_builtin_commands(void * scallop_ptr)
         "routine",
         " <routine-name> ...",
         "define and register a new routine");
-    cmd->set_construct(cmd);
+    cmd->set_attributes(cmd, SCALLOP_CMD_ATTR_CONSTRUCT);
     success &= cmds->register_cmd(cmds, cmd);
 
     cmd = cmds->create(
@@ -566,7 +578,7 @@ bool register_builtin_commands(void * scallop_ptr)
         "end",
         NULL,
         "finalize a multi-line language construct");
-    cmd->set_construct(cmd);
+    cmd->set_attributes(cmd, SCALLOP_CMD_ATTR_CONSTRUCT);
     success &= cmds->register_cmd(cmds, cmd);
 
     success &= cmds->register_cmd(cmds, cmds->create(

@@ -38,7 +38,9 @@ typedef char * (*console_arg_hints_f)(void * object, const char * buffer, int * 
 typedef struct console_t
 {
     // Console factory function
-    struct console_t * (*create)(FILE * input, FILE * output);
+    struct console_t * (*create)(FILE * input,
+                                 FILE * output,
+                                 const char * history_file);
 
     // Console destructor
     void (*destroy)(void * console);

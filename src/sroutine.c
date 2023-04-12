@@ -189,7 +189,6 @@ static int scallop_rtn_handler(void * scmd,
 
     scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
     bytes_t * linebytes = NULL;
-    int result = 0;
 
     // Iterate through all lines and dispatch each
     priv->lines->reset(priv->lines);
@@ -205,13 +204,8 @@ static int scallop_rtn_handler(void * scmd,
             BLAMMO(DEBUG, "About to dispatch(\'%s\')",
                           linebytes->cstr(linebytes));
 
-            result = scallop->dispatch(scallop, (char *)
-                                       linebytes->cstr(linebytes));
-
-            BLAMMO(DEBUG, "Result of dispatch(%s) is %d",
-                          linebytes->cstr(linebytes),
-                          result);
-            (void) result;
+            scallop->dispatch(scallop, (char *)
+                              linebytes->cstr(linebytes));
         }
     }
     while(priv->lines->spin(priv->lines, 1));

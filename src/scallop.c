@@ -64,7 +64,8 @@ static const char * scallop_cmd_comment = "#";
 static const char * scallop_var_begin = "[";
 static const char * scallop_var_end = "]";
 static const char * scallop_arg_prefix = "%";
-static const char * scallop_arg_count = "N";
+static const char * scallop_arg_count = "n";        // "[%n]"
+static const char * scallop_var_result = "?";       // "[%?]"
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -730,43 +731,71 @@ static void scallop_variable_substitution(scallop_t * scallop,
 }
 
 //------------------------------------------------------------------------|
-static int scallop_dispatch(scallop_t * scallop, const char * line)
+// Private helper function to set return value from last dispatch
+// should return the same value that is passed in, but sets the
+// special "%?" return value in the variable collection
+static int scallop_set_result(scallop_t * scallop, int result)
 {
-    // Guard block NULL line ptr
-    if (!line)
+    scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
+
+    bytes_t * varname = bytes_pub.print_create("%s%s",
+                                               scallop_arg_prefix,
+                                               scallop_var_result);
+
+    bytes_t * varvalue = bytes_pub.print_create("%d", result);
+
+    priv->variables->set(priv->variables,
+                         varname->cstr(varname),
+                         varvalue,
+                         bytes_pub.copy,
+                         bytes_pub.destroy);
+
+    varname->destroy(varname);
+
+    return result;
+}
+
+//------------------------------------------------------------------------|
+// Need to know the command to be executed AND have the unaltered
+// line SIMULTANEOUSLY because the command->is_construct needs to be
+// known in order to disposition the RAW LINE.
+// NOTE: If and only if the line is to be tokenized & executed, should
+// it have variable substitution/evaluation performed on it.  I.E. do
+// not store mangled lines in constructs that have not yet been executed!
+// TODO: In the rare case where a line is dispatched directly from
+// the application's command-line (piped from stdin or given an option)
+// it's conceivable that extra unparsed argc/argv given to main() could
+// be overflowed into 'routine' style argument substitution, in addition
+// to variable-sustitution. -- TBD at a later time.
+// This would require a call to scallop_store_args() from main().
+
+static void scallop_dispatch(scallop_t * scallop, const char * line)
+{
+    // Guard block NULL line ptr, or trivially empty line
+    if (!line || !line[0])
     {
-        BLAMMO(VERBOSE, "Ignoring NULL line");
-        return 0;
+        BLAMMO(VERBOSE, "Ignoring NULL/empty line");
+        // Don't update stored result for empty lines
+        return;
     }
 
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     BLAMMO(VERBOSE, "priv: %p depth: %u line: %s",
                     priv, priv->depth, line);
 
-    // Keep track of recursion depth here
+    // Limit recursion depth here
     priv->depth++;
     if (priv->depth > SCALLOP_MAX_RECURS)
     {
-        BLAMMO(ERROR, "Maximum recursion depth %u reached",
-                      SCALLOP_MAX_RECURS);
+        priv->console->error(priv->console,
+                             "maximum recursion depth %u reached",
+                             SCALLOP_MAX_RECURS);
         priv->depth--;
-        return -1;
+        scallop_set_result(scallop, -1);
+        return;
     }
 
     bytes_t * linebytes = bytes_pub.create(line, strlen(line));
-    // Need to know the command to be executed AND have the unaltered
-    // line SIMULTANEOUSLY because the command->is_construct needs to be
-    // known in order to disposition the RAW LINE.
-    // NOTE: If and only if the line is to be tokenized & executed, should
-    // it have variable substitution/evaluation performed on it.  I.E. do
-    // not store mangled lines in constructs that have not yet been executed!
-
-    // TODO: In the rare case where a line is dispatched directly from
-    // the application's command-line (piped from stdin or given an option)
-    // it's conceivable that extra unparsed argc/argv given to main() could
-    // be overflowed into 'routine' style argument substitution, in addition
-    // to variable-sustitution. -- TBD at a later time.
-    // This would require a call to scallop_store_args() from main().
 
     // Preprocessor-like variable substitution needs to happen
     // before calling tokenize, to allow for supporting spaces
@@ -784,10 +813,10 @@ static int scallop_dispatch(scallop_t * scallop, const char * line)
     if (argc == 0)
     {
         BLAMMO(VERBOSE, "Ignoring empty line");
-
         linebytes->destroy(linebytes);
         priv->depth--;
-        return 0;
+        // Don't update stored result for empty lines
+        return;
     }
 
     // Try to find the command being invoked
@@ -800,7 +829,8 @@ static int scallop_dispatch(scallop_t * scallop, const char * line)
 
         linebytes->destroy(linebytes);
         priv->depth--;
-        return -1;
+        scallop_set_result(scallop, -2);
+        return;
     }
 
     // Select the top item of the language construct stack
@@ -830,7 +860,7 @@ static int scallop_dispatch(scallop_t * scallop, const char * line)
 
     linebytes->destroy(linebytes);
     priv->depth--;
-    return result;
+    scallop_set_result(scallop, result);
 }
 
 //------------------------------------------------------------------------|
@@ -838,7 +868,6 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
     char * line = NULL;
-    int result = 0;
 
     while (!priv->console->inputf_eof(priv->console) && !priv->quit)
     {
@@ -853,13 +882,7 @@ static int scallop_loop(scallop_t * scallop, bool interactive)
         }
 
         BLAMMO(DEBUG, "About to dispatch(\'%s\')", line);
-        result = scallop->dispatch(scallop, line);
-        BLAMMO(DEBUG, "Result of dispatch(%s) is %d", line, result);
-
-        // TODO possibly store result in priv, or else report on console
-        // TODO: need to implement variables (dict)
-        (void) result;
-
+        scallop->dispatch(scallop, line);
         free(line);
         line = NULL;
     }
@@ -918,7 +941,6 @@ static void scallop_rebuild_prompt(scallop_t * scallop)
     priv->prompt->append(priv->prompt,
                          scallop_prompt_finale,
                          strlen(scallop_prompt_finale));
-
 }
 
 //------------------------------------------------------------------------|

@@ -96,7 +96,7 @@ typedef struct scallop_t
 
     // Handle a raw line of input, calling whatever
     // handler functions are necessary.
-    int (*dispatch)(struct scallop_t * scallop, const char * line);
+    void (*dispatch)(struct scallop_t * scallop, const char * line);
 
     // Main interactive prompt loop
     int (*loop)(struct scallop_t * scallop, bool interactive);

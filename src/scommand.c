@@ -43,17 +43,8 @@ typedef struct
     // This can be NULL if there are no sub-commands
     chain_t * cmds;
 
-    // Whether the command can be dynamically unregistered or altered
-    // at runtime as part of a handler's actions, excluding normal
-    // destructor / teardown.
-    bool is_mutable;
-
-    // Whether the command is part of a multi-line language construct
-    // that is pushed onto the construct stack.  If so, it must be handled
-    // by dispatch --> exec() regardless of whether we are in the middle
-    // of processing/defining a contruct. Examples are 'routine' and 'end'
-    // and anything that causes a construct stack push or pop.
-    bool is_construct;
+    // Attribute flags for this command
+    scallop_cmd_attr_t attributes;
 
     // command handler function taking arguments are returning int
     scallop_cmd_handler_f handler;
@@ -153,7 +144,9 @@ static void scallop_cmd_destroy(void * scallcmd)
 
     // Recursively destroy command tree, if there are any nodes,
     // and IF the pointer to those nodes is not an alias copy
-    if (priv->cmds && !priv->is_mutable)
+    // FIXME: This may not longer be correct given the distinction
+    // between alias and mutable.!!
+    if (priv->cmds && !(priv->attributes & SCALLOP_CMD_ATTR_ALIAS))
     {
         priv->cmds->destroy(priv->cmds);
         //priv->cmds = NULL;  // redundant
@@ -188,13 +181,17 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
                                              priv->arghints->cstr(priv->arghints),
                                              description->cstr(description));
 
-    // All aliases can be unregistered, but construct depends
+    // All aliases ARE aliases, AND are mutable, but construct depends
     // on the original command.
-    alias->set_mutable(alias);
-    if (priv->is_construct)
+    scallop_cmd_attr_t attributes =
+            SCALLOP_CMD_ATTR_ALIAS | SCALLOP_CMD_ATTR_MUTABLE;
+
+    if (priv->attributes & SCALLOP_CMD_ATTR_CONSTRUCT)
     {
-        alias->set_construct(alias);
+        attributes |= SCALLOP_CMD_ATTR_CONSTRUCT;
     }
+
+    alias->set_attributes(alias, attributes);
 
     // Manually copy the sub-command pointer to the original
     // command being aliased so that things will work properly.
@@ -324,31 +321,32 @@ static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
 }
 
 //------------------------------------------------------------------------|
-static void scallop_set_mutable(scallop_cmd_t * scallcmd)
+static void scallop_set_attributes(scallop_cmd_t * scallcmd,
+                                   scallop_cmd_attr_t attributes)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    priv->is_mutable = true;
+    priv->attributes |= attributes;
 }
 
 //------------------------------------------------------------------------|
-static void scallop_set_construct(scallop_cmd_t * scallcmd)
+static inline bool scallop_cmd_is_alias(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    priv->is_construct = true;
+    return priv->attributes & SCALLOP_CMD_ATTR_ALIAS;
 }
 
 //------------------------------------------------------------------------|
 static inline bool scallop_cmd_is_mutable(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->is_mutable;
+    return priv->attributes & SCALLOP_CMD_ATTR_MUTABLE;
 }
 
 //------------------------------------------------------------------------|
 static inline bool scallop_cmd_is_construct(scallop_cmd_t * scallcmd)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    return priv->is_construct;
+    return priv->attributes & SCALLOP_CMD_ATTR_CONSTRUCT;
 }
 
 //------------------------------------------------------------------------|
@@ -593,9 +591,43 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
     // of all registered commands (within this scope) and also unregister
     // any and all aliases to that command.  Need to extract from 'found'
     // enough information to identify them in the list of commands.
+    scallop_cmd_priv_t * other_priv = (scallop_cmd_priv_t *) found->priv;
+    scallop_cmd_handler_f found_handler = other_priv->handler;
 
     // Remove the found command link -- this also destroys the found command
     priv->cmds->remove(priv->cmds);
+
+#if 1
+    // EXPERIMENTAL.  It's unclear what should happen if the alias
+    // is to a routine, since all routines have the same handler.
+    // this appears to be apples and oranges but some changes may
+    // be necessary to support handling this case properly
+    scallop_cmd_t * other = NULL;
+    priv->cmds->reset(priv->cmds);
+    do
+    {
+        other = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
+        if (other)
+        {
+            other_priv = (scallop_cmd_priv_t *) other->priv;
+
+            // The (possibly flawed) condition by which aliases are
+            // opportunistically culled from the registry
+            if ((other_priv->handler == found_handler)
+                    && (other->is_alias(other)))
+            {
+                BLAMMO(WARNING, "also removing alias: %s",
+                                other->keyword(other));
+                priv->cmds->remove(priv->cmds);
+                priv->cmds->spin(priv->cmds, -1);
+            }
+        }
+    }
+    while (priv->cmds->spin(priv->cmds, 1));
+#else
+    (void) found_priv;
+    (void) found_handler;
+#endif
 
     return true;
 }
@@ -608,8 +640,8 @@ const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_find_by_keyword,
     &scallop_cmd_partial_matches,
     &scallop_cmd_exec,
-    &scallop_set_mutable,
-    &scallop_set_construct,
+    &scallop_set_attributes,
+    &scallop_cmd_is_alias,
     &scallop_cmd_is_mutable,
     &scallop_cmd_is_construct,
     &scallop_cmd_keyword,

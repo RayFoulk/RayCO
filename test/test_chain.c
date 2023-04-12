@@ -32,7 +32,7 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(DEBUG);
+    BLAMMO_LEVEL(INFO);
     BLAMMO_FILE("test_chain.log");
     BLAMMO(INFO, "chain tests...");
 
@@ -222,7 +222,7 @@ TEST_BEGIN("spin")
     chain->reset(chain);
     do
     {
-        BLAMMO(INFO, "do/while data: %ld", (long) chain->data(chain));
+        BLAMMO(DEBUG, "do/while data: %ld", (long) chain->data(chain));
     }
     while(chain->spin(chain, 1));
 
@@ -230,8 +230,20 @@ TEST_BEGIN("spin")
     chain->spin(chain, -1);
     while(chain->spin(chain, 1))
     {
-        BLAMMO(INFO, "while data: %ld", (long) chain->data(chain));
+        BLAMMO(DEBUG, "while data: %ld", (long) chain->data(chain));
     }
+
+    // here's a reasonable compromise? - NO
+    // beginning to rethink the whole circular thing.
+//    chain->reset(chain);
+//    void * thingy = chain->data(chain);
+//    while(thingy)
+//    {
+//        BLAMMO(INFO, "while thingy: %ld", (long) thingy);
+//
+//        chain->spin(chain, 1);
+//        thingy = chain->data(chain);
+//    }
 
     chain->destroy(chain);
 TEST_END

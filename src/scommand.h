@@ -32,6 +32,38 @@
 #include "bytes.h"          // bytes_t
 
 //------------------------------------------------------------------------|
+// Bit-flags for command attributes.  It's likely safe to assume the
+// compiler will use at least 16 bits for this type, even on many 8-bit
+// systems/compilers.  Not many are needed, but keep a few in reserve
+// for potential user-implementation use cases later on.
+typedef enum
+{
+    SCALLOP_CMD_ATTR_NONE       = 0,
+
+    // Whether the command is an alias to another.
+    SCALLOP_CMD_ATTR_ALIAS      = (1 << 0),
+
+    // Whether the command can be dynamically unregistered or altered
+    // at runtime as part of a handler's actions.  Most commands are
+    // compiled in and registered at program initialization, and are not
+    // mutable.  Examples of mutable commands are routines and aliases.
+    SCALLOP_CMD_ATTR_MUTABLE    = (1 << 1),
+
+    // Whether the command is part of a multi-line language construct
+    // that is pushed onto the construct stack.  These are handled
+    // differently than single-line commands in dispatch().  Examples
+    // of language constructs include 'routine' and 'end', and anything
+    // that causes a construct stack push or pop.
+    SCALLOP_CMD_ATTR_CONSTRUCT  = (1 << 2)
+
+    // All further higher bits are reserved for later use or special-case
+    // implementations that use scallop as a CLI toolkit.  Those should
+    // probably start at bit 16 or 8 and work their way down to avoid
+    // conflict in future revisions of scallop.
+}
+scallop_cmd_attr_t;
+
+//------------------------------------------------------------------------|
 // Command handler function signature.
 typedef int (*scallop_cmd_handler_f) (void * scallcmd,
                                       void * context,
@@ -74,10 +106,15 @@ typedef struct scallop_cmd_t
     // that is: created at program initialization for the lifetime
     // of the process, and not a special part of a multi-line sequence.
     // Use these cautiously: intended to be called once after creation.
-    void (*set_mutable)(struct scallop_cmd_t * scallcmd);
-    void (*set_construct)(struct scallop_cmd_t * scallcmd);
+    // Once attribute bits are set they are not intended to be unset.
+    void (*set_attributes)(struct scallop_cmd_t * scallcmd,
+                           scallop_cmd_attr_t attributes);
 
     // Get whether this command is an alias to another command
+    bool (*is_alias)(struct scallop_cmd_t * scallcmd);
+
+    // Get whether this command was registered at runtime, and can
+    // be unregistered or redefined.
     bool (*is_mutable)(struct scallop_cmd_t * scallcmd);
 
     // Get whether this command is part of a multi-line language construct

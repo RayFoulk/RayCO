@@ -67,6 +67,9 @@ typedef struct
 #ifdef LINENOISE_ENABLE
     // linenoise needs a little extra context to work properly
     linenoiseCompletions * lc;
+
+    // File name for command history
+    bytes_t * history_file;
 #endif
 }
 console_priv_t;
@@ -122,7 +125,9 @@ static char * surrogate_linenoise_hints(const char * buffer,
 #endif
 
 //------------------------------------------------------------------------|
-static console_t * console_create(FILE * input, FILE * output)
+static console_t * console_create(FILE * input,
+                                  FILE * output,
+                                  const char * history_file)
 {
     // Allocate and initialize public interface
     console_t * console = (console_t *) malloc(sizeof(console_t));
@@ -171,6 +176,13 @@ static console_t * console_create(FILE * input, FILE * output)
     // Set the hints callback for when arguments are needed
     linenoiseSetHintsCallback(surrogate_linenoise_hints);
 
+    // Configure and load history from file
+    priv->history_file = bytes_pub.create(history_file,
+                                          history_file ?
+                                              strlen(history_file) :
+                                              0);
+    linenoiseHistoryLoad(priv->history_file->cstr(priv->history_file));
+
     // Set singleton pointer to console object.  WARNING: this will break
     // if multiple console objects are created.
     singleton_console_ptr = console;
@@ -197,6 +209,11 @@ static void console_destroy(void * console_ptr)
     priv->buffer[1]->destroy(priv->buffer[1]);
     pthread_mutex_destroy(&priv->lock);
 
+#ifdef LINENOISE_ENABLE
+    priv->history_file->destroy(priv->history_file);
+    singleton_console_ptr = NULL;
+#endif
+
     // zero out and destroy the private data
     memset(console->priv, 0, sizeof(console_priv_t));
     free(console->priv);
@@ -204,10 +221,6 @@ static void console_destroy(void * console_ptr)
     // zero out and destroy the public interface
     memset(console, 0, sizeof(console_t));
     free(console);
-
-#ifdef LINENOISE_ENABLE
-    singleton_console_ptr = NULL;
-#endif
 }
 
 //------------------------------------------------------------------------|
@@ -309,10 +322,32 @@ bool console_inputf_eof(console_t * console)
 }
 
 //------------------------------------------------------------------------|
+// Private helper for adding line to history
+static void console_add_history(console_t * console,
+                                const char * line)
+{
+#ifdef LINENOISE_ENABLE
+    console_priv_t * priv = (console_priv_t *) console->priv;
+
+    if (line && line[0] && !priv->history_file->empty(priv->history_file))
+    {
+        // Add line to history, and save to disk
+        linenoiseHistoryAdd(line);
+        linenoiseHistorySave(priv->history_file->cstr(priv->history_file));
+    }
+
+#else
+    BLAMMO(DEBUG, "Line history not implemented");
+#endif
+}
+
+//------------------------------------------------------------------------|
 static char * console_get_line(console_t * console,
                                const char * prompt,
                                bool interactive)
 {
+    char * line = NULL;
+
     // if interactive and linenoise enabled, use linenoise
     // else read from input FILE *???
     // tempting to just compare with stdin here, but that would be a
@@ -322,7 +357,9 @@ static char * console_get_line(console_t * console,
     {
         // TODO: PR against linenoise to add setting of FILE *
         // so that we can, for example, redirect I/O to a tty
-        return linenoise(prompt);
+        line = linenoise(prompt);
+        console_add_history(console, line);
+        return line;
     }
 #endif
 
@@ -336,7 +373,6 @@ static char * console_get_line(console_t * console,
         fprintf(priv->output, "%s", prompt);
     }
 
-    char * line = NULL;
     size_t nalloc = 0;
     ssize_t nchars = getline(&line, &nalloc, priv->input);
     if (nchars < 0)
@@ -347,6 +383,7 @@ static char * console_get_line(console_t * console,
         return NULL;
     }
 
+    console_add_history(console, line);
     return line;
 }
 
