@@ -85,7 +85,8 @@ typedef struct chain_t
 
     // Seeks the chain to the requested position, either forward (positive
     // offset) or backward (negative offset).  Note there is the possibility
-    // that if the chain length gets larger than MAX_
+    // that if the chain length gets larger than the maximum possible for
+    // offset, that certain links will take multiple calls to reach.
     bool (*spin)(struct chain_t * chain, int64_t offset);
 
     // Walk through the chain and remove all links with NULL data payloads.

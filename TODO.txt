@@ -1,7 +1,172 @@
 +-------------------------------------------------------------------------+
+TODO:
+
+(HIGH PRIORITY)
+
+- BUG: weird print corrupted string, how to reproduce?
+- fix mem zero optimization problem (volatile?)
+  - see URL commend in utils.c
+- introduce functional tests and split test make targets into func and unit
+- implement 'bits_t' object with tests.
+  - This will be needed for raytl to support arbitrary bit width architectures.
+  - consider finally finishing C++ BitDeque in parallel.
+- refactor chain/link object
+  - still using empty origin node, makes iterating unwieldy/awkward.
+  - reconsidering circularity of linkage.
+    - either terminate with NULL or add 'final', 'begin', or 'end' nodes.
+  - start with a good iterator paradigm and let that drive the design.
+- introduce some language constructs to scallop:
+  - recursive dive expression evaluation (integer only - assume no FPU)
+  - add while loop language construct
+  - add if-else language construct
+  - after these features are added and confirmed working, TAG it and USE it.
+- clean up TODOs and FIXMEs in the code.
+
+(LOWER PRIORITY)
+
+- consider using doxygen to generate project documentation
+- consider adding metadata tags to project once production-ready
+- harden code with static and dynamic analysis (valgrind, others...)
+- dumb down to 32bits for embedded systems that don't support 64 bit integers
+  - port to cc65 and test in vice c64 emulator
+- projects to be refactored and updated to use this library:
+  - sink, particles, raytl, others?
+  - migrate selected useful legacy librmf objects
+- add license target to makefile to update all src
+- constify return values, pointers functions wherever possible
+- add install and uninstall phony targets
+- refactor bytes_t interface to have _raw() versus plain, use bytes with plain.
+- Option in blammo logger for newline style \r\n or \n
+  - Maybe require escape/unescape functionality in bytes_t
+  - else present as a simple 'universal newline / optional' option
+- periodically scrape 'TODO's out of source and paste them here.
+
+
++-------------------------------------------------------------------------+
+TODOs FROM CODE:
+find . -type f -regex ".*\.[ch]" -exec grep -nHA1 TODO {} +
+
+./test/test_bytes.c:153:    // TODO expand these later,
+./test/test_bytes.c-154-    const char * expect = "hello -9 9 55 AA 2147483648";
+--
+./test/test_bytes.c:186:    // TODO: Turns out this does exactly what one
+./test/test_bytes.c-187-    // should expect.  Problem is it gets the missing 6
+--
+./test/test_bytes.c:249:    // TODO: more cases, overlapping
+./test/test_bytes.c-250-    bytes->destroy(bytes);
+--
+./src/collect.h:47:    // TODO: consider char **, void ** initializers
+./src/collect.h-48-    struct collect_t * (*create)();
+--
+./src/sroutine.c:177:    // Find _this_ routine.  TODO: Is there a faster way to
+./src/sroutine.c-178-    // find/get the routine associated with the command we're
+--
+./src/chain.c:160:    // TODO: Likely this is redundant
+./src/chain.c-161-    priv->orig = NULL;
+--
+./src/scallop.c:583:    // TODO: Consider locking for thread safety.  The routines chain should
+./src/scallop.c-584-    // be left on the link to remove after the find, but another thread
+--
+./src/scallop.c:765:// TODO: In the rare case where a line is dispatched directly from
+./src/scallop.c-766-// the application's command-line (piped from stdin or given an option)
+--
+./src/scallop.c:898:    // TODO: Determine if it is ever necessary to pump a newline into
+./src/scallop.c-899-    // the console here just to get it off the blocking call?
+--
+./src/bytes.h:117:    // TODO: consider find_all by re-using token array
+./src/bytes.h-118-    ssize_t (*find_forward)(struct bytes_t * bytes,
+--
+./src/bytes.h:187:// TODO: Notional Functions
+./src/bytes.h-188-// (*fill_cyclic) // for VR purposes
+./src/bytes.h:189:// TODO: how to handle whether the string needs to be un-escaped or not?
+./src/bytes.h:190:// TODO: manual escape/un-escape calls for this
+./src/bytes.h-191-//(*escape/encode) (*unescape/decode)
+--
+./src/sbuiltin.c:62:    // TODO: Improve help column formatting so that indented sub-commands
+./src/sbuiltin.c-63-    //  align consistently with base level help.
+--
+./src/sbuiltin.c:86:    // TODO: Consider supporting aliasing nested commands
+./src/sbuiltin.c-87-    //  via some syntax like 'alias stuff log.file'.  or else
+--
+./src/sbuiltin.c:205:    // TODO: The answer to nested help may be staring me in the face here,
+./src/sbuiltin.c-206-    // versus a complex approach to having parent links in all commands.
+--
+./src/sbuiltin.c:288:    // TODO: also evaluate expressions here, as well as 'while <expr>'
+./src/sbuiltin.c-289-    //  and 'if <expr>'.  This would allow things like 'print <expr>'
+--
+./src/sbuiltin.c:358:    // Done with script file -- TODO: return status of script run?
+./src/sbuiltin.c-359-    fclose(source);
+--
+./src/sbuiltin.c:489:    // TODO: add 'while' as a language construct.
+./src/sbuiltin.c-490-    //  need to add an expression evaluator to do this.
+--
+./src/sbuiltin.c:505:    // TODO: Also, removing a thing should ALWAYS remove all
+./src/sbuiltin.c-506-    //  of it's aliases.  otherwise the aliases are present
+--
+./src/sbuiltin.c:550:        "print strings, variables, and (TODO) expressions"));
+./src/sbuiltin.c-551-
+--
+./src/sbuiltin.c:595:    // TODO: Remove this code once it is.
+./src/sbuiltin.c-596-    //  and add a unit test to verify it remains so.
+--
+./src/console.c:56:    // TODO: Assume ownership of the input line buffer
+./src/console.c-57-    // as well, rather than relying on the caller to free()
+--
+./src/console.c:358:        // TODO: PR against linenoise to add setting of FILE *
+./src/console.c-359-        // so that we can, for example, redirect I/O to a tty
+--
+./src/bytes.c:129:        // TODO: Deal with compiler optimization problem
+./src/bytes.c-130-        memset(bytes, 0, sizeof(bytes_t));
+--
+./src/bytes.c:228:        // TODO: Deal with compiler optimization problem
+./src/bytes.c-229-        memset(priv->data, 0, priv->size);
+--
+./src/bytes.c:258:        // TODO: Replace with secure memory wipe
+./src/bytes.c-259-        memset(priv->data + priv->size, 0, size - priv->size);
+--
+./src/bytes.c:801:// TODO: merge this with the hexdump in utils
+./src/bytes.c-802-static const char * const bytes_hexdump(bytes_t * bytes)
+--
+./src/scommand.c:581:        // TODO: Get a handle to console here.  Cannot guarantee
+./src/scommand.c-582-        // that the parent->context is going to be the grandparent
+
++-------------------------------------------------------------------------+
+FIXMEs FROM CODE:
+find . -type f -regex ".*\.[ch]" -exec grep -nHA1 FIXME {} +
+
+./test/test_bytes.c:254:    BLAMMO(INFO, "FIXME: TEST NOT IMPLEMENTED");
+./test/test_bytes.c-255-TEST_END
+--
+./test/test_collect.c:142:    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+./test/test_collect.c-143-TEST_END
+--
+./test/test_chain.c:317:    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
+./test/test_chain.c-318-TEST_END
+--
+./src/blammo.c:137:    // WARNING: FIXME: memory leak on exit
+./src/blammo.c-138-}
+--
+./src/sroutine.c:74:    // Name of this routine (NO SPACES!!! - FIXME filter this)
+./src/sroutine.c-75-    priv->name = bytes_pub.create(name, strlen(name));
+--
+./src/chain.c:352:    // FIXME: Switch to qsort_r() if available
+./src/chain.c-353-    qsort(data_ptrs, priv->length, sizeof(void *), data_compare);
+--
+./src/scommand.c:147:    // FIXME: This may not longer be correct given the distinction
+./src/scommand.c-148-    // between alias and mutable.!!
+--
+./src/scommand.c:457:    // FIXME: Padding for nested sub-commands does not factor into
+./src/scommand.c-458-    // the calculation for longest kw+hints, so the descriptions
+--
+./src/scommand.c:464:    // FIXME: Does not build up a complete string including
+./src/scommand.c-465-    //  grandparents -- does not always show complete context!
+--
+./src/scommand.c:590:    // FIXME: When unregistering ANY command, search through the list
+./src/scommand.c-591-    // of all registered commands (within this scope) and also unregister
+
++-------------------------------------------------------------------------+
 DONE:
 
-* refactor chain/link to not use empty origin node
 * verify all tests still pass
 * move all function pointers into chain typedef and make static
   initialized from factory function
@@ -31,6 +196,26 @@ DONE:
   * need to add console() public method, and use commands() instead of priv
   * only need to export one function and that is the register_builtins()
     and pass in the base command tree pointer.  all else can be static.
+* finish bytes_t object calls read()/write() (others?) and complete unit tests
+  * need a 'find' substring match returning offset & size.  left-to-right and vice versa
+  * need a replace() function to replace at location,  also insert() and remove()
+* consider other builtin commands: print, (dereference object???)
+* need to introduce scallop procedures
+  * these are distinct from scripts, and necessary for specific projects
+  * will likely need to support variables, probably in string format
+  * check if cc65 supports env put/get, make design decision
+    * decision is to manage variables independently
+  * need an 'alias' command to store routines as type definitions -- semantics
+* Needed: bytes_t is needed for:
+  * dynamic contextual prompt
+  * appendable / formatted help report
+  * routine names? / routine lines
+  * dynamic reprint buffers in console
+* Rework console->reprint()
+  * use dynamically sized bytes_t
+  * refactor how it works, writing substrings-at-once
+* Enable command history, with options, when linenoise is available.
+* console to borrow message type enum from blammo, but with it's own strings.
 
 +-------------------------------------------------------------------------+
 MOSTLY DONE / SUPERCEDED:
@@ -38,77 +223,3 @@ MOSTLY DONE / SUPERCEDED:
 ~ write unit tests for all chain functions, pass and fail, build only in TEST mode
 X pass in link dtor function to delete and destroy, do not cache
   (This is now covered by notional collect_t
-
-+-------------------------------------------------------------------------+
-TODO:
-
-- finish bytes_t object calls read()/write() (others?) and complete unit tests
-  - need a 'find' substring match returning offset & size.  left-to-right and vice versa
-  - need a replace() function to replace at location,  also insert() and remove()
-- dumb down to 32bits for embedded systems that don't support 64 bit integers
-- app: migrate over to sink project and refactor
-- fix mem zero optimization problem (volatile?)
-  - see URL commend in utils.c
-- add license target to makefile to update all src
-- migrate selected useful librmf objects
-- constify return values, pointers functions
-- add install and uninstall phony targets
-- consider other builtin commands: print, (dereference object???)
-- need to introduce scallop procedures
-  * these are distinct from scripts, and necessary for specific projects
-  - will likely need to support variables, probably in string format
-  - check if cc65 supports env put/get, make design decision
-  * need an 'alias' command to store routines as type definitions -- semantics
-- refactor bytes_t interface to have _raw() versus plain, use bytes with plain.
-- Option in blammo logger for newline style \r\n or \n
-  - Maybe require escape/unescape functionality in bytes_t
-  - else present as a simple 'universal newline / optional' option
-- scrape 'TODO's out of source and paste them here.
-- Needed: bytes_t is needed for:
-  * dynamic contextual prompt
-  * appendable / formatted help report
-  * routine names? / routine lines
-  - dynamic reprint buffers in console
-
-- Rework console->reprint()
-  - use dynamically sized bytes_t
-  - refactor how it works, writing substrings-at-once
-- Enable command history, with options, when linenoise is available.
-- console to borrow message type enum from blammo, but with it's own strings.
-
-- BUG: weird print corrupted string, how to reproduce?
-- Harden code with static and dynamic analysis (valgrind, others...)
-
-
-+-------------------------------------------------------------------------+
-TODOs FROM CODE:
-
-./test/test_bytes.c:126:    // TODO: Test some common types,
-./test/test_bytes.c:146:    // TODO: Turns out this does exactly what one
-./test/test_bytes.c:190:    // TODO: more cases, overlapping
-./src/scallop.h:61:    // TODO: get/set prompt
-./src/bytes.c:95:        // TODO: Deal with compiler optimization problem
-./src/bytes.c:139:        // TODO: Deal with compiler optimization problem
-./src/bytes.c:227:    // TODO: Impose some reasonable size checks here?  get available free
-./src/bytes.c:244:    // TODO: Impose some reasonable size checks here?  get available free
-./src/scallop.c:188:        // TODO possibly store result in priv, or else report on console
-./src/scallop.c:352:        // of bugs in this code.  TODO: harden it up later with some
-./src/scallop.c:459:    // TODO: Make these constants or defines
-./src/scallop.c:713:        // TODO possibly store result in priv, or else report on console
-./src/chain.c:160:    // TODO: Likely this is redundant
-./src/scallcmd.c:283:    // TODO: Append stuff about THIS command in the report???
-./src/scallcmd.c:308:        // TODO: expand helptext with realloc
-./src/bytes.h:64:    // TODO: how to handle whther the string needs to be un-escaped or not?
-./src/bytes.h:65:    // TODO: manual escape/unescape calls for this
-./src/bytes.h:82:    // TODO: Notional Functions
-./src/bytes.h:91:    // TODO: Stubbed Functions
-
-+-------------------------------------------------------------------------+
-FIXMEs FROM CODE:
-
-./test/test_bytes.c:186:    // FIXME: Disable until implemented
-./test/test_chain.c:278:    BLAMMO(ERROR, "FIXME: TEST NOT IMPLEMENTED");
-./src/scallop.c:60:    // FIXME: Eventually make this more dynamic
-./src/chain.c:352:    // FIXME: Switch to qsort_r() if available
-./src/scallcmd.c:160:    // FIXME: Danger of buffer overrun here.
-./src/scallcmd.c:301:        // FIXME: Console output versus blammo output
