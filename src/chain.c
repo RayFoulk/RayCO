@@ -57,14 +57,19 @@ typedef struct
     // The chain length, number of links
     size_t length;
 
+    // The link data copy function for all links.
+    // This can be NULL for static or unmanaged data.
+    link_data_copy_f data_copy;
+
     // The link data destructor function for all links.
-    // This can be NULL for static or unmanaged data
+    // This can be NULL for static or unmanaged data.
     link_data_destroy_f data_destroy;
 }
 chain_priv_t;
 
 //------------------------------------------------------------------------|
-static chain_t * chain_create(link_data_destroy_f data_destroy)
+static chain_t * chain_create(link_data_copy_f data_copy,
+                              link_data_destroy_f data_destroy)
 {
     // Allocate and initialize public interface
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
@@ -87,7 +92,10 @@ static chain_t * chain_create(link_data_destroy_f data_destroy)
     }
 
     memset(chain->priv, 0, sizeof(chain_priv_t));
-    ((chain_priv_t *) chain->priv)->data_destroy = data_destroy;
+
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+    priv->data_copy = data_copy;
+    priv->data_destroy = data_destroy;
 
     return chain;
 }
@@ -263,7 +271,7 @@ static inline void chain_reset(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
-static bool chain_spin(chain_t * chain, int64_t index)
+static bool chain_spin(chain_t * chain, ssize_t index)
 {
     if (chain->empty(chain))
     {
@@ -285,6 +293,49 @@ static bool chain_spin(chain_t * chain, int64_t index)
     }
 
     return (priv->link != priv->orig);
+}
+
+//------------------------------------------------------------------------|
+static void * chain_first(chain_t * chain)
+{
+    chain->reset(chain);
+    return chain->data(chain);
+}
+
+//------------------------------------------------------------------------|
+static void * chain_last(chain_t * chain)
+{
+    chain->reset(chain);
+    chain->spin(chain, -1);
+    return chain->data(chain);
+}
+
+//------------------------------------------------------------------------|
+static void * chain_next(chain_t * chain)
+{
+    chain->spin(chain, 1);
+
+    if (chain->origin(chain))
+    {
+        return NULL;
+    }
+
+    return chain->data(chain);
+}
+
+//------------------------------------------------------------------------|
+static void * chain_prev(chain_t * chain)
+{
+    chain_priv_t * priv = (chain_priv_t *) chain->priv;
+
+    chain->spin(chain, -1);
+
+    if (priv->orig == priv->link->next)
+    {
+        return NULL;
+    }
+
+    return chain->data(chain);
 }
 
 //------------------------------------------------------------------------|
@@ -349,7 +400,11 @@ static void chain_sort(chain_t * chain, link_data_compare_f data_compare)
     while (chain->spin(chain, 1));
 
     // call quicksort on the array of data pointers
-    // FIXME: Switch to qsort_r() if available
+    // NOTE: qsort_r() may or may not exist in the current libc,
+    // however even if it does it won't buy us anything since this
+    // 'chain' object is stateful, and should be locked in a
+    // multi-threaded application anyway, making the notion almost
+    // pointless, and would require additional 'glue' code.
     qsort(data_ptrs, priv->length, sizeof(void *), data_compare);
 
     // now directly re-arrange all of the data pointers
@@ -525,6 +580,10 @@ const chain_t chain_pub = {
     &chain_remove,
     &chain_reset,
     &chain_spin,
+    &chain_first,
+    &chain_last,
+    &chain_next,
+    &chain_prev,
     &chain_trim,
     &chain_sort,
     &chain_find,

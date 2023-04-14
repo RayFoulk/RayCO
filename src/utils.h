@@ -43,36 +43,28 @@
 #endif
 
 //-----------------------------------------------------------------------------+
+// Generic comparator function signature.  Matches signature for qsort()'s
+// 'compar' function pointer argument.  These are frequently used in objects
+// for finding items within a chain or collection, or for sorting.
+typedef int (*generic_compare_f)(const void *, const void *);
+
+// Generic object/data copy function signature.  Similar to strdup(), but these
+// are expected to return a heap-allocated deep-copy of the passed-in object.
+// The type must be known by the implementer.  These are used within other
+// implementations of object copy instances (sometimes recursively) to copy
+// complex objects.
+typedef void * (*generic_copy_f)(const void *);
+
+// Generic object/data destructor signature.  Matches free() so that these can
+// be used interchangeably depending on the type of data or object being
+// deallocated.  These are used all over the place for garbage collection.
+typedef void (*generic_destroy_f)(void *);
+
+//-----------------------------------------------------------------------------+
 void hexdump(const void * buf, size_t len, size_t addr);
-
-// Pass in caller-managed pointer array and its size.  THe string to be
-// tokenized MUST be mutable otherwise this will segfault.  Use strdup()
-// beforehand if you have to.  Uses strtok_r() internally.  Returns the
-// number of tokens and populates the 'tokens' array with pointers.
-//int splitstr(char ** tokens, size_t max_tokens,
-//             char * str, const char * delim);
-
-// Like splitstr only do NOT alter original string.  This is useful for
-// counting would-be tokens, and for marking where they begin.  Note that
-// because NULL terminators are not inserted, the tokens are not terminated.
-// One of the use cases prevents us from simply using strdup() followed by
-// splitstr(), because then the pointers would be to the copy rather than
-// the original unaltered string.
-//int markstr(char ** markers, size_t max_markers,
-//            const char * str, const char * delim);
-
-// Strip comments by effectively reducing the number of args, ignoring
-// those that begin with the comment string.
-//int ignore_comments(int argc, char ** args, const char * comment);
 
 // Convert a string to boolean.  Things like "true" and "false", '0' and '1',
 // "on" and "off" should be supported by this.
 bool str_to_bool(const char * str);
 
 // https://www.cryptologie.net/article/419/zeroing-memory-compiler-optimizations-and-memset_s/
-
-
-
-
-
-

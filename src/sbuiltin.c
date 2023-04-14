@@ -48,16 +48,39 @@ static int builtin_handler_help(void * scmd,
     scallop_t * scallop = (scallop_t *) context;
     console_t * console = scallop->console(scallop);
     scallop_cmd_t * cmds = scallop->commands(scallop);
-    bytes_t * help = bytes_pub.create(NULL, 0);
+
+    // If the caller provided additional keywords I.E. "help thingy"
+    // then try to provide help for the specified command instead
+    // of just everything (by default)
+    scallop_cmd_t * focus = NULL;
+    scallop_cmd_t * found = NULL;
+
+    // TODO: Support more than one topic
+    if (argc > 1)
+    {
+        found = cmds->find_by_keyword(cmds, args[1]);
+        if (!found)
+        {
+            console->error(console, "command %s not found", args[1]);
+            return -1;
+        }
+
+        // Make a copy of found command so the original doesn't get destroyed
+        found = found->copy(found);
+
+        focus = scallop_cmd_pub.create(NULL, NULL, NULL, NULL, NULL);
+        focus->register_cmd(focus, found);
+        cmds = focus;
+    }
 
     // Getting the longest command has to occur before diving into
     // recursive help, because the top level help must be told.
     // otherwise, recursive help will only determine the longest
     // for each sub-branch.
+    const char * start = "\r\ncommands:\r\n\r\n";
+    bytes_t * help = bytes_pub.create(start, strlen(start));
     size_t longest_kw_and_hints = 0;
     cmds->longest(cmds, &longest_kw_and_hints, NULL, NULL, NULL);
-
-    help->print(help, "\r\ncommands:\r\n\r\n");
 
     // TODO: Improve help column formatting so that indented sub-commands
     //  align consistently with base level help.
@@ -71,6 +94,8 @@ static int builtin_handler_help(void * scmd,
 
     console->print(console, "%s", help->cstr(help));
     help->destroy(help);
+    if (focus) { focus->destroy(focus); }
+
     return result;
 }
 
@@ -290,7 +315,10 @@ static int builtin_handler_print(void * scmd,
     //  where <expr> can contain arguments or variables
     for (argnum = 1; argnum < argc; argnum++)
     {
+        // FIXME: Primary delimiter is assumed here,
+        // but this is private within scallop module
         message->append(message, args[argnum], strlen(args[argnum]));
+        message->append(message, " ", 1);
     }
 
     console->print(console, "%s", message->cstr(message));

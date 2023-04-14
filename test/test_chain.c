@@ -214,6 +214,8 @@ TEST_BEGIN("clear")
 TEST_END
 
 TEST_BEGIN("spin")
+    long index = 1;
+    long value = 0;
     chain_t * chain = chain_pub.create(NULL);
     chain->insert(chain, (void *) 1);
     chain->insert(chain, (void *) 2);
@@ -222,28 +224,64 @@ TEST_BEGIN("spin")
     chain->reset(chain);
     do
     {
-        BLAMMO(DEBUG, "do/while data: %ld", (long) chain->data(chain));
+        // Not the best iterator scenario: normally requires a check
+        // for empty list.  Still, this is the generic use case.
+        value = (long) chain->data(chain);
+        CHECK(index == value);
+        BLAMMO(DEBUG, "do/while data: %ld", value);
+        index++;
     }
     while(chain->spin(chain, 1));
 
-    chain->reset(chain);
-    chain->spin(chain, -1);
-    while(chain->spin(chain, 1))
+    chain->destroy(chain);
+TEST_END
+
+TEST_BEGIN("first/last/next/prev")
+    long index = 1;
+    long value = 0;
+    chain_t * chain = chain_pub.create(NULL);
+    chain->insert(chain, (void *) 1);
+    chain->insert(chain, (void *) 2);
+    chain->insert(chain, (void *) 3);
+
+    // forward iterator
+    index = 1;
+    value = (long) chain->first(chain);
+    while (value)
     {
-        BLAMMO(DEBUG, "while data: %ld", (long) chain->data(chain));
+        CHECK(index == value);
+        BLAMMO(DEBUG, "while data: %ld", value);
+
+        value = (long) chain->next(chain);
+        index++;
     }
 
-    // here's a reasonable compromise? - NO
-    // beginning to rethink the whole circular thing.
-//    chain->reset(chain);
-//    void * thingy = chain->data(chain);
-//    while(thingy)
-//    {
-//        BLAMMO(INFO, "while thingy: %ld", (long) thingy);
-//
-//        chain->spin(chain, 1);
-//        thingy = chain->data(chain);
-//    }
+    // reverse iterator
+    index = 3;
+    value = (long) chain->last(chain);
+    while (value)
+    {
+        CHECK(index == value);
+        BLAMMO(DEBUG, "while data: %ld", value);
+
+        value = (long) chain->prev(chain);
+        index--;
+    }
+
+    // empty list forward
+    chain->clear(chain);
+    value = (long) chain->first(chain);
+    while (value)
+    {
+        CHECK(false);
+    }
+
+    // empty list reverse
+    value = (long) chain->last(chain);
+    while (value)
+    {
+        CHECK(false);
+    }
 
     chain->destroy(chain);
 TEST_END

@@ -224,12 +224,9 @@ static void scallop_tab_completion(void * object, const char * buffer)
     ssize_t offset = linebytes->offset(linebytes, args[nest]);
 
     // iterate through partially matched keywords
-    char * keyword = NULL;
-    pmatches->reset(pmatches);
-    do
+    char * keyword = (char *) pmatches->first(pmatches);
+    while (keyword)
     {
-        keyword = (char *) pmatches->data(pmatches);
-
         // Add keyword + primary delimiter character at end of completion
         linebytes->resize(linebytes, offset);
         linebytes->append(linebytes, keyword, strlen(keyword));
@@ -240,8 +237,9 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
         priv->console->add_tab_completion(priv->console,
                                           linebytes->cstr(linebytes));
+
+        keyword = (char *) pmatches->next(pmatches);
     }
-    while (pmatches->spin(pmatches, 1));
 
     linebytes->destroy(linebytes);
     pmatches->destroy(pmatches);
@@ -834,12 +832,9 @@ static void scallop_dispatch(scallop_t * scallop, const char * line)
     }
 
     // Select the top item of the language construct stack
-    priv->constructs->reset(priv->constructs);
-    priv->constructs->spin(priv->constructs, 1);
-
-    // Get the current construct
+    // and get the current construct
     scallop_construct_t * construct = (scallop_construct_t *)
-            priv->constructs->data(priv->constructs);
+            priv->constructs->last(priv->constructs);
 
     // if in the middle of defining a routine, while loop,
     // or other user-registered language construct, then
@@ -908,9 +903,20 @@ static void scallop_rebuild_prompt(scallop_t * scallop)
     scallop_construct_t * construct = NULL;
 
     priv->prompt->resize(priv->prompt, 0);
-    priv->constructs->reset(priv->constructs);
-    do
+
+    // start at the bottom of the stack (first) and work towards the top
+    construct = (scallop_construct_t *)
+            priv->constructs->first(priv->constructs);
+    while (construct)
     {
+
+        priv->prompt->append(priv->prompt,
+                             construct->name,
+                             strlen(construct->name));
+
+        construct = (scallop_construct_t *)
+                priv->constructs->next(priv->constructs);
+
         // put a visual/syntactical delimiter between constructs
         // shown within the prompt.
         if (construct)
@@ -919,24 +925,7 @@ static void scallop_rebuild_prompt(scallop_t * scallop)
                                  scallop_prompt_delim,
                                  strlen(scallop_prompt_delim));
         }
-
-        // start at the bottom of the stack (origin)
-        // and work towards the top (origin+1) by
-        // working around backwards.
-        construct = (scallop_construct_t *)
-                priv->constructs->data(priv->constructs);
-        if (!construct)
-        {
-            BLAMMO(ERROR, "NULL construct in stack!");
-            break;
-        }
-
-        priv->prompt->append(priv->prompt,
-                             construct->name,
-                             strlen(construct->name));
-
     }
-    while (priv->constructs->spin(priv->constructs, -1));
 
     priv->prompt->append(priv->prompt,
                          scallop_prompt_finale,
@@ -962,9 +951,9 @@ static void scallop_construct_push(scallop_t * scallop,
     construct->linefunc = linefunc;
     construct->popfunc = popfunc;
 
-    // Push the context onto the stack, treating the link after the
-    // origin as the 'top' of the stack, pushing all other links forward.
-    priv->constructs->reset(priv->constructs);
+    // Push the context onto the stack, treating the 'last' link as
+    // the top of the stack.  New construct becomes the new 'last'
+    priv->constructs->last(priv->constructs);
     priv->constructs->insert(priv->constructs, construct);
 
     scallop_rebuild_prompt(scallop);
@@ -982,17 +971,13 @@ static int scallop_construct_pop(scallop_t * scallop)
         return -1;
     }
 
-    // Select the top item
-    priv->constructs->reset(priv->constructs);
-    priv->constructs->spin(priv->constructs, 1);
-
-    // Get the context
+    // Select the top item and get the context
     scallop_construct_t * construct = (scallop_construct_t *)
-            priv->constructs->data(priv->constructs);
-    int result = 0;
+        priv->constructs->last(priv->constructs);
 
-    // Call the pop function if provided
-    if (construct->popfunc)
+    // Call the pop function if one is provided
+    int result = 0;
+    if (construct && construct->popfunc)
     {
         result = construct->popfunc(construct->context, construct->object);
     }

@@ -65,7 +65,7 @@ scallop_cmd_attr_t;
 
 //------------------------------------------------------------------------|
 // Command handler function signature.
-typedef int (*scallop_cmd_handler_f) (void * scallcmd,
+typedef int (*scallop_cmd_handler_f) (void * cmd,
                                       void * context,
                                       int argc,
                                       char ** args);
@@ -81,24 +81,28 @@ typedef struct scallop_cmd_t
                                      const char * description);
 
     // Shell command destructor function
-    void (*destroy)(void * scallcmd);
+    void (*destroy)(void * cmd);
+
+    // Shell command copy function
+    // Caller is responsible for destroying the copy.
+    void * (*copy)(const void * cmd);
 
     // Psuedo-factory: Create an alias of an existing command
-    struct scallop_cmd_t * (*alias)(struct scallop_cmd_t * scallcmd,
+    struct scallop_cmd_t * (*alias)(struct scallop_cmd_t * cmd,
                                     const char * keyword);
 
     // Find a registered command by keyword
-    struct scallop_cmd_t * (*find_by_keyword)(struct scallop_cmd_t * scallcmd,
+    struct scallop_cmd_t * (*find_by_keyword)(struct scallop_cmd_t * cmd,
                                               const char * keyword);
 
     // Get a list of partially matching keywords.  The returned chain_t
     // instance is expected to be destroyed by the caller.
-    struct chain_t * (*partial_matches)(struct scallop_cmd_t * scallcmd,
+    struct chain_t * (*partial_matches)(struct scallop_cmd_t * cmd,
                                         const char * substring,
                                         size_t * longest);
 
     // Execute the command's handler function with args
-    int (*exec)(struct scallop_cmd_t * scallcmd,
+    int (*exec)(struct scallop_cmd_t * cmd,
                 int argc,
                 char ** args);
 
@@ -107,27 +111,27 @@ typedef struct scallop_cmd_t
     // of the process, and not a special part of a multi-line sequence.
     // Use these cautiously: intended to be called once after creation.
     // Once attribute bits are set they are not intended to be unset.
-    void (*set_attributes)(struct scallop_cmd_t * scallcmd,
+    void (*set_attributes)(struct scallop_cmd_t * cmd,
                            scallop_cmd_attr_t attributes);
 
     // Get whether this command is an alias to another command
-    bool (*is_alias)(struct scallop_cmd_t * scallcmd);
+    bool (*is_alias)(struct scallop_cmd_t * cmd);
 
     // Get whether this command was registered at runtime, and can
     // be unregistered or redefined.
-    bool (*is_mutable)(struct scallop_cmd_t * scallcmd);
+    bool (*is_mutable)(struct scallop_cmd_t * cmd);
 
     // Get whether this command is part of a multi-line language construct
-    bool (*is_construct)(struct scallop_cmd_t * scallcmd);
+    bool (*is_construct)(struct scallop_cmd_t * cmd);
 
     // Get keyword for _this_ command
-    const char * (*keyword)(struct scallop_cmd_t * scallcmd);
+    const char * (*keyword)(struct scallop_cmd_t * cmd);
 
     // Get argument hints for _this_ command
-    const char * (*arghints)(struct scallop_cmd_t * scallcmd);
+    const char * (*arghints)(struct scallop_cmd_t * cmd);
 
     // Get description for _this_ command
-    const char * (*description)(struct scallop_cmd_t * scallcmd);
+    const char * (*description)(struct scallop_cmd_t * cmd);
 
     // Find the longest length fields in the command tree
     void (*longest)(struct scallop_cmd_t * pcmd,
@@ -137,7 +141,7 @@ typedef struct scallop_cmd_t
                     size_t * description_longest);
 
     // Recursively get full help text for _this_ and all sub-commands
-    int (*help)(struct scallop_cmd_t * scallcmd,
+    int (*help)(struct scallop_cmd_t * cmd,
                 bytes_t * help,
                 size_t depth,
                 size_t longest_kw_and_hints);

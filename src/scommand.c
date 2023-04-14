@@ -124,9 +124,9 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
 }
 
 //------------------------------------------------------------------------|
-static void scallop_cmd_destroy(void * scallcmd)
+static void scallop_cmd_destroy(void * cmd_ptr)
 {
-    scallop_cmd_t * cmd = (scallop_cmd_t *) scallcmd;
+    scallop_cmd_t * cmd = (scallop_cmd_t *) cmd_ptr;
 
     // guard against accidental double-destroy or early-destroy
     if (!cmd || !cmd->priv)
@@ -162,10 +162,35 @@ static void scallop_cmd_destroy(void * scallcmd)
 }
 
 //------------------------------------------------------------------------|
-static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
+static void * scallop_cmd_copy(const void * cmd_ptr)
+{
+    scallop_cmd_t * cmd = (scallop_cmd_t *) cmd_ptr;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
+
+    scallop_cmd_t * copy =
+        scallop_cmd_pub.create(priv->handler,
+                               priv->context,
+                               priv->keyword->cstr(priv->keyword),
+                               priv->arghints->cstr(priv->arghints),
+                               priv->description->cstr(priv->description));
+
+    scallop_cmd_priv_t * copy_priv = (scallop_cmd_priv_t *) copy->priv;
+
+    copy_priv->attributes = priv->attributes;
+
+    // Command may or may not have sub-commands
+    copy_priv->cmds = priv->cmds ?
+            priv->cmds->copy(priv->cmds, scallop_cmd_pub.copy) :
+            NULL;
+
+    return copy;
+}
+
+//------------------------------------------------------------------------|
+static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * cmd,
                                          const char * keyword)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     bytes_t * description = bytes_pub.create(NULL, 0);
 
     // Make a mostly-copy of the original command with a few things
@@ -175,11 +200,11 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
                        "alias for %s",
                        priv->keyword->cstr(priv->keyword));
 
-    scallop_cmd_t * alias = scallcmd->create(priv->handler,
-                                             priv->context,
-                                             keyword,
-                                             priv->arghints->cstr(priv->arghints),
-                                             description->cstr(description));
+    scallop_cmd_t * alias = cmd->create(priv->handler,
+                                        priv->context,
+                                        keyword,
+                                        priv->arghints->cstr(priv->arghints),
+                                        description->cstr(description));
 
     // All aliases ARE aliases, AND are mutable, but construct depends
     // on the original command.
@@ -209,13 +234,13 @@ static scallop_cmd_t * scallop_cmd_alias(scallop_cmd_t * scallcmd,
 }
 
 //------------------------------------------------------------------------|
-static int scallop_cmd_keyword_compare(const void * scallcmd1,
-                                       const void * scallcmd2)
+static int scallop_cmd_keyword_compare(const void * cmd_ptr1,
+                                       const void * cmd_ptr2)
 {
-    scallop_cmd_t * cmd1 = (scallop_cmd_t *) scallcmd1;
+    scallop_cmd_t * cmd1 = (scallop_cmd_t *) cmd_ptr1;
     scallop_cmd_priv_t * priv1 = (scallop_cmd_priv_t *) cmd1->priv;
 
-    scallop_cmd_t * cmd2 = (scallop_cmd_t *) scallcmd2;
+    scallop_cmd_t * cmd2 = (scallop_cmd_t *) cmd_ptr2;
     scallop_cmd_priv_t * priv2 = (scallop_cmd_priv_t *) cmd2->priv;
 
     // Commands are identified through their keyword,
@@ -225,10 +250,10 @@ static int scallop_cmd_keyword_compare(const void * scallcmd1,
 }
 
 //------------------------------------------------------------------------|
-static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * scallcmd,
+static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * cmd,
                                                    const char * keyword)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
 
     if (!priv->cmds)
     {
@@ -247,27 +272,26 @@ static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * scallcmd,
     priv_to_find.keyword = bytes_pub.create(keyword, strlen(keyword));
 
     // Do the search
-    scallop_cmd_t * cmd = (scallop_cmd_t *)
+    scallop_cmd_t * found = (scallop_cmd_t *)
             priv->cmds->find(priv->cmds,
                              &cmd_to_find,
                              scallop_cmd_keyword_compare);
 
     priv_to_find.keyword->destroy(priv_to_find.keyword);
-    return cmd;
+    return found;
 }
 
 //------------------------------------------------------------------------|
-static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
+static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * cmd,
                                              const char * substring,
                                              size_t * longest)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
-    scallop_cmd_t * cmd = NULL;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     chain_t * pmatches = chain_pub.create(NULL);
 
     // substring might be NULL in some cases like when hitting
     // tab after an already completed keyword without argument,
-    // but also the scallcmd could be a terminator in the
+    // but also the cmd could be a terminator in the
     // sub-command tree, in which case priv->cmds is NULL.
     if (!substring || !priv->cmds)
     {
@@ -285,16 +309,15 @@ static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
     // Search through all sub-commands.
     size_t length = 0;
     size_t sublength = strlen(substring);
-    priv->cmds->reset(priv->cmds);
-    do
-    {
-        cmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
+    scallop_cmd_t * subcmd = (scallop_cmd_t *) priv->cmds->first(priv->cmds);
 
+    while (subcmd)
+    {
         BLAMMO(DEBUG, "checking \'%s\' against \'%s\'",
-                cmd->keyword(cmd), substring);
-        if (!strncmp(cmd->keyword(cmd), substring, sublength))
+                subcmd->keyword(subcmd), substring);
+        if (!strncmp(subcmd->keyword(subcmd), substring, sublength))
         {
-            pmatches->insert(pmatches, (void *) cmd->keyword(cmd));
+            pmatches->insert(pmatches, (void *) subcmd->keyword(subcmd));
             // Keep track of the longest match if the caller has asked.
             if (longest)
             {
@@ -302,73 +325,74 @@ static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * scallcmd,
                 if (length > *longest) { *longest = length; }
             }
         }
+
+        subcmd = (scallop_cmd_t *) priv->cmds->next(priv->cmds);
     }
-    while (priv->cmds->spin(priv->cmds, 1));
 
     return pmatches;
 }
 
 //------------------------------------------------------------------------|
-static inline int scallop_cmd_exec(scallop_cmd_t * scallcmd,
+static inline int scallop_cmd_exec(scallop_cmd_t * cmd,
                                    int argc,
                                    char ** args)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
 
     return priv->handler ?
-           priv->handler(scallcmd, priv->context, argc, args) :
+           priv->handler(cmd, priv->context, argc, args) :
            0;
 }
 
 //------------------------------------------------------------------------|
-static void scallop_set_attributes(scallop_cmd_t * scallcmd,
+static void scallop_set_attributes(scallop_cmd_t * cmd,
                                    scallop_cmd_attr_t attributes)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     priv->attributes |= attributes;
 }
 
 //------------------------------------------------------------------------|
-static inline bool scallop_cmd_is_alias(scallop_cmd_t * scallcmd)
+static inline bool scallop_cmd_is_alias(scallop_cmd_t * cmd)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     return priv->attributes & SCALLOP_CMD_ATTR_ALIAS;
 }
 
 //------------------------------------------------------------------------|
-static inline bool scallop_cmd_is_mutable(scallop_cmd_t * scallcmd)
+static inline bool scallop_cmd_is_mutable(scallop_cmd_t * cmd)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     return priv->attributes & SCALLOP_CMD_ATTR_MUTABLE;
 }
 
 //------------------------------------------------------------------------|
-static inline bool scallop_cmd_is_construct(scallop_cmd_t * scallcmd)
+static inline bool scallop_cmd_is_construct(scallop_cmd_t * cmd)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     return priv->attributes & SCALLOP_CMD_ATTR_CONSTRUCT;
 }
 
 //------------------------------------------------------------------------|
-static inline const char * scallop_cmd_keyword(scallop_cmd_t * scallcmd)
+static inline const char * scallop_cmd_keyword(scallop_cmd_t * cmd)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     return priv->keyword->cstr(priv->keyword) ?
            priv->keyword->cstr(priv->keyword) : "";
 }
 
 //------------------------------------------------------------------------|
-static inline const char * scallop_cmd_arghints(scallop_cmd_t * scallcmd)
+static inline const char * scallop_cmd_arghints(scallop_cmd_t * cmd)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     return priv->arghints->cstr(priv->arghints) ?
            priv->arghints->cstr(priv->arghints) : "";
 }
 
 //------------------------------------------------------------------------|
-static inline const char * scallop_cmd_description(scallop_cmd_t * scallcmd)
+static inline const char * scallop_cmd_description(scallop_cmd_t * cmd)
 {
-    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) scallcmd->priv;
+    scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
     return priv->description->cstr(priv->description) ?
            priv->description->cstr(priv->description) : "";
 }
@@ -381,7 +405,6 @@ static void scallop_cmd_longest(scallop_cmd_t * pcmd,
                                 size_t * description_longest)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
-    scallop_cmd_t * scmd = NULL;
 
     // Get lengths for this command node
     size_t keyword_len = priv->keyword->size(priv->keyword);
@@ -418,19 +441,18 @@ static void scallop_cmd_longest(scallop_cmd_t * pcmd,
     }
 
     // Now recursively descend on all sub-commands
-    priv->cmds->reset(priv->cmds);
-    do
+    scallop_cmd_t * subcmd = priv->cmds->first(priv->cmds);
+    while (subcmd)
     {
-        scmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
+        subcmd->longest(subcmd, keyword_plus_arghints_longest,
+                                keyword_longest,
+                                arghints_longest,
+                                description_longest);
 
-        scmd->longest(scmd, keyword_plus_arghints_longest,
-                            keyword_longest,
-                            arghints_longest,
-                            description_longest);
+        subcmd = (scallop_cmd_t *) priv->cmds->next(priv->cmds);
     }
-    while (priv->cmds->spin(priv->cmds, 1));
-
 }
+
 //------------------------------------------------------------------------|
 static int scallop_cmd_help(scallop_cmd_t * pcmd,
                             bytes_t * help,
@@ -438,8 +460,6 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
                             size_t longest_kw_and_hints)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) pcmd->priv;
-    scallop_cmd_priv_t * spriv = NULL;
-    scallop_cmd_t * scmd = NULL;
     bytes_t * keyword = priv->keyword;
     bytes_t * subhelp = NULL;
     bytes_t * indent = NULL;
@@ -473,31 +493,31 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
     }
 
     // Recursively get help for all sub-commands
-    priv->cmds->reset(priv->cmds);
-    do
+    scallop_cmd_priv_t * subpriv = NULL;
+    scallop_cmd_t * subcmd = priv->cmds->first(priv->cmds);
+    while (subcmd)
     {
-        scmd = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
-        spriv = (scallop_cmd_priv_t *) scmd->priv;
-        BLAMMO(VERBOSE, "getting help for sub-command: %s", scmd->keyword(scmd));
+        BLAMMO(VERBOSE, "getting help for sub-command: %s", subcmd->keyword(subcmd));
+        subpriv = (scallop_cmd_priv_t *) subcmd->priv;
 
         // align the description column by the longest keyword+args
         pad->resize(pad, longest_kw_and_hints
-                - spriv->keyword->size(spriv->keyword)
-                - spriv->arghints->size(spriv->arghints)
-                + 4);
+                    - subpriv->keyword->size(subpriv->keyword)
+                    - subpriv->arghints->size(subpriv->arghints)
+                    + 4);
         pad->fill(pad, ' ');
 
         subhelp = bytes_pub.create(NULL, 0);
         subhelp->print(subhelp,
                        "%s%s%s%s%s\r\n",
                        indent->cstr(indent) ? indent->cstr(indent) : "",
-                       scmd->keyword(scmd),
-                       scmd->arghints(scmd),
+                       subcmd->keyword(subcmd),
+                       subcmd->arghints(subcmd),
                        pad->cstr(pad),
-                       scmd->description(scmd));
+                       subcmd->description(subcmd));
         BLAMMO(VERBOSE, "subhelp->cstr: %s", subhelp->cstr(subhelp));
 
-        scmd->help(scmd, subhelp, ++depth, longest_kw_and_hints);
+        subcmd->help(subcmd, subhelp, ++depth, longest_kw_and_hints);
         depth--;
 
         help->append(help,
@@ -505,8 +525,9 @@ static int scallop_cmd_help(scallop_cmd_t * pcmd,
                      subhelp->size(subhelp));
 
         subhelp->destroy(subhelp);
+
+        subcmd = priv->cmds->next(priv->cmds);
     }
-    while (priv->cmds->spin(priv->cmds, 1));
 
     pad->destroy(pad);
     indent->destroy(indent);
@@ -552,8 +573,7 @@ bool scallop_cmd_register_cmd(scallop_cmd_t * parent,
 
     // Insert the new command link.  Let items appear in the order
     // they were registered
-    priv->cmds->reset(priv->cmds);
-    priv->cmds->spin(priv->cmds, -1);
+    priv->cmds->last(priv->cmds);
     priv->cmds->insert(priv->cmds, child);
     return true;
 }
@@ -597,35 +617,35 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
     // Remove the found command link -- this also destroys the found command
     priv->cmds->remove(priv->cmds);
 
-#if 1
+#if 0
     // EXPERIMENTAL.  It's unclear what should happen if the alias
     // is to a routine, since all routines have the same handler.
     // this appears to be apples and oranges but some changes may
     // be necessary to support handling this case properly
-    scallop_cmd_t * other = NULL;
-    priv->cmds->reset(priv->cmds);
-    do
+    scallop_cmd_t * other = priv->cmds->first(priv->cmds);
+    while (other)
     {
-        other = (scallop_cmd_t *) priv->cmds->data(priv->cmds);
-        if (other)
-        {
-            other_priv = (scallop_cmd_priv_t *) other->priv;
+        other_priv = (scallop_cmd_priv_t *) other->priv;
 
-            // The (possibly flawed) condition by which aliases are
-            // opportunistically culled from the registry
-            if ((other_priv->handler == found_handler)
-                    && (other->is_alias(other)))
-            {
-                BLAMMO(WARNING, "also removing alias: %s",
-                                other->keyword(other));
-                priv->cmds->remove(priv->cmds);
-                priv->cmds->spin(priv->cmds, -1);
-            }
+        // The (possibly flawed) condition by which aliases are
+        // opportunistically culled from the registry here
+        if ((other_priv->handler == found_handler)
+                && (other->is_alias(other)))
+        {
+            BLAMMO(WARNING, "also removing alias: %s",
+                            other->keyword(other));
+            priv->cmds->remove(priv->cmds);
+            // remove() reverts back to previous link, so the iterator
+            // might repeat the same link once before moving forward on
+            // the next iteration, but at least it's better to be
+            // thorough than to miss one.
         }
+
+        other = priv->cmds->next(priv->cmds);
     }
-    while (priv->cmds->spin(priv->cmds, 1));
+
 #else
-    (void) found_priv;
+    (void) other_priv;
     (void) found_handler;
 #endif
 
@@ -636,6 +656,7 @@ bool scallop_cmd_unregister_cmd(scallop_cmd_t * parent,
 const scallop_cmd_t scallop_cmd_pub = {
     &scallop_cmd_create,
     &scallop_cmd_destroy,
+    &scallop_cmd_copy,
     &scallop_cmd_alias,
     &scallop_cmd_find_by_keyword,
     &scallop_cmd_partial_matches,
