@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "utils.h"          // generic function signatures
+
 //------------------------------------------------------------------------|
 // Function pointer type for link data comparator callback used with sort()
 typedef int (*link_data_compare_f) (const void *, const void *);
@@ -49,7 +51,8 @@ typedef struct chain_t
     // is static or if the pointer value itself is directly assigned or
     // not to be managed by the chain.  'free' may be passed if the data
     // was allocated by a simple 'malloc' call.
-    struct chain_t * (*create)(link_data_destroy_f data_destroy);
+    struct chain_t * (*create)(link_data_copy_f data_copy,
+                               link_data_destroy_f data_destroy);
 
     // Chain destructor function
     void (*destroy)(void * chain);
@@ -87,7 +90,31 @@ typedef struct chain_t
     // offset) or backward (negative offset).  Note there is the possibility
     // that if the chain length gets larger than the maximum possible for
     // offset, that certain links will take multiple calls to reach.
-    bool (*spin)(struct chain_t * chain, int64_t offset);
+    bool (*spin)(struct chain_t * chain, ssize_t offset);
+
+    // 'Streamlined' iterators: More focused use cases, less generic.
+    // Sets position to origin link (I.E. "first") and returns origin data.
+    // This call is equivalent to reset(), data()
+    void * (*first)(struct chain_t * chain);
+
+    // 'Streamlined' iterators: More focused use cases, less generic.
+    // Sets position to origin-1 (I.E. "last") and returns link data.
+    // This call is equivalent to reset(), spin(-1), data()
+    void * (*last)(struct chain_t * chain);
+
+    // 'Streamlined' iterators: More focused use cases, less generic.
+    // Advances to the next link and returns link data.
+    // This call is equivalent to spin(1), data() except that it will
+    // artificially return NULL when it hits the origin, thus emulating
+    // a non-circular list.
+    void * (*next)(struct chain_t * chain);
+
+    // 'Streamlined' iterators: More focused use cases, less generic.
+    // Reverses to the prev link and returns link data.
+    // This call is equivalent to spin(-1), data() except that it will
+    // artificially return NULL when it hits origin-1 (last), thus
+    // emulating a non-circular list.
+    void * (*prev)(struct chain_t * chain);
 
     // Walk through the chain and remove all links with NULL data payloads.
     // This can be very useful after collecting data, and before processing
@@ -114,6 +141,12 @@ typedef struct chain_t
 
     // Makes a full deep copy of the given chain.  The data_copy function
     // (if not NULL) is called for each link data payload.
+    // FIXME: Does not comply with usual 'copy' signature.  Why/why not?...
+    //  ANSWER: This prevents a chain_t from being a payload object within
+    //  a heterogeneous collect_t instance OR WITHIN ANOTHER CHAIN => CHAIN->COPY
+    //  DOES NOT CONFORM TO link_data_copy_f .  So long as that is OK, this is OK.
+    //  the action item here is to acknowledge the problem and disposition what
+    //  to do about it, if anything.
     struct chain_t * (*copy)(struct chain_t * chain, link_data_copy_f data_copy);
 
     // This splits a chain into two segments: The segment specified by the
