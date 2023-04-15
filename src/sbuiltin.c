@@ -321,7 +321,11 @@ static int builtin_handler_print(void * scmd,
         message->append(message, " ", 1);
     }
 
-    console->print(console, "%s", message->cstr(message));
+    if (!message->empty(message))
+    {
+        console->print(console, "%s", message->cstr(message));
+    }
+
     message->destroy(message);
     return 0;
 }

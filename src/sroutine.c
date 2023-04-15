@@ -28,13 +28,13 @@
 #include <stddef.h>
 
 #include "sroutine.h"
+#include "utils.h"              // memzero()
+#include "blammo.h"
 #include "scommand.h"
 #include "scallop.h"
 #include "console.h"
 #include "chain.h"
 #include "bytes.h"
-#include "utils.h"
-#include "blammo.h"
 
 //------------------------------------------------------------------------|
 typedef struct
@@ -68,7 +68,7 @@ static scallop_rtn_t * scallop_rtn_create(const char * name)
         return NULL;
     }
 
-    memset(routine->priv, 0, sizeof(scallop_rtn_priv_t));
+    memzero(routine->priv, sizeof(scallop_rtn_priv_t));
     scallop_rtn_priv_t * priv = (scallop_rtn_priv_t *) routine->priv;
 
     // Name of this routine (NO SPACES!!! - FIXME filter this)
@@ -83,7 +83,8 @@ static scallop_rtn_t * scallop_rtn_create(const char * name)
     // List of raw (mostly) uninterpreted command lines consisting
     // of the body of the routine.  One exception to this is we'll
     // need to track the nested depth of an 'end' keyword (multi-use)
-    priv->lines = chain_pub.create(bytes_pub.destroy);
+    priv->lines = chain_pub.create(bytes_pub.copy,
+                                   bytes_pub.destroy);
     if (!priv->lines)
     {
         BLAMMO(FATAL, "chain_pub.create() failed");
@@ -116,11 +117,11 @@ static void scallop_rtn_destroy(void * routine_ptr)
         priv->name->destroy(priv->name);
     }
 
-    memset(routine->priv, 0, sizeof(scallop_rtn_priv_t));
+    memzero(routine->priv, sizeof(scallop_rtn_priv_t));
     free(routine->priv);
 
     // zero out and destroy the public interface
-    memset(routine, 0, sizeof(scallop_rtn_t));
+    memzero(routine, sizeof(scallop_rtn_t));
     free(routine);
 }
 

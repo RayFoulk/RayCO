@@ -29,8 +29,9 @@
 #include <pthread.h>
 #include <errno.h>
 
-#include "blammo.h"
 #include "console.h"
+#include "utils.h"              // memzero()
+#include "blammo.h"
 #include "bytes.h"
 
 #ifdef LINENOISE_ENABLE
@@ -149,7 +150,7 @@ static console_t * console_create(FILE * input,
         return NULL;
     }
 
-    memset(console->priv, 0, sizeof(console_priv_t));
+    memzero(console->priv, sizeof(console_priv_t));
     console_priv_t * priv = (console_priv_t *) console->priv;
 
     // Use a recursive lock
@@ -215,11 +216,11 @@ static void console_destroy(void * console_ptr)
 #endif
 
     // zero out and destroy the private data
-    memset(console->priv, 0, sizeof(console_priv_t));
+    memzero(console->priv, sizeof(console_priv_t));
     free(console->priv);
 
     // zero out and destroy the public interface
-    memset(console, 0, sizeof(console_t));
+    memzero(console, sizeof(console_t));
     free(console);
 }
 

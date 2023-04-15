@@ -21,18 +21,20 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-//-----------------------------------------------------------------------------+
+#define __STDC_WANT_LIB_EXT1__ 1
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "utils.h"
 #include "blammo.h"
 
-//-----------------------------------------------------------------------------+
-// A very simple hexdump function.  bytes_t already has one, but it's OK to be
-// a little redundant while I figure out what to do with that object.  This is
-// just too useful not to have around.  The address is meant to indicate the
-// offset at the beginning of the data.  Pass 0 if you don't care.
+//------------------------------------------------------------------------|
+// A very simple hexdump function.  NOTE that bytes_t already has one, so
+// this is a little redundant, but too useful not to have around.  The
+// address is meant to indicate the offset at the beginning of the data.
+// Pass 0 if you don't care.
 void hexdump(const void * buf, size_t len, size_t addr)
 {
     unsigned char * bufptr = (unsigned char *) buf;
@@ -92,23 +94,40 @@ void hexdump(const void * buf, size_t len, size_t addr)
 bool str_to_bool(const char * str)
 {
     size_t index = 0;
-    const char * false_str[] = {
-        "disable",
-        "false",
-        "off",
-        "0",
+    const char * true_str[] = {
+        "enable",
+        "true",
+        "yes",
+        "on",
+        "1",
         NULL
     };
 
-    while (false_str[index])
+    while (true_str[index])
     {
-        if (!strcasecmp(false_str[index], str))
+        if (!strcasecmp(true_str[index], str))
         {
-            return false;
+            return true;
         }
 
         index++;
     }
 
-    return true;
+    return false;
+}
+
+//------------------------------------------------------------------------|
+inline void * memzero(void * ptr, size_t size)
+{
+#ifdef __STDC_LIB_EXT1__
+    memset_s(pointer, size, 0, size);
+#else
+    volatile unsigned char *p = ptr;
+    while (size--)
+    {
+        *p++ = 0;
+    }
+#endif
+
+    return ptr;
 }

@@ -27,9 +27,10 @@
 #include <stddef.h>
 
 #include "scommand.h"
+#include "utils.h"              // memzero()
+#include "blammo.h"
 #include "chain.h"
 #include "bytes.h"
-#include "blammo.h"
 
 //------------------------------------------------------------------------|
 // Container for a command - private data
@@ -98,14 +99,14 @@ static scallop_cmd_t * scallop_cmd_create(scallop_cmd_handler_f handler,
         return NULL;
     }
 
-    memset(cmd->priv, 0, sizeof(scallop_cmd_priv_t));
+    memzero(cmd->priv, sizeof(scallop_cmd_priv_t));
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
 
     // Most commands are likely not going to have recursive
     // sub-commands, so don't waste memory allocating a bunch
     // of empty lists everywhere.  Do lazy/late initialization
     // of the sub-commands list in register()
-    //priv->cmds = NULL;  // redundant due to earlier memset()
+    //priv->cmds = NULL;  // redundant due to earlier memzero()
 
     // Also every command created by create() is immutable and non-construct
     // by default until permanently set otherwise.
@@ -153,11 +154,11 @@ static void scallop_cmd_destroy(void * cmd_ptr)
     }
 
     // zero out and destroy the private data
-    memset(cmd->priv, 0, sizeof(scallop_cmd_priv_t));
+    memzero(cmd->priv, sizeof(scallop_cmd_priv_t));
     free(cmd->priv);
 
     // zero out and destroy the public interface
-    memset(cmd, 0, sizeof(scallop_cmd_t));
+    memzero(cmd, sizeof(scallop_cmd_t));
     free(cmd);
 }
 
@@ -180,8 +181,8 @@ static void * scallop_cmd_copy(const void * cmd_ptr)
 
     // Command may or may not have sub-commands
     copy_priv->cmds = priv->cmds ?
-            priv->cmds->copy(priv->cmds, scallop_cmd_pub.copy) :
-            NULL;
+                            priv->cmds->copy(priv->cmds) :
+                            NULL;
 
     return copy;
 }
@@ -265,8 +266,8 @@ static scallop_cmd_t * scallop_cmd_find_by_keyword(scallop_cmd_t * cmd,
     scallop_cmd_t cmd_to_find;
     scallop_cmd_priv_t priv_to_find;
 
-    memset(&cmd_to_find, 0, sizeof(scallop_cmd_t));
-    memset(&priv_to_find, 0, sizeof(scallop_cmd_priv_t));
+    memzero(&cmd_to_find, sizeof(scallop_cmd_t));
+    memzero(&priv_to_find, sizeof(scallop_cmd_priv_t));
 
     cmd_to_find.priv = &priv_to_find;
     priv_to_find.keyword = bytes_pub.create(keyword, strlen(keyword));
@@ -287,7 +288,9 @@ static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * cmd,
                                              size_t * longest)
 {
     scallop_cmd_priv_t * priv = (scallop_cmd_priv_t *) cmd->priv;
-    chain_t * pmatches = chain_pub.create(NULL);
+
+    // 'pmatches' is a chain of external, unmanaged pointers.
+    chain_t * pmatches = chain_pub.create(NULL, NULL);
 
     // substring might be NULL in some cases like when hitting
     // tab after an already completed keyword without argument,
@@ -301,10 +304,7 @@ static chain_t * scallop_cmd_partial_matches(scallop_cmd_t * cmd,
     }
 
     // Keep track of the longest match if the caller has asked.
-    if (longest)
-    {
-        *longest = 0;
-    }
+    if (longest) { *longest = 0; }
 
     // Search through all sub-commands.
     size_t length = 0;
@@ -545,7 +545,8 @@ bool scallop_cmd_register_cmd(scallop_cmd_t * parent,
     {
         // Allocate the list of sub-commands if it does not
         // already exist.  It will not for terminal tree links
-        priv->cmds = chain_pub.create(child->destroy);
+        priv->cmds = chain_pub.create(child->copy,
+                                      child->destroy);
         if (!priv->cmds)
         {
             BLAMMO(FATAL, "chain_pub.create() failed");

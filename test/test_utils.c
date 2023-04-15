@@ -37,7 +37,7 @@ TESTSUITE_BEGIN
     BLAMMO_FILE("test_utils.log");
     BLAMMO(INFO, "utils tests...");
 
-TEST_BEGIN("test hexdump")
+TEST_BEGIN("hexdump")
     uint8_t data[64] = { 0 };
 
     prng_seed(999);
@@ -47,68 +47,90 @@ TEST_BEGIN("test hexdump")
 
 TEST_END
 
-/*
-TEST_BEGIN("test splitstr")
+TEST_BEGIN("str_to_bool")
+    const char * falsies[] = {
+            "disable",
+            "False",
+            "FALSE",
+            "false",
+            "off",
+            "OFF",
+            "No",
+            "0",
+            NULL
+    };
 
-    // The string to be parsed MUST be mutable
-    // and even just declaring 'char *' causes the
-    // compiler to put it in read-only constants
-    const char * const_str = "mary had\t\ta  little\tlamb   ";
-    const int max_tokens = 5;
-    char * tokens[max_tokens];
+    const char * trulies[] = {
+            "enable",
+            "True",
+            "TRUE",
+            "true",
+            "on",
+            "ON",
+            "yes",
+            "1",
+            NULL
+    };
+
+    int i = 0;
+    while(falsies[i])
+    {
+        CHECK(!str_to_bool(falsies[i]))
+        i++;
+    }
+
+    i = 0;
+    while(trulies[i])
+    {
+        CHECK(str_to_bool(trulies[i]))
+        i++;
+    }
+
+TEST_END
+
+TEST_BEGIN("memzero")
+    const size_t size = 256;
+    uint8_t data[size];
+
+    // somewhat probabilistic here
+    prng_seed(777);
+    prng_fill(data, size);
+
+    // verify contains non-zero data
+    bool allzero = true;
     size_t i = 0;
-    char * str = strdup(const_str);
+    for (i = 0; i < size; i++)
+    {
+        if (data[i])
+        {
+            allzero = false;
+            break;
+        }
+    }
+    CHECK(!allzero);
 
-    i = splitstr(tokens, max_tokens, str, " \t");
+    // do the call
+    void * ptr = memzero(data, size);
 
-    CHECK(i == 5);
-    CHECK(strcmp(tokens[0], "mary") == 0)
-    CHECK(strcmp(tokens[1], "had") == 0)
-    CHECK(strcmp(tokens[2], "a") == 0)
-    CHECK(strcmp(tokens[3], "little") == 0)
-    CHECK(strcmp(tokens[4], "lamb") == 0)
+    // check return
+    CHECK(ptr == data);
+    CHECK(ptr != NULL);
 
-    free(str);
-
-TEST_END
-*/
-
-/*
-TEST_BEGIN("test markstr")
-
-    const char * const_str = "mary had\t\ta  little\tlamb   ";
-    const int max_markers = 5;
-    char * markers[max_markers];
-    size_t nmark = 0;
-
-    nmark = markstr(markers, max_markers, const_str, " \t");
-    CHECK(nmark == 5);
-    CHECK(strncmp(markers[0], "mary", 4) == 0)
-    CHECK(strncmp(markers[1], "had", 3) == 0)
-    CHECK(strncmp(markers[2], "a", 1) == 0)
-    CHECK(strncmp(markers[3], "little", 6) == 0)
-    CHECK(strncmp(markers[4], "lamb", 4) == 0)
-
-
-    memset(markers, 0, sizeof(markers));
-    const char * another = " mary had a \t  little lamb";
-
-    nmark = markstr(markers, max_markers, another, " \t");
-    CHECK(nmark == 5);
-    CHECK(strncmp(markers[0], "mary", 4) == 0)
-    CHECK(strncmp(markers[1], "had", 3) == 0)
-    CHECK(strncmp(markers[2], "a", 1) == 0)
-    CHECK(strncmp(markers[3], "little", 6) == 0)
-    CHECK(strncmp(markers[4], "lamb", 4) == 0)
-
-    memset(markers, 0, sizeof(markers));
-    const char * yet_another = " <crash> <happy>";
-
-    nmark = markstr(markers, max_markers, yet_another, " ");
-    CHECK(nmark == 2);
+    // verify all zero
+    allzero = true;
+    i = 0;
+    for (i = 0; i < size; i++)
+    {
+        if (data[i])
+        {
+            allzero = false;
+            break;
+        }
+    }
+    CHECK(allzero);
 
 TEST_END
-*/
+
 
 TESTSUITE_END
 

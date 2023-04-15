@@ -31,8 +31,13 @@
 //------------------------------------------------------------------------|
 // Contextual callback functions for tab completion and arg hints.
 // currently only linenoise is optionally supported.
-typedef void (*console_tab_completion_f)(void * object, const char * buffer);
-typedef char * (*console_arg_hints_f)(void * object, const char * buffer, int * color, int * bold);
+typedef void (*console_tab_completion_f)(void * object,
+                                         const char * buffer);
+
+typedef char * (*console_arg_hints_f)(void * object,
+                                      const char * buffer,
+                                      int * color,
+                                      int * bold);
 
 //------------------------------------------------------------------------|
 typedef struct console_t

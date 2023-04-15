@@ -27,6 +27,7 @@
 #include <stddef.h>
 
 #include "chain.h"
+#include "utils.h"              // memzero(), function signatures
 #include "blammo.h"
 
 //------------------------------------------------------------------------|
@@ -59,17 +60,17 @@ typedef struct
 
     // The link data copy function for all links.
     // This can be NULL for static or unmanaged data.
-    link_data_copy_f data_copy;
+    generic_copy_f data_copy;
 
     // The link data destructor function for all links.
     // This can be NULL for static or unmanaged data.
-    link_data_destroy_f data_destroy;
+    generic_destroy_f data_destroy;
 }
 chain_priv_t;
 
 //------------------------------------------------------------------------|
-static chain_t * chain_create(link_data_copy_f data_copy,
-                              link_data_destroy_f data_destroy)
+static chain_t * chain_create(generic_copy_f data_copy,
+                              generic_destroy_f data_destroy)
 {
     // Allocate and initialize public interface
     chain_t * chain = (chain_t *) malloc(sizeof(chain_t));
@@ -91,7 +92,7 @@ static chain_t * chain_create(link_data_copy_f data_copy,
         return NULL;
     }
 
-    memset(chain->priv, 0, sizeof(chain_priv_t));
+    memzero(chain->priv, sizeof(chain_priv_t));
 
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     priv->data_copy = data_copy;
@@ -116,11 +117,11 @@ static void chain_destroy(void * chain_ptr)
     chain->clear(chain);
 
     // zero out and destroy the private data
-    memset(chain->priv, 0, sizeof(chain_priv_t));
+    memzero(chain->priv, sizeof(chain_priv_t));
     free(chain->priv);
 
     // zero out and destroy the public interface
-    memset(chain, 0, sizeof(chain_t));
+    memzero(chain, sizeof(chain_t));
     free(chain);
 }
 
@@ -371,7 +372,7 @@ static size_t chain_trim(chain_t * chain)
 }
 
 //------------------------------------------------------------------------|
-static void chain_sort(chain_t * chain, link_data_compare_f data_compare)
+static void chain_sort(chain_t * chain, generic_compare_f data_compare)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
 
@@ -422,7 +423,7 @@ static void chain_sort(chain_t * chain, link_data_compare_f data_compare)
 }
 
 //------------------------------------------------------------------------|
-void * chain_find(chain_t * chain, void * data, link_data_compare_f data_compare)
+void * chain_find(chain_t * chain, void * data, generic_compare_f data_compare)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
     size_t index = 0;
@@ -443,11 +444,12 @@ void * chain_find(chain_t * chain, void * data, link_data_compare_f data_compare
 }
 
 //------------------------------------------------------------------------|
-static chain_t * chain_copy(chain_t * chain, link_data_copy_f data_copy)
+static chain_t * chain_copy(chain_t * chain)
 {
     void * data = NULL;
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
-    chain_t * copy = chain_create(priv->data_destroy);
+    chain_t * copy = chain_create(priv->data_copy,
+                                  priv->data_destroy);
 
     if (NULL == copy)
     {
@@ -460,7 +462,9 @@ static chain_t * chain_copy(chain_t * chain, link_data_copy_f data_copy)
         chain->reset(chain);
         do
         {
-            data = data_copy ? data_copy(priv->link->data) : priv->link->data;
+            data = priv->data_copy ?
+                            priv->data_copy(priv->link->data) :
+                            priv->link->data;
             chain->insert(copy, data);
         }
         while (chain->spin(chain, 1));
@@ -474,7 +478,8 @@ static chain_t * chain_split(chain_t * chain, size_t begin, size_t end)
 {
     link_t * link = NULL;
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
-    chain_t * seg = chain_create(priv->data_destroy);
+    chain_t * seg = chain_create(priv->data_copy,
+                                 priv->data_destroy);
 
     if (NULL == seg)
     {

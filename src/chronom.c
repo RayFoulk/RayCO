@@ -31,6 +31,7 @@
 #include <errno.h>
 
 #include "chronom.h"
+#include "utils.h"              // memzero()
 #include "blammo.h"
 
 //-----------------------------------------------------------------------------+
@@ -149,10 +150,10 @@ static void chronom_destroy(void * chronom)
         return;
     }
 
-    memset(chronomp->data, 0, sizeof(chronom_data_t));
+    memzero(chronomp->data, sizeof(chronom_data_t));
     free(chronomp->data);
 
-    memset(chronomp, 0, sizeof(chronom_t));
+    memzero(chronomp, sizeof(chronom_t));
     free(chronomp);
 }
 
@@ -187,7 +188,7 @@ static void chronom_stop(chronom_t * chronom)
 
 static void chronom_reset(chronom_t * chronom)
 {
-    memset(chronom->data, 0, sizeof(chronom_data_t));
+    memzero(chronom->data, sizeof(chronom_data_t));
 }
 
 static inline void chronom_resume(chronom_t * chronom)

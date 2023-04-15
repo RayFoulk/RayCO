@@ -29,16 +29,11 @@
 #include <stdbool.h>
 
 //------------------------------------------------------------------------|
-// A collection consists of a set of heterogeneous objects.  Regardless of
-// the type of payload an individual object may be, the function signatures
-// for performing operations on the payloads must be the same.  For each
-// collection object type the caller will need to provide a callback
-// for data deep-copy, and destructor.  For brevity, comparators are not
-// supported with this object, and also since payloads are heterogeneous
-// this is a simplified approach.  This may be re-evaluated at a later
-// time if it ever becomes necessary to sort().
-typedef void * (*object_data_copy_f) (const void *);
-typedef void (*object_data_destroy_f) (void *);
+// A collection consists of a set of heterogeneous objects.  For brevity,
+// comparator functions are (currently) not supported with this object.
+// This may be re-evaluated at a later time if it ever becomes necessary
+// to sort() a collection.
+#include "utils.h"          // generic function signatures
 
 //------------------------------------------------------------------------|
 typedef struct collect_t
@@ -68,8 +63,8 @@ typedef struct collect_t
     // up the user.  C has no typeof() or reflection, which presents a
     // challenge, but there are a few solutions.  For example:
     //   1.) Holding off the necessity of doing so for as long as possible,
-    //   such as by using type-specific callbacks or subscriptions.  This
-    //   is the approach generally used throughout RayCO.
+    //   such as by using type-specific callbacks (or subscriptions).
+    //   This is the approach generally used throughout RayCO.
     //   2.) Putting a type identifier/signature at the beginning of each
     //   structure to be used within a collection (or a certain API).
     //   This is the approach taken by the legacy C socket library), and
@@ -90,8 +85,8 @@ typedef struct collect_t
     void (*set)(struct collect_t * collect,
                 const char * key,
                 void * object,
-                object_data_copy_f object_copy,
-                object_data_destroy_f object_destroy);
+                generic_copy_f object_copy,
+                generic_destroy_f object_destroy);
 
     // Remove a specific object entry by key.
     // returns true if the object was found and removed,
