@@ -4,17 +4,11 @@ TODO:
 (HIGH PRIORITY)
 
 - BUG: weird print corrupted string, how to reproduce?
-- fix mem zero optimization problem (volatile?)
-  - see URL commend in utils.c
+- BUG: console->print(console, "%s", "") seems to crash.
 - introduce functional tests and split test make targets into func and unit
 - implement 'bits_t' object with tests.
   - This will be needed for raytl to support arbitrary bit width architectures.
   - consider finally finishing C++ BitDeque in parallel.
-- refactor chain/link object
-  - still using empty origin node, makes iterating unwieldy/awkward.
-  - reconsidering circularity of linkage.
-    - either terminate with NULL or add 'final', 'begin', or 'end' nodes.
-  - start with a good iterator paradigm and let that drive the design.
 - introduce some language constructs to scallop:
   - recursive dive expression evaluation (integer only - assume no FPU)
   - add while loop language construct
@@ -115,15 +109,6 @@ find . -type f -regex ".*\.[ch]" -exec grep -nHA1 TODO {} +
 ./src/console.c:358:        // TODO: PR against linenoise to add setting of FILE *
 ./src/console.c-359-        // so that we can, for example, redirect I/O to a tty
 --
-./src/bytes.c:129:        // TODO: Deal with compiler optimization problem
-./src/bytes.c-130-        memset(bytes, 0, sizeof(bytes_t));
---
-./src/bytes.c:228:        // TODO: Deal with compiler optimization problem
-./src/bytes.c-229-        memset(priv->data, 0, priv->size);
---
-./src/bytes.c:258:        // TODO: Replace with secure memory wipe
-./src/bytes.c-259-        memset(priv->data + priv->size, 0, size - priv->size);
---
 ./src/bytes.c:801:// TODO: merge this with the hexdump in utils
 ./src/bytes.c-802-static const char * const bytes_hexdump(bytes_t * bytes)
 --
@@ -216,6 +201,12 @@ DONE:
   * refactor how it works, writing substrings-at-once
 * Enable command history, with options, when linenoise is available.
 * console to borrow message type enum from blammo, but with it's own strings.
+* fix mem zero optimization problem (volatile?)
+  * see URL commend in utils.c
+* refactor chain/link object
+  * reconsidering circularity of linkage.
+    * either terminate with NULL or add 'final', 'begin', or 'end' nodes.
+  * start with a good iterator paradigm and let that drive the design.
 
 +-------------------------------------------------------------------------+
 MOSTLY DONE / SUPERCEDED:

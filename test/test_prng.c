@@ -40,5 +40,7 @@ TEST_BEGIN("test distribution")
 
 TEST_END
 
+    // TODO: TEST/threshold for bit set distribution
+
 TESTSUITE_END
 

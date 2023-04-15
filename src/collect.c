@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "collect.h"
+#include "utils.h"              // memzero(), function signatures
 #include "bytes.h"
 #include "blammo.h"
 
@@ -46,10 +47,10 @@ typedef struct collect_object_t
     void * object;
 
     // Object deep-copy function
-    object_data_copy_f object_copy;
+    generic_copy_f object_copy;
 
     // Object destructor function
-    object_data_destroy_f object_destroy;
+    generic_destroy_f object_destroy;
 }
 collect_item_t;
 
@@ -139,7 +140,7 @@ static void collect_item_remove(collect_t * collect,
     }
 
     // Wipe memory and delete the container
-    memset(item, 0, sizeof(collect_item_t));
+    memzero(item, sizeof(collect_item_t));
     free(item);
 
     // Size is now one fewer
@@ -164,7 +165,7 @@ static collect_item_t * collect_item_insert(collect_t * collect,
     }
 
     // Wipe all memory, link in the new container
-    memset(item, 0, sizeof(collect_item_t));
+    memzero(item, sizeof(collect_item_t));
     item->next = priv->first;
     priv->first = item;
 
@@ -199,7 +200,7 @@ static collect_t * collect_create()
         return NULL;
     }
 
-    memset(collect->priv, 0, sizeof(collect_priv_t));
+    memzero(collect->priv, sizeof(collect_priv_t));
 
     return collect;
 }
@@ -220,11 +221,11 @@ static void collect_destroy(void * collect_ptr)
     collect->clear(collect);
 
     // zero out and destroy the private data
-    memset(collect->priv, 0, sizeof(collect_priv_t));
+    memzero(collect->priv, sizeof(collect_priv_t));
     free(collect->priv);
 
     // zero out and destroy the public interface
-    memset(collect, 0, sizeof(collect_t));
+    memzero(collect, sizeof(collect_t));
     free(collect);
 }
 
@@ -315,8 +316,8 @@ static inline void * collect_get(collect_t * collect, const char * key)
 static void collect_set(collect_t * collect,
                         const char * key,
                         void * object,
-                        object_data_copy_f object_copy,
-                        object_data_destroy_f object_destroy)
+                        generic_copy_f object_copy,
+                        generic_destroy_f object_destroy)
 {
     // Search through collection and try to find object with the given key.
     // The whole container is needed, not just the object.
@@ -422,7 +423,7 @@ static const char ** collect_keys(collect_t * collect)
         return NULL;
     }
 
-    memset(priv->keys, 0, size);
+    memzero(priv->keys, size);
 
     size_t i = 0;
     while (item)
@@ -450,7 +451,7 @@ static void ** collect_objects(collect_t * collect)
         return NULL;
     }
 
-    memset(priv->objects, 0, size);
+    memzero(priv->objects, size);
 
     size_t i = 0;
     while (item)

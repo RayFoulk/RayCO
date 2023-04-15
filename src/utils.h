@@ -43,6 +43,9 @@
 #endif
 
 //-----------------------------------------------------------------------------+
+// Generic function signatures.  Objects that implement these can be included
+// within other object implementations to allow for higher-order functionality.
+
 // Generic comparator function signature.  Matches signature for qsort()'s
 // 'compar' function pointer argument.  These are frequently used in objects
 // for finding items within a chain or collection, or for sorting.
@@ -60,6 +63,8 @@ typedef void * (*generic_copy_f)(const void *);
 // deallocated.  These are used all over the place for garbage collection.
 typedef void (*generic_destroy_f)(void *);
 
+// TODO: consider serialization/de-serialization function signatures.
+
 //-----------------------------------------------------------------------------+
 void hexdump(const void * buf, size_t len, size_t addr);
 
@@ -67,4 +72,9 @@ void hexdump(const void * buf, size_t len, size_t addr);
 // "on" and "off" should be supported by this.
 bool str_to_bool(const char * str);
 
+// This is a simplified implementation of the function found here:
 // https://www.cryptologie.net/article/419/zeroing-memory-compiler-optimizations-and-memset_s/
+// https://stackoverflow.com/questions/47867130/stdc-lib-ext1-availability-in-gcc-and-clang
+// This exists to prevent the compiler from optimizing out any trailing call to memset(),
+// to ensure that memory truly is erased.
+void * memzero(void * ptr, size_t size);

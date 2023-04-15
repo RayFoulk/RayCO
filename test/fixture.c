@@ -21,8 +21,9 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //------------------------------------------------------------------------|
 
-#include "blammo.h"
 #include "fixture.h"
+#include "utils.h"
+#include "blammo.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -200,11 +201,11 @@ void payload_two_report(payload_two_t * p, int i)
 //------------------------------------------------------------------------|
 void fixture_reset()
 {
-    memset(fixture.payload_one, 0, FIXTURE_PAYLOADS_PER_TYPE * sizeof(payload_one_t));
+    memzero(fixture.payload_one, FIXTURE_PAYLOADS_PER_TYPE * sizeof(payload_one_t));
     fixture.one_begin = 0;
     fixture.one_end = FIXTURE_PAYLOADS_PER_TYPE - 1;
 
-    memset(fixture.payload_two, 0, FIXTURE_PAYLOADS_PER_TYPE * sizeof(payload_two_t));
+    memzero(fixture.payload_two, FIXTURE_PAYLOADS_PER_TYPE * sizeof(payload_two_t));
     fixture.two_begin = 0;
     fixture.two_end = FIXTURE_PAYLOADS_PER_TYPE - 1;
 }

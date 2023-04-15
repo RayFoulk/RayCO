@@ -101,7 +101,7 @@ typedef struct scallop_t
     // Main interactive prompt loop
     int (*loop)(struct scallop_t * scallop, bool interactive);
 
-    // Explicitely quit the main loop
+    // Explicitly quit the main loop
     void (*quit)(struct scallop_t * scallop);
 
     // Push a full context onto the context stack

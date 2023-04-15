@@ -31,7 +31,7 @@
 
 #include "bytes.h"
 #include "blammo.h"
-#include "utils.h"
+#include "utils.h"              // memzero(), function signatures
 
 //------------------------------------------------------------------------|
 // bytes private implementation data
@@ -79,7 +79,7 @@ static bytes_t * bytes_create(const void * data, size_t size)
         return NULL;
     }
 
-    memset(bytes->priv, 0, sizeof(bytes_priv_t));
+    memzero(bytes->priv, sizeof(bytes_priv_t));
     bytes->assign(bytes, data, size);
     return bytes;
 }
@@ -120,14 +120,13 @@ static void bytes_destroy(void * bytes_ptr)
 
     if (bytes->priv)
     {
-        //memset(bytes->priv, 0, sizeof(bytes_priv_t));
+        memzero(bytes->priv, sizeof(bytes_priv_t));
         free(bytes->priv);
     }
 
     if (bytes)
     {
-        // TODO: Deal with compiler optimization problem
-        memset(bytes, 0, sizeof(bytes_t));
+        memzero(bytes, sizeof(bytes_t));
         free(bytes);
     }
 }
@@ -218,19 +217,18 @@ static void bytes_clear(bytes_t * bytes)
     // Destroy any token pointers if allocated
     if (priv->tokens)
     {
-        memset(priv->tokens, 0, sizeof(char *) * priv->maxtokens);
+        memzero(priv->tokens, sizeof(char *) * priv->maxtokens);
         free(priv->tokens);
     }
 
     // Destroy the actual byte array
     if (priv->data)
     {
-        // TODO: Deal with compiler optimization problem
-        memset(priv->data, 0, priv->size);
+        memzero(priv->data, priv->size);
         free(priv->data);
     }
 
-    memset(bytes->priv, 0, sizeof(bytes_priv_t));
+    memzero(bytes->priv, sizeof(bytes_priv_t));
 }
 
 //------------------------------------------------------------------------|
@@ -255,8 +253,7 @@ static void bytes_resize(bytes_t * bytes, size_t size)
     // Zero out the new memory
     if (size > priv->size)
     {
-        // TODO: Replace with secure memory wipe
-        memset(priv->data + priv->size, 0, size - priv->size);
+        memzero(priv->data + priv->size, size - priv->size);
     }
 
     // Update size and explicitly terminate buffer
@@ -550,8 +547,8 @@ static void bytes_resize_tokens(bytes_t * bytes,
     }
 
     priv->maxtokens = maxtokens;
-    memset(&priv->tokens[numtokens], 0,
-           sizeof(char *) * (maxtokens - numtokens));
+    memzero(&priv->tokens[numtokens],
+            sizeof(char *) * (maxtokens - numtokens));
 
     BLAMMO(DEBUG, "resized maxtokens: %zu", priv->maxtokens);
 }

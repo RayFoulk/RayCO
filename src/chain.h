@@ -31,18 +31,6 @@
 #include "utils.h"          // generic function signatures
 
 //------------------------------------------------------------------------|
-// Function pointer type for link data comparator callback used with sort()
-typedef int (*link_data_compare_f) (const void *, const void *);
-
-// Function pointer type for link data copy callback used with copy()
-typedef void * (*link_data_copy_f) (const void *);
-
-// Function pointer type for link data destructor callback used internally
-// by the chain whenever links are removed, cleared, or destroyed.
-// Effectively this designates the data type of the chain.
-typedef void (*link_data_destroy_f) (void *);
-
-//------------------------------------------------------------------------|
 typedef struct chain_t
 {
     // Factory function that creates a chain.  A destructor callback may
@@ -51,8 +39,8 @@ typedef struct chain_t
     // is static or if the pointer value itself is directly assigned or
     // not to be managed by the chain.  'free' may be passed if the data
     // was allocated by a simple 'malloc' call.
-    struct chain_t * (*create)(link_data_copy_f data_copy,
-                               link_data_destroy_f data_destroy);
+    struct chain_t * (*create)(generic_copy_f data_copy,
+                               generic_destroy_f data_destroy);
 
     // Chain destructor function
     void (*destroy)(void * chain);
@@ -131,23 +119,17 @@ typedef struct chain_t
     //
     // Internally, this uses the libc qsort() function on a dynamic array of
     // data payload pointers for optimum performance.
-    void (*sort)(struct chain_t * chain, link_data_compare_f data_compare);
+    void (*sort)(struct chain_t * chain, generic_compare_f data_compare);
 
     // search through all links and return the first one that matches
     // the given reference link (may or may not be part of the chain)
     // according to the criterion applied by the comparison function.
     // returns NULL if no matching link is found in the chain
-    void * (*find)(struct chain_t * chain, void * data, link_data_compare_f data_compare);
+    void * (*find)(struct chain_t * chain, void * data, generic_compare_f data_compare);
 
     // Makes a full deep copy of the given chain.  The data_copy function
     // (if not NULL) is called for each link data payload.
-    // FIXME: Does not comply with usual 'copy' signature.  Why/why not?...
-    //  ANSWER: This prevents a chain_t from being a payload object within
-    //  a heterogeneous collect_t instance OR WITHIN ANOTHER CHAIN => CHAIN->COPY
-    //  DOES NOT CONFORM TO link_data_copy_f .  So long as that is OK, this is OK.
-    //  the action item here is to acknowledge the problem and disposition what
-    //  to do about it, if anything.
-    struct chain_t * (*copy)(struct chain_t * chain, link_data_copy_f data_copy);
+    struct chain_t * (*copy)(struct chain_t * chain);
 
     // This splits a chain into two segments: The segment specified by the
     // 'begin' and 'end' indexes into the chain is returned,  and the remainder

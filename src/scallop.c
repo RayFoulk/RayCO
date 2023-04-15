@@ -29,6 +29,8 @@
 #include <errno.h>
 
 #include "scallop.h"
+#include "utils.h"              // memzero(), function signatures
+#include "blammo.h"
 #include "scommand.h"
 #include "sbuiltin.h"
 #include "sroutine.h"
@@ -36,8 +38,6 @@
 #include "collect.h"
 #include "chain.h"
 #include "bytes.h"
-#include "utils.h"
-#include "blammo.h"
 
 //------------------------------------------------------------------------|
 // Various constants that define the syntax/dialect/behavior of scallop's
@@ -107,9 +107,9 @@ typedef struct
 }
 scallop_priv_t;
 
-// Private data structure for context stack
-// All data members must be unmanaged by this struct,
-// but point elsewhere to persistent data, at least
+//------------------------------------------------------------------------|
+// Private data structure for context stack.  All data members must be
+// unmanaged by this struct, but point elsewhere to data that persists
 // for the lifetime of the context.
 typedef struct
 {
@@ -138,6 +138,24 @@ typedef struct
     scallop_construct_pop_f popfunc;
 }
 scallop_construct_t;
+
+//------------------------------------------------------------------------|
+// trivial language construct copy function for chain inclusion
+static void * scallop_construct_copy(const void * construct)
+{
+    scallop_construct_t * copy = (scallop_construct_t *)
+            malloc(sizeof(scallop_construct_t));
+
+    if (!copy)
+    {
+        BLAMMO(FATAL, "malloc(sizeof(scallop_construct_t) failed!");
+        return NULL;
+    }
+
+    // Shallow copy is OK for these structures
+    memcpy(copy, construct, sizeof(scallop_construct_t));
+    return copy;
+}
 
 //------------------------------------------------------------------------|
 static void scallop_tab_completion(void * object, const char * buffer)
@@ -333,7 +351,7 @@ static char * scallop_arg_hints(void * object,
     // provided (argc), and the nest level.
     hindex = argc - nest;
 
-    BLAMMO(DEBUG, "Uncoerced index is %d", hindex);
+    BLAMMO(DEBUG, "Un-coerced index is %d", hindex);
     if (hindex < 0 || hindex >= hintc)
     {
         BLAMMO(DEBUG, "Invalid hint index");
@@ -383,7 +401,7 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    memset(scallop->priv, 0, sizeof(scallop_priv_t));
+    memzero(scallop->priv, sizeof(scallop_priv_t));
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
 
     // Expect that a console must be given
@@ -411,8 +429,12 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    // Create context stack
-    priv->constructs = chain_pub.create(free);
+    // Create context stack.  Could likely have just passed NULL
+    // for the copy function, since we never intend to copy the
+    // context, but it might happen later when we get into
+    // more complex language constructs.
+    priv->constructs = chain_pub.create(scallop_construct_copy,
+                                        free);
     if (!priv->constructs)
     {
         BLAMMO(FATAL, "chain_pub.create() failed");
@@ -441,8 +463,9 @@ static scallop_t * scallop_create(console_t * console,
         return NULL;
     }
 
-    // Create the list of routines
-    priv->routines = chain_pub.create(scallop_rtn_pub.destroy);
+    // Create the list of routines.  Routines are not copied (for now)
+    priv->routines = chain_pub.create(NULL,
+                                      scallop_rtn_pub.destroy);
     if (!priv->routines)
     {
         BLAMMO(FATAL, "chain_pub.create() failed");
@@ -498,11 +521,11 @@ static void scallop_destroy(void * scallop_ptr)
     }
 
     // zero out and destroy the private data
-    memset(scallop->priv, 0, sizeof(scallop_priv_t));
+    memzero(scallop->priv, sizeof(scallop_priv_t));
     free(scallop->priv);
 
     // zero out and destroy the public interface
-    memset(scallop, 0, sizeof(scallop_t));
+    memzero(scallop, sizeof(scallop_t));
     free(scallop);
 }
 
