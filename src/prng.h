@@ -24,6 +24,9 @@
 // PRNG: Provide a library interface to the xoshiro / xoroshiro 256 ++
 // generator found at http://prng.di.unimi.it/
 
+// TODO: Support 32-bit OR 64-bit platforms at compile-time
+// TODO: Add conventience functions to generate random values within
+//  a given range and per data type.
 #pragma once
 
 #include <stddef.h>
