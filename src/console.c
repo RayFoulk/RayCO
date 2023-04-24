@@ -389,8 +389,9 @@ static char * console_get_line(console_t * console,
 }
 
 //------------------------------------------------------------------------|
-static ssize_t console_warning(console_t * console, const char * format, ...)
+static int console_warning(void * console_ptr, const char * format, ...)
 {
+    console_t * console = (console_t *) console_ptr;
     console_priv_t * priv = (console_priv_t *) console->priv;
     bytes_t * buffer = priv->buffer[0];
     bytes_t * wformat = priv->buffer[1];
@@ -429,12 +430,13 @@ static ssize_t console_warning(console_t * console, const char * format, ...)
     // Also send it to blammo if enabled
     BLAMMO(WARNING, "\'%s\'", buffer->cstr(buffer));
     console->unlock(console);
-    return nchars;
+    return (int) nchars;
 }
 
 //------------------------------------------------------------------------|
-static ssize_t console_error(console_t * console, const char * format, ...)
+static int console_error(void * console_ptr, const char * format, ...)
 {
+    console_t * console = (console_t *) console_ptr;
     console_priv_t * priv = (console_priv_t *) console->priv;
     bytes_t * buffer = priv->buffer[0];
     bytes_t * eformat = priv->buffer[1];
@@ -473,12 +475,13 @@ static ssize_t console_error(console_t * console, const char * format, ...)
     // Also send it to blammo if enabled
     BLAMMO(ERROR, "\'%s\'", buffer->cstr(buffer));
     console->unlock(console);
-    return nchars;
+    return (int) nchars;
 }
 
 //------------------------------------------------------------------------|
-static ssize_t console_print(console_t * console, const char * format, ...)
+static int console_print(void * console_ptr, const char * format, ...)
 {
+    console_t * console = (console_t *) console_ptr;
     console_priv_t * priv = (console_priv_t *) console->priv;
     bytes_t * buffer = priv->buffer[0];
     ssize_t nchars = 0;
@@ -511,12 +514,13 @@ static ssize_t console_print(console_t * console, const char * format, ...)
     // Also send it to blammo if enabled
     BLAMMO(DEBUG, "\'%s\'", buffer->cstr(buffer));
     console->unlock(console);
-    return nchars;
+    return (int) nchars;
 }
 
 //------------------------------------------------------------------------|
-static ssize_t console_reprint(console_t * console, const char * format, ...)
+static int console_reprint(void * console_ptr, const char * format, ...)
 {
+    console_t * console = (console_t *) console_ptr;
     console_priv_t * priv = (console_priv_t *) console->priv;
     bytes_t * swap = NULL;
     bytes_t * backspaces = NULL;
@@ -609,7 +613,7 @@ static ssize_t console_reprint(console_t * console, const char * format, ...)
     fflush (priv->output);
 
     console->unlock(console);
-    return nchars;
+    return (int) nchars;
 }
 
 //------------------------------------------------------------------------|

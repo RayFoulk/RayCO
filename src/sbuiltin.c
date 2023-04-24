@@ -31,6 +31,7 @@
 #include "scallop.h"
 #include "scommand.h"
 #include "sroutine.h"
+#include "sparser.h"
 #include "sbuiltin.h"
 #include "console.h"
 #include "chain.h"
@@ -323,7 +324,10 @@ static int builtin_handler_print(void * scmd,
 
     if (!message->empty(message))
     {
-        console->print(console, "%s", message->cstr(message));
+        console->print(console, "%sis %ld",
+                message->cstr(message),
+                sparser_evaluate(console->error, console,
+                                            message->cstr(message)));
     }
 
     message->destroy(message);
@@ -387,7 +391,7 @@ static int builtin_handler_source(void * scmd,
     // Put console back to original state
     console->set_inputf(console, input);
 
-    // Done with script file -- TODO: return status of script run?
+    // Done with script file
     fclose(source);
     return result;
 }

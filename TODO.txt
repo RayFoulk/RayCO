@@ -10,7 +10,8 @@ TODO:
   - This will be needed for raytl to support arbitrary bit width architectures.
   - consider finally finishing C++ BitDeque in parallel.
 - introduce some language constructs to scallop:
-  - recursive dive expression evaluation (integer only - assume no FPU)
+  - recursive descent parser for expression evaluation (integer only - assume no FPU)
+    - research "recursive descent parser" and "arithmetic expression evaluator"
   - add while loop language construct
   - add if-else language construct
   - after these features are added and confirmed working, TAG it and USE it.

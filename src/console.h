@@ -87,21 +87,17 @@ typedef struct console_t
                        const char * prompt,
                        bool interactive);
 
-    // Print (and log) a warning message
-    ssize_t (*warning)(struct console_t * console,
-                       const char * format, ...);
+    // Print (and log) a warning message: conforms to generic_print_f
+    int (*warning)(void * console, const char * format, ...);
 
-    // Print (and log) an error message
-    ssize_t (*error)(struct console_t * console,
-                     const char * format, ...);
+    // Print (and log) an error message: conforms to generic_print_f
+    int (*error)(void * console, const char * format, ...);
 
-    // Printf-style output function
-    ssize_t (*print)(struct console_t * console,
-                     const char * format, ...);
+    // Printf-style output function: conforms to generic_print_f
+    int (*print)(void * console, const char * format, ...);
 
-    // Update a previously printed string in-place
-    ssize_t (*reprint)(struct console_t * console,
-                       const char * format, ...);
+    // Update a previously printed string in-place: conforms to generic_print_f
+    int (*reprint)(void * console, const char * format, ...);
 
     // Private data
     void * priv;
