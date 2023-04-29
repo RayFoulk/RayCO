@@ -568,7 +568,7 @@ static char ** bytes_tokenize(bytes_t * bytes,
 
     bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
 
-    // OK, the theoretical maximum number of tokens in a string is
+    // The theoretical maximum number of tokens in a string is
     // probably something like 1/2 strlen: if every single token was 1
     // char delimited by 1 space.  It certainly cannot be higher than
     // strlen itself.  Assuming the typical keyword is probably 3 or 4
@@ -580,7 +580,7 @@ static char ** bytes_tokenize(bytes_t * bytes,
 
     // Proceed with tokenization
     char * saveptr = NULL;
-    char * ptr = strtok_r ((char *) bytes->cstr(bytes), delim, &saveptr);
+    char * ptr = strtok_r((char *) bytes->cstr(bytes), delim, &saveptr);
 
     *numtokens = 0;
     while (ptr != NULL)
@@ -594,7 +594,7 @@ static char ** bytes_tokenize(bytes_t * bytes,
         }
 
         priv->tokens[(*numtokens)++] = ptr;
-        ptr = strtok_r (NULL, delim, &saveptr);
+        ptr = strtok_r(NULL, delim, &saveptr);
 
         // Resize up if necessary, zeroing new memory
         if (*numtokens >= priv->maxtokens)
@@ -664,6 +664,180 @@ static char ** bytes_marktokens(bytes_t * bytes,
     }
 
     BLAMMO(VERBOSE, "number of markers: %u", *numtokens);
+
+    return priv->tokens;
+}
+
+//------------------------------------------------------------------------|
+// Private helper function for bytes_next_token().  This is essentially
+// a super-strcspn() that accounts for encapsulated tokens such as quoted
+// strings and parenthetical expressions.  The encapsulation charaters are
+// included in the spanned token.
+static size_t bytes_encaps_span(const char * str, const char * encaps)
+{
+    // Nothing to check here if end of string or if not encapsulated.
+    if (!*str || (*str != encaps[0]))
+    {
+        return 0;
+    }
+
+    // The *str must necessarily be encaps[0] to get to this point,
+    // so advance past it and start at nest level 1.
+    char * ptr = (char *) str + 1;
+    int nest = 1;
+
+    // Done either at end-of-string or nest level gets back to zero
+    while (*ptr && nest)
+    {
+        // Have to check for end-encaps (encaps[1]) first to cover
+        // special case of quotes, where end char == begin char.
+        if (*ptr == encaps[1])
+        {
+            nest--;
+        }
+        else if (*ptr == encaps[0])
+        {
+            nest++;
+        }
+
+        ptr++;
+    }
+
+    // Check for unterminated token.  I.E. missing parenthesis, or
+    // no end-quote, for example.
+    if (nest)
+    {
+        BLAMMO(WARNING, "Expected \'%c\' at nest level %d", encaps[1], nest);
+    }
+
+    return (size_t) (ptr - str);
+}
+
+//------------------------------------------------------------------------|
+// Private helper function for tokenizer().  This is essentially a super-
+// glorified strtok_r() except that it handles encapsulated tokens
+// and optionally does or does not insert null terminators, as requested.
+static char * bytes_next_token(bytes_t * bytes,
+                               bool split,
+                               const char ** encaps,
+                               const char * delim,
+                               const char * ignore,
+                               char ** saveptr)
+{
+    char * end;
+    char * str = NULL;
+    size_t span = 0;
+    int i = 0;
+
+    // Set the current pointer within the buffer
+    if (bytes)
+    {
+        str = (char *) bytes->cstr(bytes);
+    }
+    else
+    {
+        str = *saveptr;
+    }
+
+    // Check if we're done early, ignore inline comments
+    if ((*str == '\0') ||
+       (ignore && !strncmp(str, ignore, strlen(ignore))))
+    {
+        *saveptr = str;
+        return NULL;
+    }
+
+    // Scan for leading delimiters, move up to token beginning
+    str += strspn(str, delim);
+    if ((*str == '\0') ||
+       (ignore && !strncmp(str, ignore, strlen(ignore))))
+    {
+        *saveptr = str;
+        return NULL;
+    }
+
+    // Check for encapsulated tokens.  Regular delimiters are
+    // allowed to occur within these, such as quoted strings
+    // or parenthetical expressions.  First match wins: I.E.
+    // consider "(parens-inside)" versus ("quotes-inside")
+    while (encaps && encaps[i])
+    {
+        span = bytes_encaps_span(str, encaps[i]);
+        if (span > 0)
+        {
+            end = str + span;
+            break;
+        }
+
+        i++;
+    }
+
+    // If span is zero at this point then no encapsulated token,
+    // so do things as regular-ol' strtok_r() would in that case.
+    if (span == 0)
+    {
+        // Find where the token ends
+        end = str + strcspn(str, delim);
+        if (*end == '\0')
+        {
+            *saveptr = end;
+            return str;
+        }
+    }
+
+    // Terminate the token (if requested) and make *saveptr point past it.
+    if (split) { *end = '\0'; }
+    *saveptr = end + 1;
+    return str;
+}
+
+//------------------------------------------------------------------------|
+static char ** bytes_tokenizer(bytes_t * bytes,
+                               bool split,
+                               const char ** encaps,
+                               const char * delim,
+                               const char * ignore,
+                               size_t * numtokens)
+{
+    // Do not attempt to tokenize empty bytes
+    if (bytes->empty(bytes))
+    {
+        BLAMMO(VERBOSE, "Not tokenizing empty bytes!");
+        return NULL;
+    }
+
+    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
+
+    // The theoretical maximum number of tokens in a string is
+    // probably something like 1/2 strlen: if every single token was 1
+    // char delimited by 1 space.  It certainly cannot be higher than
+    // strlen itself.  Assuming the typical keyword is probably 3 or 4
+    // chars long, a reasonable guess is 1/4 strlen.  Add some extra
+    // extra padding onto that, say 2 elements.  Then the plan is to
+    // double this size whenever we run out of room.
+    size_t maxtokens = 2 + (priv->size >> 2);
+    bytes_resize_tokens(bytes, 0, maxtokens);
+
+    // Proceed with tokenization
+    char * saveptr = NULL;
+    char * ptr = bytes_next_token(bytes, split, encaps, delim, ignore, &saveptr);
+
+    *numtokens = 0;
+    while (ptr != NULL)
+    {
+        BLAMMO(DEBUG, "ptr: %s", ptr);
+
+
+        priv->tokens[(*numtokens)++] = ptr;
+        ptr = bytes_next_token(NULL, split, encaps, delim, ignore, &saveptr);
+
+        // Resize up if necessary, zeroing new memory
+        if (*numtokens >= priv->maxtokens)
+        {
+            maxtokens <<= 1;
+            bytes_resize_tokens(bytes, *numtokens, maxtokens);
+        }
+    }
 
     return priv->tokens;
 }
@@ -896,6 +1070,7 @@ const bytes_t bytes_pub = {
     &bytes_copy,
     &bytes_tokenize,
     &bytes_marktokens,
+    &bytes_tokenizer,
     &bytes_offset,
     &bytes_remove,
     &bytes_insert,

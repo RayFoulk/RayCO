@@ -148,6 +148,23 @@ typedef struct bytes_t
                           const char * ignore,
                           size_t * numtokens);
 
+    // Refactored tokenizer that takes into account quoted strings
+    // and parenthetical expressions.  Can be operated to either
+    // insert null terminators or not, as needed.  Quotes and
+    // Parenthesis are generalized here as "Encapsulation Pairs"
+    // consisting of a "Begin" and "End" character,
+    // like so: { "\"\"", "()", NULL }.  The encaps array is expected
+    // to be NULL pointer terminated.  Quotes are really a special case
+    // of an encapsulation pair where the beginning and end characters
+    // are the same.  The 'split' flag indicates whether to insert
+    // null terminators or not.
+    char ** (*tokenizer)(struct bytes_t * bytes,
+                         bool split,
+                         const char ** encaps,
+                         const char * delim,
+                         const char * ignore,
+                         size_t * numtokens);
+
     // Given an absolute pointer into the data, get the relative offset
     // Returns negative value if there is an error
     ssize_t (*offset)(struct bytes_t * bytes, void * ptr);

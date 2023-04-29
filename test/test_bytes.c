@@ -32,7 +32,7 @@
 TESTSUITE_BEGIN
 
     // Simple test of the blammo logger
-    BLAMMO_LEVEL(INFO);
+    BLAMMO_LEVEL(DEBUG);
     BLAMMO_FILE("test_bytes.log");
     BLAMMO(INFO, "bytes tests...");
 
@@ -375,6 +375,46 @@ TEST_BEGIN("marktokens")
 
     CHECK(nmark == 2);
 
+TEST_END
+
+
+TEST_BEGIN("tokenizer")
+
+    bool split = true;
+    const char * a = "one two three #comment";
+    const char * b = "token_one  \"token two quoted\" token_three";
+    const char * c = "((x == y) && (w != z)) two three \"four is quoted\" five #comment";
+
+    const char *encaps[] = {
+            "\"\"",
+            "()",
+            NULL
+    };
+
+    bytes_t * bytes = bytes_pub.create(a, strlen(a));
+    size_t ntokens = 0;
+    char ** tokens = bytes->tokenizer(bytes, split, NULL, " ", "#", &ntokens);
+    int i = 0;
+    for (i = 0; i < ntokens; i++)
+    {
+        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
+    }
+
+    bytes->assign(bytes, b, strlen(b));
+    tokens = bytes->tokenizer(bytes, split, encaps, " ", "#", &ntokens);
+    for (i = 0; i < ntokens; i++)
+    {
+        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
+    }
+
+    bytes->assign(bytes, c, strlen(c));
+    tokens = bytes->tokenizer(bytes, split, encaps, " ", "#", &ntokens);
+    for (i = 0; i < ntokens; i++)
+    {
+        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
+    }
+
+    bytes->destroy(bytes);
 TEST_END
 
 TEST_BEGIN("remove")

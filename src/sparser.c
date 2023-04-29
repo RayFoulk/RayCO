@@ -35,9 +35,9 @@
 typedef struct
 {
     // The expression and pointers within the expression
-    const char * expr;      // The expression
-    char * ptr;             // Current location being evaluated
-    char * error_ptr;       // Where last error occurred
+    const char * expr;          // The expression
+    char * ptr;                 // Current location being evaluated
+    char * error_ptr;           // Where last error occurred
 
     // Current recursion depth
     unsigned char depth;
@@ -88,10 +88,9 @@ long sparser_evaluate(generic_print_f errprintf,
         if (sparser.errprintf)
         {
             sparser.errprintf(sparser.errprintf_object,
-                               "Invalid expression at \'%s\' offset %zu depth %u\n",
-                               sparser.error_ptr,
-                               sparser.error_ptr - sparser.expr,
-                               sparser.depth);
+                              "Invalid expression at \'%s\' offset %zu\n",
+                              sparser.error_ptr,
+                              sparser.error_ptr - sparser.expr);
         }
 
         return SPARSER_INVALID_EXPRESSION;
@@ -139,19 +138,7 @@ static void skip_whitespace(sparser_t * sparser)
 static bool peek_token(sparser_t * sparser, const char * token)
 {
     skip_whitespace(sparser);
-    const char * start = sparser->ptr;
-    while (*token != '\0')
-    {
-        if (*start != *token)
-        {
-            return false;
-        }
-
-        ++start;
-        ++token;
-    }
-
-    return true;
+    return !strncmp(sparser->ptr, token, strlen(token));
 }
 
 // Matches and consumes the token
@@ -359,7 +346,7 @@ static long sparser_terminal_number(sparser_t * sparser)
 static long sparser_terminal_string(sparser_t * sparser)
 {
     // skip the opening double quote
-    match_token(sparser, "\"");
+    bool quoted = match_token(sparser, "\"");
 
     const char * start = sparser->ptr;
 
@@ -371,18 +358,22 @@ static long sparser_terminal_string(sparser_t * sparser)
 
     size_t length = sparser->ptr - start;
 
-    // FIXME: Probably not going to work for ""
+    // consume closing quote if present
+    quoted &= match_token(sparser, "\"");
+
     // If any string value was stored (even empty "")
     // then track this as a string and not a number.
-    if (sparser->ptr != start)
+    if ((sparser->ptr != start) || quoted)
     {
         sparser_track_term(sparser, start, length);
     }
 
-    // consume closing quote if present
-    match_token(sparser, "\"");
-
-    return (long) start[0];
+    // Allow for alphabetization up to 3 chars deep
+    // when using greater/less-than comparators
+    long result = length >= 1 ? (long) start[0] << 16 : 0;
+    result += length >= 2 ? (long) start[1] << 8 : 0;
+    result += length >= 3 ? (long) start[2] : 0;
+    return result;
 }
 
 //------------------------------------------------------------------------|
@@ -523,4 +514,3 @@ static long sparser_extract_factor(sparser_t * sparser)
     sparser->error_ptr = sparser->ptr;
     return SPARSER_INVALID_EXPRESSION;
 }
-
