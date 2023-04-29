@@ -113,9 +113,31 @@ TEST_END
 
 TEST_BEGIN("bad characters")
     CHECK(evalexpr("(^%# == !@#%)") == SPARSER_INVALID_EXPRESSION);
+    CHECK(evalexpr("((9 == 9.0) && (1))") == SPARSER_INVALID_EXPRESSION);
+
+    // TODO: This is allowed because the lack of outer parenthesis
+    // and evaluation stops when '.' is detected as not-a-digit.
+    // is this acceptable or a problem?
+    CHECK(evalexpr("9 == 9.0"));
 TEST_END
 
 TEST_BEGIN("numeric comparison")
+    CHECK(evalexpr("1 > 0"));
+    CHECK(evalexpr("99 > 77"));
+    CHECK(!evalexpr("55 > 77"));
+    CHECK(evalexpr("-5 < 5"));
+    CHECK(evalexpr("1 < 2"));
+    CHECK(!evalexpr("3 < 2"));
+    CHECK(evalexpr("2 >= 1"));
+    CHECK(evalexpr("55 >= 55"));
+    CHECK(!evalexpr("74 >= 75"));
+    CHECK(evalexpr("5 <= 6"));
+    CHECK(evalexpr("66 <= 66"));
+    CHECK(!evalexpr("44 <= 43"));
+    CHECK(evalexpr("123 == 123"));
+    CHECK(!evalexpr("321 == 123"));
+    CHECK(evalexpr("333 != 555"));
+    CHECK(!evalexpr("333 != 333"));
 TEST_END
 
 TEST_BEGIN("string comparison")
@@ -123,11 +145,9 @@ TEST_BEGIN("string comparison")
     CHECK(!evalexpr("valid == invalid"));
     CHECK(evalexpr("\"quoted\" == \"quoted\""));
     CHECK(evalexpr("\"quoted\" == quoted"));
-
     CHECK(evalexpr("quarks != muons"));
     CHECK(evalexpr("valid != invalid"));
     CHECK(!evalexpr("roses != roses"));
-
 TEST_END
 
 TESTSUITE_END

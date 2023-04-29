@@ -61,11 +61,11 @@ static const char * scallop_cmd_comment = "#";
 // The begin/end markers for variable and argument substitution in
 // unparsed command lines and routine arguments.  Whitespace between
 // brackets may produce unexpected behavior!
-static const char * scallop_var_begin = "[";
-static const char * scallop_var_end = "]";
+static const char * scallop_var_begin = "{";
+static const char * scallop_var_end = "}";
 static const char * scallop_arg_prefix = "%";
-static const char * scallop_arg_count = "n";        // "[%n]"
-static const char * scallop_var_result = "?";       // "[%?]"
+static const char * scallop_arg_count = "n";        // "{%n}"
+static const char * scallop_var_result = "?";       // "{%?}"
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -833,7 +833,7 @@ static void scallop_dispatch(scallop_t * scallop, const char * line)
     // Ignore empty input
     if (argc == 0)
     {
-        BLAMMO(VERBOSE, "Ignoring empty line");
+        BLAMMO(VERBOSE, "Ignoring empty tokenized line");
         linebytes->destroy(linebytes);
         priv->depth--;
         // Don't update stored result for empty lines
