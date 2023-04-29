@@ -317,66 +317,65 @@ TEST_BEGIN("copy")
     b->destroy(b);
 TEST_END
 
-TEST_BEGIN("tokenize")
-    bytes_t * a = bytes_pub.create("one two three", 13);
-    size_t ntokens = 0;
-    char ** tokens = a->tokenize(a, " ", "#", &ntokens);
-    int i = 0;
-    for (i = 0; i < ntokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
-    }
-
-    a->assign(a, "a b c d e f g h", 15);
-    tokens = a->tokenize(a, " ", "#", &ntokens);
-    for (i = 0; i < ntokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
-    }
-
-    a->assign(a, "a b c d e #f g h", 16);
-    tokens = a->tokenize(a, " ", "#", &ntokens);
-    for (i = 0; i < ntokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
-    }
-
-    a->destroy(a);
-TEST_END
-
-TEST_BEGIN("marktokens")
-
-    const char * const_str = "mary had\t\ta  little\tlamb   ";
-    bytes_t * a = bytes_pub.create(const_str, strlen(const_str));
-    size_t nmark = 0;
-    char ** markers = a->marktokens(a, " \t", "#", &nmark);
-
-    CHECK(nmark == 5);
-    CHECK(strncmp(markers[0], "mary", 4) == 0)
-    CHECK(strncmp(markers[1], "had", 3) == 0)
-    CHECK(strncmp(markers[2], "a", 1) == 0)
-    CHECK(strncmp(markers[3], "little", 6) == 0)
-    CHECK(strncmp(markers[4], "lamb", 4) == 0)
-
-    const char * another = " mary had a \t  little lamb";
-    a->assign(a, another, strlen(another));
-    markers = a->marktokens(a, " \t", "#", &nmark);
-
-    CHECK(nmark == 5);
-    CHECK(strncmp(markers[0], "mary", 4) == 0)
-    CHECK(strncmp(markers[1], "had", 3) == 0)
-    CHECK(strncmp(markers[2], "a", 1) == 0)
-    CHECK(strncmp(markers[3], "little", 6) == 0)
-    CHECK(strncmp(markers[4], "lamb", 4) == 0)
-
-    const char * yet_another = " <crash> <happy>";
-    a->assign(a, yet_another, strlen(yet_another));
-    markers = a->marktokens(a, " \t", "#", &nmark);
-
-    CHECK(nmark == 2);
-
-TEST_END
-
+//TEST_BEGIN("tokenize")
+//    bytes_t * a = bytes_pub.create("one two three", 13);
+//    size_t ntokens = 0;
+//    char ** tokens = a->tokenize(a, " ", "#", &ntokens);
+//    int i = 0;
+//    for (i = 0; i < ntokens; i++)
+//    {
+//        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
+//    }
+//
+//    a->assign(a, "a b c d e f g h", 15);
+//    tokens = a->tokenize(a, " ", "#", &ntokens);
+//    for (i = 0; i < ntokens; i++)
+//    {
+//        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
+//    }
+//
+//    a->assign(a, "a b c d e #f g h", 16);
+//    tokens = a->tokenize(a, " ", "#", &ntokens);
+//    for (i = 0; i < ntokens; i++)
+//    {
+//        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
+//    }
+//
+//    a->destroy(a);
+//TEST_END
+//
+//TEST_BEGIN("marktokens")
+//
+//    const char * const_str = "mary had\t\ta  little\tlamb   ";
+//    bytes_t * a = bytes_pub.create(const_str, strlen(const_str));
+//    size_t nmark = 0;
+//    char ** markers = a->marktokens(a, " \t", "#", &nmark);
+//
+//    CHECK(nmark == 5);
+//    CHECK(strncmp(markers[0], "mary", 4) == 0)
+//    CHECK(strncmp(markers[1], "had", 3) == 0)
+//    CHECK(strncmp(markers[2], "a", 1) == 0)
+//    CHECK(strncmp(markers[3], "little", 6) == 0)
+//    CHECK(strncmp(markers[4], "lamb", 4) == 0)
+//
+//    const char * another = " mary had a \t  little lamb";
+//    a->assign(a, another, strlen(another));
+//    markers = a->marktokens(a, " \t", "#", &nmark);
+//
+//    CHECK(nmark == 5);
+//    CHECK(strncmp(markers[0], "mary", 4) == 0)
+//    CHECK(strncmp(markers[1], "had", 3) == 0)
+//    CHECK(strncmp(markers[2], "a", 1) == 0)
+//    CHECK(strncmp(markers[3], "little", 6) == 0)
+//    CHECK(strncmp(markers[4], "lamb", 4) == 0)
+//
+//    const char * yet_another = " <crash> <happy>";
+//    a->assign(a, yet_another, strlen(yet_another));
+//    markers = a->marktokens(a, " \t", "#", &nmark);
+//
+//    CHECK(nmark == 2);
+//
+//TEST_END
 
 TEST_BEGIN("tokenizer")
 
@@ -394,25 +393,29 @@ TEST_BEGIN("tokenizer")
     bytes_t * bytes = bytes_pub.create(a, strlen(a));
     size_t ntokens = 0;
     char ** tokens = bytes->tokenizer(bytes, split, NULL, " ", "#", &ntokens);
-    int i = 0;
-    for (i = 0; i < ntokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
-    }
+    CHECK(ntokens == 3);
+    CHECK(!strcmp(tokens[0], "one"));
+    CHECK(!strcmp(tokens[1], "two"));
+    CHECK(!strcmp(tokens[2], "three"));
+    CHECK(tokens[3] == NULL);
 
     bytes->assign(bytes, b, strlen(b));
     tokens = bytes->tokenizer(bytes, split, encaps, " ", "#", &ntokens);
-    for (i = 0; i < ntokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
-    }
+    CHECK(ntokens == 3);
+    CHECK(!strcmp(tokens[0], "token_one"));
+    CHECK(!strcmp(tokens[1], "\"token two quoted\""));
+    CHECK(!strcmp(tokens[2], "token_three"));
+    CHECK(tokens[3] == NULL);
 
     bytes->assign(bytes, c, strlen(c));
     tokens = bytes->tokenizer(bytes, split, encaps, " ", "#", &ntokens);
-    for (i = 0; i < ntokens; i++)
-    {
-        BLAMMO(DEBUG, "token[%d]: %s", i, tokens[i]);
-    }
+    CHECK(ntokens == 5);
+    CHECK(!strcmp(tokens[0], "((x == y) && (w != z))"));
+    CHECK(!strcmp(tokens[1], "two"));
+    CHECK(!strcmp(tokens[2], "three"));
+    CHECK(!strcmp(tokens[3], "\"four is quoted\""));
+    CHECK(!strcmp(tokens[4], "five"));
+    CHECK(tokens[5] == NULL);
 
     bytes->destroy(bytes);
 TEST_END

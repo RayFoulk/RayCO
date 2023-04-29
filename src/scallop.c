@@ -53,7 +53,8 @@ static const char * scallop_prompt_finale = " > ";
 static const char * scallop_prompt_delim = ".";
 
 // command line delimiters are pretty universal: whitespace is best.
-static const char * scallop_cmd_delim = " \t\n";
+// These come directly from 'man isspace'
+static const char * scallop_cmd_delim = " \t\n\r\f\v";
 
 // The string that designates everything to the right as a comment.
 static const char * scallop_cmd_comment = "#";
@@ -66,6 +67,14 @@ static const char * scallop_var_end = "}";
 static const char * scallop_arg_prefix = "%";
 static const char * scallop_arg_count = "n";        // "{%n}"
 static const char * scallop_var_result = "?";       // "{%?}"
+
+// Encapsulated token delimiters.  Allows for quoted strings and
+// parenthetical expressions.
+static const char * scallop_encaps_pairs[] = {
+    "\"\"",     // "quoted strings"
+    "()",       // (parenthetical expressions)
+    NULL
+};
 
 //------------------------------------------------------------------------|
 // scallop private implementation data
@@ -172,10 +181,18 @@ static void scallop_tab_completion(void * object, const char * buffer)
     // buffer cannot be altered or it will break line editing.
     bytes_t * linebytes = bytes_pub.create(buffer, strlen(buffer));
     size_t argc = 0;
-    char ** args = linebytes->tokenize(linebytes,
-                                       scallop_cmd_delim,
-                                       scallop_cmd_comment,
-                                       &argc);
+
+//    char ** args = linebytes->tokenize(linebytes,
+//                                       scallop_cmd_delim,
+//                                       scallop_cmd_comment,
+//                                       &argc);
+
+    char ** args = linebytes->tokenizer(linebytes,
+                                        true,
+                                        scallop_encaps_pairs,
+                                        scallop_cmd_delim,
+                                        scallop_cmd_comment,
+                                        &argc);
 
     // Ignore empty input
     if (argc == 0)
@@ -233,10 +250,17 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
 
     // get markers within unmodified copy of line
-    args = linebytes->marktokens(linebytes,
-                                 scallop_cmd_delim,
-                                 scallop_cmd_comment,
-                                 &argc);
+//    args = linebytes->marktokens(linebytes,
+//                                 scallop_cmd_delim,
+//                                 scallop_cmd_comment,
+//                                 &argc);
+
+    args = linebytes->tokenizer(linebytes,
+                                false,
+                                scallop_encaps_pairs,
+                                scallop_cmd_delim,
+                                scallop_cmd_comment,
+                                &argc);
 
     // Get the offset to where the argument needing tab completion begins
     ssize_t offset = linebytes->offset(linebytes, args[nest]);
@@ -281,10 +305,18 @@ static char * scallop_arg_hints(void * object,
     // distinguish between 'create' and 'created' for example.
     bytes_t * linebytes = bytes_pub.create(buffer, strlen(buffer));
     size_t argc = 0;
-    char ** args = linebytes->tokenize(linebytes,
-                                       scallop_cmd_delim,
-                                       scallop_cmd_comment,
-                                       &argc);
+
+//    char ** args = linebytes->tokenize(linebytes,
+//                                       scallop_cmd_delim,
+//                                       scallop_cmd_comment,
+//                                       &argc);
+
+    char ** args = linebytes->tokenizer(linebytes,
+                                        true,
+                                        scallop_encaps_pairs,
+                                        scallop_cmd_delim,
+                                        scallop_cmd_comment,
+                                        &argc);
 
     // Ignore empty input
     if (argc == 0)
@@ -334,10 +366,18 @@ static char * scallop_arg_hints(void * object,
     bytes_t * hintbytes = bytes_pub.create(arghints, strlen(arghints));
     ssize_t hindex = 0;
     size_t hintc = 0;
-    char ** hints = hintbytes->marktokens(hintbytes,
-                                          scallop_cmd_delim,
-                                          scallop_cmd_comment,
-                                          &hintc);
+
+//    char ** hints = hintbytes->marktokens(hintbytes,
+//                                          scallop_cmd_delim,
+//                                          scallop_cmd_comment,
+//                                          &hintc);
+
+    char ** hints = hintbytes->tokenizer(hintbytes,
+                                         false,
+                                         scallop_encaps_pairs,
+                                         scallop_cmd_delim,
+                                         scallop_cmd_comment,
+                                         &hintc);
 
     BLAMMO(DEBUG, "arghints: %s  hintc: %d  argc: %d  nest: %d",
             parent->arghints(parent), hintc, argc, nest);
@@ -825,10 +865,19 @@ static void scallop_dispatch(scallop_t * scallop, const char * line)
     scallop_variable_substitution(scallop, linebytes);
 
     size_t argc = 0;
-    char ** args = linebytes->tokenize(linebytes,
-                                       scallop_cmd_delim,
-                                       scallop_cmd_comment,
-                                       &argc);
+
+//    char ** args = linebytes->tokenize(linebytes,
+//                                       scallop_cmd_delim,
+//                                       scallop_cmd_comment,
+//                                       &argc);
+
+    char ** args = linebytes->tokenizer(linebytes,
+                                        true,
+                                        scallop_encaps_pairs,
+                                        scallop_cmd_delim,
+                                        scallop_cmd_comment,
+                                        &argc);
+
 
     // Ignore empty input
     if (argc == 0)

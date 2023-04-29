@@ -4,6 +4,9 @@ TODO:
 (HIGH PRIORITY)
 
 - BUG: weird print corrupted string, how to reproduce?
+  - raytl_debug > print ((true == true) && (x == y))
+    ((true == true) && (x == y)) lp pr is 0
+
 - BUG: console->print(console, "%s", "") seems to crash.
 - introduce functional tests and split test make targets into func and unit
 - implement 'bits_t' object with tests.
