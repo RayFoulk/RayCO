@@ -311,16 +311,19 @@ static int builtin_handler_print(void * scmd,
     bytes_t * message = bytes_pub.create(NULL, 0);
     int argnum = 1;
 
+    //BLAMMO(DEBUG, "args[0]: %s", args[0]);
     // TODO: also evaluate expressions here, as well as 'while <expr>'
     //  and 'if <expr>'.  This would allow things like 'print <expr>'
     //  where <expr> can contain arguments or variables
     for (argnum = 1; argnum < argc; argnum++)
     {
+        //BLAMMO(DEBUG, "args[%d]: %s", argnum, args[argnum]);
         // FIXME: Primary delimiter is assumed here,
         // but this is private within scallop module
         message->append(message, args[argnum], strlen(args[argnum]));
         message->append(message, " ", 1);
     }
+    //BLAMMO(DEBUG, "%s", message->hexdump(message));
 
     if (!message->empty(message))
     {
