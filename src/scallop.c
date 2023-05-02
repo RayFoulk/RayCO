@@ -182,11 +182,6 @@ static void scallop_tab_completion(void * object, const char * buffer)
     bytes_t * linebytes = bytes_pub.create(buffer, strlen(buffer));
     size_t argc = 0;
 
-//    char ** args = linebytes->tokenize(linebytes,
-//                                       scallop_cmd_delim,
-//                                       scallop_cmd_comment,
-//                                       &argc);
-
     char ** args = linebytes->tokenizer(linebytes,
                                         true,
                                         scallop_encaps_pairs,
@@ -250,11 +245,6 @@ static void scallop_tab_completion(void * object, const char * buffer)
 
 
     // get markers within unmodified copy of line
-//    args = linebytes->marktokens(linebytes,
-//                                 scallop_cmd_delim,
-//                                 scallop_cmd_comment,
-//                                 &argc);
-
     args = linebytes->tokenizer(linebytes,
                                 false,
                                 scallop_encaps_pairs,
@@ -305,11 +295,6 @@ static char * scallop_arg_hints(void * object,
     // distinguish between 'create' and 'created' for example.
     bytes_t * linebytes = bytes_pub.create(buffer, strlen(buffer));
     size_t argc = 0;
-
-//    char ** args = linebytes->tokenize(linebytes,
-//                                       scallop_cmd_delim,
-//                                       scallop_cmd_comment,
-//                                       &argc);
 
     char ** args = linebytes->tokenizer(linebytes,
                                         true,
@@ -366,11 +351,6 @@ static char * scallop_arg_hints(void * object,
     bytes_t * hintbytes = bytes_pub.create(arghints, strlen(arghints));
     ssize_t hindex = 0;
     size_t hintc = 0;
-
-//    char ** hints = hintbytes->marktokens(hintbytes,
-//                                          scallop_cmd_delim,
-//                                          scallop_cmd_comment,
-//                                          &hintc);
 
     char ** hints = hintbytes->tokenizer(hintbytes,
                                          false,
@@ -725,7 +705,7 @@ static void scallop_assign_variable(scallop_t * scallop,
 
 //------------------------------------------------------------------------|
 // Private helper function to perform variable substitution
-static void scallop_variable_substitution(scallop_t * scallop,
+static bool scallop_variable_substitution(scallop_t * scallop,
                                           bytes_t * linebytes)
 {
     scallop_priv_t * priv = (scallop_priv_t *) scallop->priv;
@@ -770,10 +750,12 @@ static void scallop_variable_substitution(scallop_t * scallop,
                                                     varname->cstr(varname));
         if (!varvalue)
         {
-            priv->console->warning(priv->console,
-                                   "variable \'%s\' not found",
-                                   varname->cstr(varname));
-            continue;
+            priv->console->error(priv->console,
+                                 "variable \'%s\' not found",
+                                 varname->cstr(varname));
+            //continue;
+            varname->destroy(varname);
+            return false;
         }
 
         linebytes->remove(linebytes,
@@ -789,6 +771,7 @@ static void scallop_variable_substitution(scallop_t * scallop,
     }
 
     varname->destroy(varname);
+    return true;
 }
 
 //------------------------------------------------------------------------|
@@ -862,15 +845,14 @@ static void scallop_dispatch(scallop_t * scallop, const char * line)
     // before calling tokenize, to allow for supporting spaces
     // in variables, multiple variables inside arguments, and
     // complex expression evaluation.
-    scallop_variable_substitution(scallop, linebytes);
+    if (!scallop_variable_substitution(scallop, linebytes))
+    {
+        priv->depth--;
+        scallop_set_result(scallop, -2);
+        return;
+    }
 
     size_t argc = 0;
-
-//    char ** args = linebytes->tokenize(linebytes,
-//                                       scallop_cmd_delim,
-//                                       scallop_cmd_comment,
-//                                       &argc);
-
     char ** args = linebytes->tokenizer(linebytes,
                                         true,
                                         scallop_encaps_pairs,
@@ -899,7 +881,7 @@ static void scallop_dispatch(scallop_t * scallop, const char * line)
 
         linebytes->destroy(linebytes);
         priv->depth--;
-        scallop_set_result(scallop, -2);
+        scallop_set_result(scallop, -3);
         return;
     }
 

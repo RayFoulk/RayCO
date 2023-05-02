@@ -554,121 +554,6 @@ static void bytes_resize_tokens(bytes_t * bytes,
 }
 
 //------------------------------------------------------------------------|
-//static char ** bytes_tokenize(bytes_t * bytes,
-//                              const char * delim,
-//                              const char * ignore,
-//                              size_t * numtokens)
-//{
-//    // Do not attempt to tokenize empty bytes
-//    if (bytes->empty(bytes))
-//    {
-//        BLAMMO(VERBOSE, "Not tokenizing empty bytes!");
-//        return NULL;
-//    }
-//
-//    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-//
-//    // The theoretical maximum number of tokens in a string is
-//    // probably something like 1/2 strlen: if every single token was 1
-//    // char delimited by 1 space.  It certainly cannot be higher than
-//    // strlen itself.  Assuming the typical keyword is probably 3 or 4
-//    // chars long, a reasonable guess is 1/4 strlen.  Add some extra
-//    // extra padding onto that, say 2 elements.  Then the plan is to
-//    // double this size whenever we run out of room.
-//    size_t maxtokens = 2 + (priv->size >> 2);
-//    bytes_resize_tokens(bytes, 0, maxtokens);
-//
-//    // Proceed with tokenization
-//    char * saveptr = NULL;
-//    char * ptr = strtok_r((char *) bytes->cstr(bytes), delim, &saveptr);
-//
-//    *numtokens = 0;
-//    while (ptr != NULL)
-//    {
-//        BLAMMO(DEBUG, "ptr: %s", ptr);
-//
-//        if (!strncmp(ptr, ignore, strlen(ignore)))
-//        {
-//            BLAMMO(DEBUG, "ignoring: %s", ptr);
-//            break;
-//        }
-//
-//        priv->tokens[(*numtokens)++] = ptr;
-//        ptr = strtok_r(NULL, delim, &saveptr);
-//
-//        // Resize up if necessary, zeroing new memory
-//        if (*numtokens >= priv->maxtokens)
-//        {
-//            maxtokens <<= 1;
-//            bytes_resize_tokens(bytes, *numtokens, maxtokens);
-//        }
-//    }
-//
-//    return priv->tokens;
-//}
-
-//------------------------------------------------------------------------|
-//static char ** bytes_marktokens(bytes_t * bytes,
-//                                const char * delim,
-//                                const char * ignore,
-//                                size_t * numtokens)
-//{
-//    // Do not attempt to tokenize empty bytes
-//    if (bytes->empty(bytes))
-//    {
-//        BLAMMO(VERBOSE, "Ignoring empty bytes!");
-//        return NULL;
-//    }
-//
-//    bytes_priv_t * priv = (bytes_priv_t *) bytes->priv;
-//
-//    size_t maxtokens = 2 + (priv->size >> 2);
-//    bytes_resize_tokens(bytes, 0, maxtokens);
-//
-//    bool within_delim = true;
-//    char * ptr = (char *) priv->data;
-//
-//    *numtokens = 0;
-//    while (*ptr != 0)
-//    {
-//        if (strchr(delim, *ptr))
-//        {
-//            if (!within_delim)
-//            {
-//                // transition to whitespace at the end of a token
-//                BLAMMO(VERBOSE, "end of token at \'%s\'", ptr);
-//            }
-//
-//            within_delim = true;
-//        }
-//        else
-//        {
-//            if (within_delim)
-//            {
-//                // transition to token at the end of whitespace
-//                BLAMMO(VERBOSE, "beginning of token at \'%s\'", ptr);
-//                priv->tokens[(*numtokens)++] = ptr;
-//            }
-//
-//            within_delim = false;
-//        }
-//
-//        // Resize up if necessary, zeroing new memory
-//        if (*numtokens >= priv->maxtokens)
-//        {
-//            maxtokens <<= 1;
-//            bytes_resize_tokens(bytes, *numtokens, maxtokens);
-//        }
-//
-//        ptr++;
-//    }
-//
-//    BLAMMO(VERBOSE, "number of markers: %u", *numtokens);
-//
-//    return priv->tokens;
-//}
-
-//------------------------------------------------------------------------|
 // Private helper function for bytes_next_token().  This is essentially
 // a super-strcspn() that accounts for encapsulated tokens such as quoted
 // strings and parenthetical expressions.  The encapsulation charaters are
@@ -707,7 +592,8 @@ static size_t bytes_encaps_span(const char * str, const char * encaps)
     // no end-quote, for example.
     if (nest)
     {
-        BLAMMO(WARNING, "Expected \'%c\' at nest level %d", encaps[1], nest);
+        BLAMMO(WARNING, "Expected \'%c\' at nest level %d offset %zu",
+                encaps[1], nest, ptr - str);
     }
 
     return (size_t) (ptr - str);
@@ -738,6 +624,9 @@ static char * bytes_next_token(bytes_t * bytes,
     {
         str = *saveptr;
     }
+
+    // Can't track str pointer inside bytes size here
+    // because intentionally NULL bytes on Nth call.
 
     // Check if we're done early, ignore inline comments
     if ((*str == '\0') ||
@@ -826,9 +715,20 @@ static char ** bytes_tokenizer(bytes_t * bytes,
     while (ptr != NULL)
     {
         BLAMMO(DEBUG, "ptr: %s", ptr);
-
-
         priv->tokens[(*numtokens)++] = ptr;
+
+        // HACK
+        // Must also check when/if saveptr goes out of range.
+        // This is the source of the intermittent print bug
+        // FIXME: Find a better way to fix this.
+        if (bytes->offset(bytes, saveptr) > bytes->size(bytes))
+        {
+            BLAMMO(ERROR, "saveptr went out of range");
+            //hexdump(bytes->data(bytes), bytes->size(bytes) + 3, 0);
+            break;
+        }
+        // END HACK
+
         ptr = bytes_next_token(NULL, split, encaps, delim, ignore, &saveptr);
 
         // Resize up if necessary, zeroing new memory
@@ -837,6 +737,14 @@ static char ** bytes_tokenizer(bytes_t * bytes,
             maxtokens <<= 1;
             bytes_resize_tokens(bytes, *numtokens, maxtokens);
         }
+    }
+
+    // DEBUG ONLY:
+    BLAMMO(DEBUG, "numtokens: %zu", *numtokens);
+    size_t tnum = 0;
+    for (tnum = 0; tnum < *numtokens; tnum++)
+    {
+        BLAMMO(DEBUG, "token[%zu]: %s", tnum, priv->tokens[tnum]);
     }
 
     return priv->tokens;
@@ -1068,8 +976,6 @@ const bytes_t bytes_pub = {
     &bytes_find_reverse,
     &bytes_fill,
     &bytes_copy,
-//    &bytes_tokenize,
-//    &bytes_marktokens,
     &bytes_tokenizer,
     &bytes_offset,
     &bytes_remove,

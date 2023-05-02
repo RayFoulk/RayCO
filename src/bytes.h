@@ -136,17 +136,10 @@ typedef struct bytes_t
     // The bytes array is altered in-place, having null bytes inserted.
     // The first token that begins with 'ignore' truncates the list.
     // NULL may be passed for ignore to get all tokens.
-//    char ** (*tokenize)(struct bytes_t * bytes,
-//                        const char * delim,
-//                        const char * ignore,
-//                        size_t * numtokens);
 
-    // Get token markers without inserting null terminators or
+    // Alternatively, if 'split' is false, get token markers without
+    // inserting null terminators or
     // altering the backing data buffer in any way.
-//    char ** (*marktokens)(struct bytes_t * bytes,
-//                          const char * delim,
-//                          const char * ignore,
-//                          size_t * numtokens);
 
     // Refactored tokenizer that takes into account quoted strings
     // and parenthetical expressions.  Can be operated to either
