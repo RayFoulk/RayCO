@@ -308,33 +308,45 @@ static int builtin_handler_print(void * scmd,
 {
     scallop_t * scallop = (scallop_t *) context;
     console_t * console = scallop->console(scallop);
-    bytes_t * message = bytes_pub.create(NULL, 0);
+    long result = 0;
     int argnum = 1;
 
-    //BLAMMO(DEBUG, "args[0]: %s", args[0]);
-    // TODO: also evaluate expressions here, as well as 'while <expr>'
-    //  and 'if <expr>'.  This would allow things like 'print <expr>'
-    //  where <expr> can contain arguments or variables
+    // Need something to print!
+    if (argc < 2)
+    {
+        console->error(console, "expected an expression to print");
+        return -1;
+    }
+
+    // Print each argument/expression on its own line
+    // only keep track of and return the most recent result
     for (argnum = 1; argnum < argc; argnum++)
     {
-        //BLAMMO(DEBUG, "args[%d]: %s", argnum, args[argnum]);
-        // FIXME: Primary delimiter is assumed here,
-        // but this is private within scallop module
-        message->append(message, args[argnum], strlen(args[argnum]));
-        message->append(message, " ", 1);
+        // Still testing this approach of having the sparser
+        // determine if the expression should be evaluated.
+        // 'print' tries to mimic the behavior of 'assign'
+        // Only printing instead of assigning.
+        if (sparser_is_expr(args[argnum]))
+        {
+            result = sparser_evaluate(console->error, console, args[argnum]);
+            if (result == SPARSER_INVALID_EXPRESSION)
+            {
+                console->error(console,
+                               "invalid expression \'%\'",
+                               args[argnum]);
+            }
+            else
+            {
+                console->print(console, "%ld", result);
+            }
+        }
+        else
+        {
+            console->print(console, "%s", args[argnum]);
+        }
     }
-    //BLAMMO(DEBUG, "%s", message->hexdump(message));
 
-    if (!message->empty(message))
-    {
-        console->print(console, "%sis %ld",
-                message->cstr(message),
-                sparser_evaluate(console->error, console,
-                                            message->cstr(message)));
-    }
-
-    message->destroy(message);
-    return 0;
+    return (int) result;
 }
 
 //------------------------------------------------------------------------|
@@ -345,6 +357,7 @@ static int builtin_handler_assign(void * scmd,
 {
     scallop_t * scallop = (scallop_t *) context;
     console_t * console = scallop->console(scallop);
+    long result = 0;
 
     if (argc < 2)
     {
@@ -357,9 +370,32 @@ static int builtin_handler_assign(void * scmd,
         return -2;
     }
 
-    scallop->assign_variable(scallop, args[1], args[2]);
+    // Evaluate expression down to a numeric value if it looks like
+    // we should, based on some very shallow and flakey criteria
+    if (sparser_is_expr(args[2]))
+    {
+        result = sparser_evaluate(console->error, console, args[2]);
+        if (result == SPARSER_INVALID_EXPRESSION)
+        {
+            console->error(console,
+                           "not assigning \'%s\' from invalid expression \'%\'",
+                           args[1],
+                           args[2]);
+            return -3;
+        }
 
-    return 0;
+        // Numeric assignment
+        bytes_t * value = bytes_pub.print_create("%ld", result);
+        scallop->assign_variable(scallop, args[1], value->cstr(value));
+        value->destroy(value);
+    }
+    else
+    {
+        // Direct string assignment
+        scallop->assign_variable(scallop, args[1], args[2]);
+    }
+
+    return result;
 }
 
 //------------------------------------------------------------------------|
@@ -533,6 +569,10 @@ bool register_builtin_commands(void * scallop_ptr)
         "help",
         NULL,
         "show a list of commands with hints and description"));
+    // TODO? To assist with allowing 'help' to target specific subcommands,
+    // all base level commands would have to be re-registered
+    // as subcommands under help in order for tab-completion to work.
+    // Is this even feasible?  Or would it break the whole model?
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_alias,
@@ -585,8 +625,8 @@ bool register_builtin_commands(void * scallop_ptr)
         builtin_handler_print,
         scallop,
         "print",
-        " [arbitrary-strings-and-variables]",
-        "print strings, variables, and (TODO) expressions"));
+        " [arbitrary-expression(s)]",
+        "print expressions, strings, and variables"));
 
     success &= cmds->register_cmd(cmds, cmds->create(
         builtin_handler_assign,

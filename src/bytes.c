@@ -655,6 +655,26 @@ static char * bytes_next_token(bytes_t * bytes,
         if (span > 0)
         {
             end = str + span;
+
+            // Special case!  Assume that if encapsulation pair is identical,
+            // then it represents quoted strings, and also that we would want
+            // the quotes STRIPPED from the token IF and ONLY IF a split is
+            // requested.  This function works OK without this block of code
+            // but would otherwise leave all quoted tokens with quotes in place.
+            if (split && encaps[i][0] == encaps[i][1])
+            {
+                str++;
+                end--;
+
+                // If end <= str then the token is empty / invalid!!
+                if (end <= str)
+                {
+                    //return bytes_next_token(bytes, split, encaps, delim, ignore, &end);
+                    //goto some lable just before "str += strspn(str, delim);" above
+                    return NULL;
+                }
+            }
+
             break;
         }
 

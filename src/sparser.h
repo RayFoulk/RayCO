@@ -98,6 +98,16 @@ extern "C" {
 #define SPARSER_INVALID_EXPRESSION          LONG_MIN
 
 //------------------------------------------------------------------------|
+// Do a simple dry-run evaluation.  Return true if successful.
+// Makes the assumption that an expression must contain parenthesis,
+// although this is not necessarily true in all cases.
+//bool sparser_dryrun(const char * expr);
+// NOTE: probably not a good idea b/c then we won't attempt to evaluate
+// even when we should, and wouldn't provide helpful syntax error info...
+// also this effectively evalutes things twice so is not efficient.
+// Then again -- maybe just perform some simple checks.  Try it and see.
+bool sparser_is_expr(const char * expr);
+
 // The top-level expression evaluator.
 long sparser_evaluate(generic_print_f errprintf,
                       void * errprintf_object,

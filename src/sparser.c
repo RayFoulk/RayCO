@@ -64,6 +64,12 @@ static long sparser_extract_term(sparser_t * sparser);
 static long sparser_extract_factor(sparser_t * sparser);
 
 //------------------------------------------------------------------------|
+bool sparser_is_expr(const char * expr)
+{
+    // TODO: consider checking for any operator also...
+    return strchr(expr, '(') && strchr(expr, ')');
+}
+
 // The entry point for evaluating expressions
 long sparser_evaluate(generic_print_f errprintf,
                       void * errprintf_object,
