@@ -860,7 +860,6 @@ static void scallop_dispatch(scallop_t * scallop, const char * line)
                                         scallop_cmd_comment,
                                         &argc);
 
-
     // Ignore empty input
     if (argc == 0)
     {
@@ -963,6 +962,14 @@ static void scallop_rebuild_prompt(scallop_t * scallop)
             priv->constructs->first(priv->constructs);
     while (construct)
     {
+        if (!construct->name)
+        {
+
+            priv->console->error(priv->console,
+                                 "NULL name for construct %p",
+                                 construct);
+            break;
+        }
 
         priv->prompt->append(priv->prompt,
                              construct->name,
