@@ -3,18 +3,13 @@ TODO:
 
 (HIGH PRIORITY)
 
-- BUG: weird print corrupted string, how to reproduce?
-  - raytl_debug > print ((true == true) && (x == y))
-    ((true == true) && (x == y)) lp pr is 0
-
 - BUG: console->print(console, "%s", "") seems to crash.
 - introduce functional tests and split test make targets into func and unit
 - implement 'bits_t' object with tests.
   - This will be needed for raytl to support arbitrary bit width architectures.
   - consider finally finishing C++ BitDeque in parallel.
+    
 - introduce some language constructs to scallop:
-  - recursive descent parser for expression evaluation (integer only - assume no FPU)
-    - research "recursive descent parser" and "arithmetic expression evaluator"
   - add while loop language construct
   - add if-else language construct
   - after these features are added and confirmed working, TAG it and USE it.
@@ -22,6 +17,12 @@ TODO:
 
 (LOWER PRIORITY)
 
+- modularize command sets to dynamically loadable shared modules
+  - eliminates compile-time dependency
+  - start with builtins => basecmds.so?
+  - must be loadable at least by command line option, implying
+    separation of scallop from rayco, or at least scallop as a standalone
+    ELF entry point.  all further derivative projects will be .so
 - consider using doxygen to generate project documentation
 - consider adding metadata tags to project once production-ready
 - harden code with static and dynamic analysis (valgrind, others...)
@@ -156,6 +157,12 @@ find . -type f -regex ".*\.[ch]" -exec grep -nHA1 FIXME {} +
 +-------------------------------------------------------------------------+
 DONE:
 
+* introduce some language constructs to scallop:
+  * recursive descent parser for expression evaluation (integer only - assume no FPU)
+    * research "recursive descent parser" and "arithmetic expression evaluator"
+* BUG: weird print corrupted string, how to reproduce?
+  * raytl_debug > print ((true == true) && (x == y))
+    ((true == true) && (x == y)) lp pr is 0
 * verify all tests still pass
 * move all function pointers into chain typedef and make static
   initialized from factory function
