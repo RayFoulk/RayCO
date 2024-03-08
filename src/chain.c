@@ -423,6 +423,7 @@ static void chain_sort(chain_t * chain, generic_compare_f data_compare)
 }
 
 //------------------------------------------------------------------------|
+// TODO: Consider allowing a find direction (e.g. for searching stack)
 void * chain_find(chain_t * chain, void * data, generic_compare_f data_compare)
 {
     chain_priv_t * priv = (chain_priv_t *) chain->priv;
