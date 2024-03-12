@@ -42,4 +42,13 @@
   - Essentially an arbitrary-precision unsigned integer
   - Can be used to handle dynamic (runtime-defined) bit fields
   - Useful for compression, encoding, serial comms
+- **stackheap** A module to replace malloc, realloc, and free for tightly constrained
+  embedded environments that cannot use _actual_ heap memory but must rely entirely
+  on stack memory.
+  - One approach is to rewrite all C-Objects to have a stack-based interface
+    A lot of rework!
+  - Another way (proposed) is to push a block of memory on program stack at the
+    beginning of execution, wrap all heap calls, and manage that block like a heap.
+    (making existing code much easier to port)
+    (caveat: some profiling may be necessary to determine maximum application memory usage)
 
