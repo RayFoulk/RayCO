@@ -1,3 +1,5 @@
+librayco.a
+librayco.so.0
 .cproject
 .project
 *.o
@@ -6,6 +8,3 @@
 *.elf
 *.html
 *~
-raytl_debug
-raytl
-
